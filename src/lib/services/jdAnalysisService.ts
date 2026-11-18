@@ -1,0 +1,145 @@
+import { JDAnalysis, JDKeyword, JDResponsibility, SeniorityLevel, WorkMode } from "@/types/job";
+import { JDAnalysisSchema } from "@/lib/validation/job";
+import crypto from "crypto";
+
+export class JDAnalysisService {
+  /**
+   * Deterministic rule-based extractor (used as baseline and zero-cost fallback)
+   */
+  static analyzeDeterministic(rawText: string, promptVersion = "v1"): JDAnalysis {
+    const textLower = rawText.toLowerCase();
+
+    // 1. Detect Seniority from opening section or title first
+    const headerSlice = rawText.substring(0, 400).toLowerCase();
+    let seniority: SeniorityLevel = "unknown";
+
+    if (/\b(intern|internship)\b/i.test(headerSlice)) seniority = "intern";
+    else if (/\b(entry[- ]level|new grad|associate)\b/i.test(headerSlice)) seniority = "entry";
+    else if (/\b(junior|jr\.?)\b/i.test(headerSlice)) seniority = "junior";
+    else if (/\b(staff|principal)\b/i.test(headerSlice)) seniority = "lead";
+    else if (/\b(senior|sr\.?)\b/i.test(headerSlice)) seniority = "senior";
+    else if (/\b(lead|architect)\b/i.test(headerSlice)) seniority = "lead";
+    else if (/\b(engineering manager|eng manager|director)\b/i.test(headerSlice)) seniority = "manager";
+    else if (/\b(vp|vice president|cto|executive)\b/i.test(headerSlice)) seniority = "executive";
+    else if (/\b(mid|intermediate)\b/i.test(headerSlice)) seniority = "mid";
+    else if (/\b(senior|sr\.?)\b/i.test(rawText)) seniority = "senior";
+
+    // 2. Detect Work Mode
+    let workMode: WorkMode = "unknown";
+    if (/\b(remote|work from home|wfh)\b/i.test(rawText)) workMode = "remote";
+    else if (/\b(hybrid)\b/i.test(rawText)) workMode = "hybrid";
+    else if (/\b(on[- ]site|in[- ]office)\b/i.test(rawText)) workMode = "onsite";
+
+    // 3. Detect Years of Experience
+    let yearsMin: number | null = null;
+    let yearsMax: number | null = null;
+    const yoeMatch = rawText.match(/(\d+)(?:\s*(?:-|to)\s*(\d+))?\+?\s*years?(?:\s+of)?\s+experience/i);
+    if (yoeMatch) {
+      yearsMin = parseInt(yoeMatch[1], 10);
+      if (yoeMatch[2]) yearsMax = parseInt(yoeMatch[2], 10);
+    }
+
+    // 4. Extract common technical skills & tools with canonical forms and synonyms
+    const skillDictionary: Array<{
+      canonical: string;
+      synonyms: string[];
+      category: "technical_skill" | "tool" | "domain" | "soft_skill";
+      pattern: RegExp;
+    }> = [
+      { canonical: "TypeScript", synonyms: ["TS"], category: "technical_skill", pattern: /\b(typescript|ts)\b/i },
+      { canonical: "JavaScript", synonyms: ["JS", "ES6", "ECMAScript"], category: "technical_skill", pattern: /\b(javascript|js|es6)\b/i },
+      { canonical: "React", synonyms: ["React.js", "ReactJS"], category: "technical_skill", pattern: /\b(react|react\.?js)\b/i },
+      { canonical: "Next.js", synonyms: ["NextJS"], category: "technical_skill", pattern: /\b(next\.?js)\b/i },
+      { canonical: "Node.js", synonyms: ["NodeJS", "Node"], category: "technical_skill", pattern: /\b(node\.?js|node)\b/i },
+      { canonical: "Python", synonyms: ["Py"], category: "technical_skill", pattern: /\b(python)\b/i },
+      { canonical: "PostgreSQL", synonyms: ["Postgres", "PG"], category: "tool", pattern: /\b(postgresql|postgres)\b/i },
+      { canonical: "Rust", synonyms: [], category: "technical_skill", pattern: /\b(rust)\b/i },
+      { canonical: "Kafka", synonyms: ["Apache Kafka"], category: "tool", pattern: /\b(kafka)\b/i },
+      { canonical: "SQL", synonyms: ["RDBMS"], category: "technical_skill", pattern: /\b(sql)\b/i },
+      { canonical: "Docker", synonyms: ["Containerization"], category: "tool", pattern: /\b(docker)\b/i },
+      { canonical: "Kubernetes", synonyms: ["K8s"], category: "tool", pattern: /\b(kubernetes|k8s)\b/i },
+      { canonical: "AWS", synonyms: ["Amazon Web Services"], category: "tool", pattern: /\b(aws|amazon web services)\b/i },
+      { canonical: "GraphQL", synonyms: [], category: "technical_skill", pattern: /\b(graphql)\b/i },
+      { canonical: "REST API", synonyms: ["RESTful", "REST"], category: "technical_skill", pattern: /\b(rest|restful|rest api)\b/i },
+      { canonical: "Tailwind CSS", synonyms: ["Tailwind"], category: "tool", pattern: /\b(tailwind|tailwind\s*css)\b/i },
+      { canonical: "CI/CD", synonyms: ["Continuous Integration"], category: "domain", pattern: /\b(ci\/cd|continuous integration)\b/i },
+      { canonical: "Git", synonyms: ["Version Control"], category: "tool", pattern: /\b(git)\b/i },
+      { canonical: "System Design", synonyms: ["Architecture"], category: "domain", pattern: /\b(system design|distributed systems)\b/i },
+      { canonical: "Cross-functional Leadership", synonyms: ["Collaboration"], category: "soft_skill", pattern: /\b(collaboration|cross-functional|mentoring)\b/i },
+    ];
+
+    const keywords: JDKeyword[] = [];
+    for (const item of skillDictionary) {
+      const match = rawText.match(item.pattern);
+      if (match) {
+        // Must-have if mentioned in requirements / qualifications or repeatedly
+        const isMustHave =
+          /\b(required|requirements|must have|minimum qualifications|proficiency in)\b/i.test(
+            rawText.substring(Math.max(0, (match.index || 0) - 200), (match.index || 0) + 200)
+          ) || (match.index || 0) < rawText.length / 2;
+
+        keywords.push({
+          id: `kw_${crypto.randomUUID().slice(0, 8)}`,
+          canonical: item.canonical,
+          synonyms: item.synonyms,
+          category: item.category,
+          priority: isMustHave ? "must_have" : "nice_to_have",
+          importance: isMustHave ? 0.9 : 0.6,
+          evidencePhrase: match[0],
+          userOverride: "none",
+        });
+      }
+    }
+
+    // 5. Extract responsibilities from bullet points in raw text
+    const lines = rawText.split(/\r?\n/);
+    const responsibilities: JDResponsibility[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^[•\-\*]\s+/.test(trimmed) || /^(build|design|architect|develop|lead|maintain|collaborate|drive)\b/i.test(trimmed)) {
+        const clean = trimmed.replace(/^[•\-\*]\s+/, "");
+        if (clean.length > 20 && clean.length < 250) {
+          responsibilities.push({
+            id: `resp_${crypto.randomUUID().slice(0, 8)}`,
+            text: clean,
+            priority: "must_have",
+            keywords: keywords
+              .filter((k) => clean.toLowerCase().includes(k.canonical.toLowerCase()))
+              .map((k) => k.canonical),
+          });
+        }
+      }
+    }
+
+    const sourceTextHash = crypto
+      .createHash("sha256")
+      .update(rawText.toLowerCase().replace(/\s+/g, " ").trim())
+      .digest("hex");
+
+    const analysis: JDAnalysis = {
+      schemaVersion: 1,
+      role: {
+        title: null,
+        company: null,
+        seniority,
+        domain: ["Software Engineering"],
+        location: null,
+        workMode,
+        yearsExperience: {
+          min: yearsMin,
+          max: yearsMax,
+        },
+        education: ["Bachelor's degree or equivalent practical experience"],
+      },
+      keywords,
+      responsibilities: responsibilities.slice(0, 15),
+      constraints: ["English-only", "Applicant must be authorized to work"],
+      ambiguityFlags: keywords.length < 3 ? ["Few technical keywords detected"] : [],
+      confidence: 0.85,
+      sourceTextHash,
+      promptVersion,
+    };
+
+    return JDAnalysisSchema.parse(analysis);
+  }
+}
