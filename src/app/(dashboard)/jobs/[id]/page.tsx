@@ -6,6 +6,8 @@ import { JobRecord, JDAnalysis, JDKeyword } from "@/types/job";
 import { KeywordManager } from "@/components/jobs/KeywordManager";
 import { MatchScorePanel } from "@/components/jobs/MatchScorePanel";
 import { TailoringReviewPanel } from "@/components/jobs/TailoringReviewPanel";
+import { ProjectRecommendationPanel } from "@/components/jobs/ProjectRecommendationPanel";
+import { SkillsRoadmapView } from "@/components/roadmap/SkillsRoadmapView";
 import {
   Briefcase,
   Sparkles,
@@ -17,6 +19,8 @@ import {
   RefreshCw,
   FileText,
   AlertCircle,
+  FolderGit2,
+  Compass,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -32,6 +36,7 @@ export default function JobDetailPage() {
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "projects" | "roadmap">("overview");
 
   const fetchJobData = async () => {
     setLoading(true);
@@ -81,7 +86,6 @@ export default function JobDetailPage() {
       const updated = await res.json();
       setJob(updated);
       setIsEditingText(false);
-      // Re-run analysis on updated text
       handleRunAnalysis();
     } catch (err: any) {
       setError(err.message);
@@ -102,17 +106,17 @@ export default function JobDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-400 text-sm">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading job analysis...
+      <div className="flex items-center justify-center py-20 text-gray-400 text-xs">
+        <RefreshCw className="w-5 h-5 animate-spin mr-2 text-blue-500" /> Loading job analysis &amp; career intelligence...
       </div>
     );
   }
 
   if (!job) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-lg font-bold text-gray-900">Job Not Found</h2>
-        <Link href="/jobs" className="text-xs text-blue-600 hover:underline mt-2 inline-block">
+      <div className="text-center py-20 text-white">
+        <h2 className="text-lg font-bold">Job Not Found</h2>
+        <Link href="/jobs" className="text-xs text-blue-400 hover:underline mt-2 inline-block">
           Return to Target Jobs
         </Link>
       </div>
@@ -122,25 +126,26 @@ export default function JobDetailPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800">
         <div>
           <Link
             href="/jobs"
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium mb-1"
+            className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-medium mb-1.5 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Target Jobs
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             {job.title || "Target Role"}
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {job.company || "Company"} {job.location && `• ${job.location}`}
+          <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-gray-200">{job.company || "Company"}</span>
+            {job.location && <span>• {job.location}</span>}
             {job.sourceUrl && (
               <a
                 href={job.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="ml-2 inline-flex items-center gap-0.5 text-blue-600 hover:underline"
+                className="inline-flex items-center gap-1 text-blue-400 hover:underline font-mono text-[11px]"
               >
                 Posting Link <ExternalLink className="w-3 h-3" />
               </a>
@@ -148,18 +153,18 @@ export default function JobDetailPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={handleRunAnalysis}
             disabled={analyzing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-800 text-gray-300 bg-gray-900 hover:bg-gray-800 rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors"
           >
-            {analyzing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {analyzing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-blue-400" />}
             {analysis ? "Re-Analyze JD" : "Extract Requirements"}
           </button>
           <button
             onClick={() => router.push(`/resumes/new?jobId=${job.id}`)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition-all"
           >
             <FileText className="w-4 h-4" />
             Tailor Resume for this Job
@@ -168,104 +173,154 @@ export default function JobDetailPage() {
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+        <div className="p-3 bg-rose-950/40 border border-rose-800/80 text-rose-300 text-xs rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Structured Analysis Panel (if analyzed) */}
-      {analysis && (
-        <div className="space-y-6">
-          {/* Role Metadata Card */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 border rounded-xl shadow-xs text-xs">
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">Detected Seniority</span>
-              <span className="font-semibold text-gray-800 capitalize">{analysis.role.seniority}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">Work Mode</span>
-              <span className="font-semibold text-gray-800 capitalize">{analysis.role.workMode}</span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">Experience Range</span>
-              <span className="font-semibold text-gray-800">
-                {analysis.role.yearsExperience.min ? `${analysis.role.yearsExperience.min}+ years` : "Unspecified"}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">Analysis Confidence</span>
-              <span className="font-semibold text-emerald-600">
-                {(analysis.confidence * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
+      {/* Tabs navigation */}
+      <div className="flex items-center gap-2 border-b border-gray-800 pb-2 text-xs">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            activeTab === "overview"
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:text-white hover:bg-gray-900"
+          }`}
+        >
+          Overview &amp; ATS Tailoring
+        </button>
+        <button
+          onClick={() => setActiveTab("projects")}
+          className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+            activeTab === "projects"
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:text-white hover:bg-gray-900"
+          }`}
+        >
+          <FolderGit2 className="w-3.5 h-3.5" />
+          Project Shortlist (PRD 18.11)
+        </button>
+        <button
+          onClick={() => setActiveTab("roadmap")}
+          className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+            activeTab === "roadmap"
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:text-white hover:bg-gray-900"
+          }`}
+        >
+          <Compass className="w-3.5 h-3.5" />
+          Skills Gap &amp; Roadmap (PRD 18.10)
+        </button>
+      </div>
 
-          {/* Interactive Keyword Manager */}
-          <KeywordManager
-            jobId={job.id}
-            initialKeywords={analysis.keywords}
-            onKeywordsUpdated={handleKeywordsUpdated}
-          />
-
-          {/* Resume-JD Match Score & Gap Analysis */}
-          <MatchScorePanel jobId={job.id} />
-
-          {/* Truth-Bound AI Tailoring & Candidate Review */}
-          <TailoringReviewPanel jobId={job.id} />
-
-          {/* Key Responsibilities */}
-          {analysis.responsibilities && analysis.responsibilities.length > 0 && (
-            <div className="bg-white border rounded-xl p-5 shadow-xs space-y-3">
-              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Extracted Core Responsibilities ({analysis.responsibilities.length})
-              </h3>
-              <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-700">
-                {analysis.responsibilities.map((resp) => (
-                  <li key={resp.id}>{resp.text}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+      {/* Tab: Project Recommendations (PRD 18.11) */}
+      {activeTab === "projects" && (
+        <ProjectRecommendationPanel jobId={job.id} />
       )}
 
-      {/* Raw JD Text Accordion / Editor */}
-      <div className="bg-white border rounded-xl p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-            Job Description Source Content
-          </h3>
-          {isEditingText ? (
-            <button
-              onClick={handleSaveEditedText}
-              className="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:underline"
-            >
-              <Save className="w-3.5 h-3.5" /> Save Changes
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsEditingText(true)}
-              className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold hover:underline"
-            >
-              <Edit className="w-3.5 h-3.5" /> Edit JD Text
-            </button>
-          )}
-        </div>
+      {/* Tab: Skills Roadmap (PRD 18.10) */}
+      {activeTab === "roadmap" && (
+        <SkillsRoadmapView jobId={job.id} jobTitle={job.title || undefined} />
+      )}
 
-        {isEditingText ? (
-          <textarea
-            value={editedText}
-            onChange={(e) => setEditedText(e.target.value)}
-            rows={10}
-            className="w-full border rounded-lg p-3 text-xs font-mono bg-gray-50 focus:ring-1 focus:ring-blue-500"
-          />
-        ) : (
-          <div className="p-3 bg-gray-50 rounded-lg border text-xs text-gray-700 whitespace-pre-wrap font-sans max-h-72 overflow-y-auto leading-relaxed">
-            {job.rawText}
+      {/* Tab: Overview & Tailoring */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {analysis && (
+            <div className="space-y-6">
+              {/* Role Metadata Card */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-900 border border-gray-800 p-4 rounded-xl shadow-xs text-xs text-white">
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-bold">Detected Seniority</span>
+                  <span className="font-semibold text-gray-200 capitalize">{analysis.role.seniority}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-bold">Work Mode</span>
+                  <span className="font-semibold text-gray-200 capitalize">{analysis.role.workMode}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-bold">Experience Range</span>
+                  <span className="font-semibold text-gray-200">
+                    {analysis.role.yearsExperience.min ? `${analysis.role.yearsExperience.min}+ years` : "Unspecified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-[10px] uppercase font-bold">Analysis Confidence</span>
+                  <span className="font-semibold text-emerald-400 font-mono">
+                    {(analysis.confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Interactive Keyword Manager */}
+              <KeywordManager
+                jobId={job.id}
+                initialKeywords={analysis.keywords}
+                onKeywordsUpdated={handleKeywordsUpdated}
+              />
+
+              {/* Resume-JD Match Score & Gap Analysis */}
+              <MatchScorePanel jobId={job.id} />
+
+              {/* Truth-Bound AI Tailoring & Candidate Review */}
+              <TailoringReviewPanel jobId={job.id} />
+
+              {/* Key Responsibilities */}
+              {analysis.responsibilities && analysis.responsibilities.length > 0 && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-xs space-y-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Extracted Core Responsibilities ({analysis.responsibilities.length})
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-300">
+                    {analysis.responsibilities.map((resp) => (
+                      <li key={resp.id}>{resp.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Raw JD Text Accordion / Editor */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Job Description Source Content
+              </h3>
+              {isEditingText ? (
+                <button
+                  onClick={handleSaveEditedText}
+                  className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold hover:underline"
+                >
+                  <Save className="w-3.5 h-3.5" /> Save Changes
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsEditingText(true)}
+                  className="inline-flex items-center gap-1 text-xs text-blue-400 font-semibold hover:underline"
+                >
+                  <Edit className="w-3.5 h-3.5" /> Edit JD Text
+                </button>
+              )}
+            </div>
+
+            {isEditingText ? (
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                rows={10}
+                className="w-full border border-gray-800 rounded-lg p-3 text-xs font-mono bg-gray-950 text-white focus:outline-none focus:border-blue-500"
+              />
+            ) : (
+              <div className="p-3 bg-gray-950 rounded-lg border border-gray-800 text-xs text-gray-300 whitespace-pre-wrap font-sans max-h-72 overflow-y-auto leading-relaxed">
+                {job.rawText}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

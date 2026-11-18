@@ -49,7 +49,7 @@ export interface BulletFact {
   sourceEvidenceId?: string | null;
   contextSnippet?: string | null;
   confidence?: number | null;
-  verificationStatus: VerificationStatus;
+  verificationStatus?: VerificationStatus;
   createdAt: Date | string;
 }
 
@@ -103,4 +103,86 @@ export interface CompletenessReport {
   missingDateEntryIds: string[];
   hasUnevidencedSkills: boolean;
   unevidencedSkillGroupIds: string[];
+}
+
+// Section 18.11: Project Maturity Levels
+export type ProjectMaturityLevel =
+  | "idea"
+  | "in_development"
+  | "partially_implemented"
+  | "functional_prototype"
+  | "completed"
+  | "deployed";
+
+export interface ProjectMetadata {
+  id: string;
+  userId: string;
+  entryId: string;
+  maturityLevel: ProjectMaturityLevel;
+  actualContribution?: string | null;
+  implementationGaps?: string | null;
+  unfinishedFeatures?: string | null;
+  limitations?: string | null;
+  isProductionReady: boolean;
+  architectureNotes?: string | null;
+  repositoryUrl?: string | null;
+  liveUrl?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+// Section 18.3: Career Graph
+export type CareerGraphRelationType =
+  | "used_skill"
+  | "produced_outcome"
+  | "demonstrated_competency"
+  | "verified_by";
+
+export interface CareerGraphEdge {
+  id: string;
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  relationshipType: CareerGraphRelationType;
+  weight: number;
+  metadataJson?: Record<string, unknown>;
+  createdAt: Date | string;
+}
+
+// Section 18.4: Quantification Assistant
+export interface QuantificationQuestion {
+  id: string;
+  userId: string;
+  entryId?: string | null;
+  bulletId?: string | null;
+  questionKey: string;
+  promptQuestion: string;
+  questionText?: string;
+  userResponse?: string | null;
+  metricEstimate?: number | string | null;
+  metricUnit?: string | null;
+  isVerified: boolean;
+  status: "pending" | "answered" | "dismissed";
+  isAnswered?: boolean;
+  category?: string;
+  helpText?: string;
+  createdAt: Date | string;
+}
+
+// Section 18.8: Application Interview Round
+export interface ApplicationInterview {
+  id: string;
+  userId: string;
+  applicationId: string;
+  roundName: string;
+  roundNumber: number;
+  scheduledAt?: Date | string | null;
+  completedAt?: Date | string | null;
+  interviewers?: string | null;
+  status: "scheduled" | "passed" | "failed" | "cancelled" | "rescheduled";
+  feedbackNotes?: string | null;
+  prepNotes?: string | null;
+  createdAt: Date | string;
 }

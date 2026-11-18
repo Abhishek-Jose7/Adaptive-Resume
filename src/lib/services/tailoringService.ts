@@ -4,6 +4,8 @@ import { eq, and } from "drizzle-orm";
 import { ProviderFactory } from "../ai/providerFactory";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import { TruthBoundValidator } from "../tailoring/truthBoundValidator";
+import { ExperienceIsolationEngine } from "../tailoring/experienceIsolation";
+import { UsageLimitService } from "./usageLimitService";
 import { JDAnalysis, RewrittenBullet } from "@/types/job";
 import { BankEntry, AchievementBullet, StructuredFact } from "@/types/bank";
 import { diffWords } from "diff";
@@ -187,6 +189,24 @@ CRITICAL INTEGRITY RULES:
           fullEntries
         );
 
+        // Run Experience Isolation Audit (Section 18.2)
+        const isolationCheck = ExperienceIsolationEngine.auditIsolation(
+          candidateRewrite.text,
+          item.parentEntry.id,
+          fullEntries,
+          allCandidateBullets,
+          allCandidateFacts as any
+        );
+
+        if (!isolationCheck.isIsolated) {
+          validation.isValid = false;
+          validation.failures.push({
+            rule: "UNGROUNDED_SCOPE",
+            message: isolationCheck.violationMessage || "Experience isolation violation",
+          });
+          validation.feedbackForRetry = isolationCheck.violationMessage;
+        }
+
         if (validation.isValid) {
           // Compute diff
           const diff = diffWords(sourceBullet.text, candidateRewrite.text);
@@ -266,6 +286,7 @@ CRITICAL INTEGRITY RULES:
     };
 
     await db.insert(aiRuns).values(newRun);
+    await UsageLimitService.recordAiGeneration(userId, totalTokensIn + totalTokensOut);
 
     return {
       id: runId,

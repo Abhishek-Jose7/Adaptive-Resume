@@ -19,9 +19,12 @@ import {
   Sparkles,
   ExternalLink,
   Share2,
+  GitCompare,
 } from "lucide-react";
 import Link from "next/link";
 import { ShareModal } from "@/components/share/ShareModal";
+import { QualityGateModal } from "@/components/export/QualityGateModal";
+import { VersionDiffModal } from "@/components/editor/VersionDiffModal";
 
 interface Props {
   store: ResumeDocStore;
@@ -41,7 +44,28 @@ export function EditorPreviewPanel({
   const [autoFitStep, setAutoFitStep] = useState<number>(1);
   const [showLintDrawer, setShowLintDrawer] = useState<boolean>(false);
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [showQualityGateModal, setShowQualityGateModal] = useState<boolean>(false);
+  const [showVersionDiffModal, setShowVersionDiffModal] = useState<boolean>(false);
+  const [resumeVersions, setResumeVersions] = useState<any[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
+
+  const loadVersions = async () => {
+    try {
+      const res = await fetch(`/api/v1/resumes/${resumeId}/versions`);
+      if (res.ok) {
+        const data = await res.json();
+        setResumeVersions(data.items || []);
+      }
+    } catch (err) {
+      console.error("Failed to load resume versions:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    if (resumeId) {
+      loadVersions();
+    }
+  }, [resumeId]);
 
   const lintReport = AtsLinter.lint(doc);
   const fitSettings = AutoFitLadder.evaluateFit(doc, autoFitStep);
@@ -67,6 +91,15 @@ export function EditorPreviewPanel({
       window.location.href = `/api/v1/resumes/${resumeId}/export/docx`;
     } finally {
       setTimeout(() => setExporting(null), 1000);
+    }
+  };
+
+  const handleQualityGateProceed = (format: "pdf" | "docx") => {
+    setShowQualityGateModal(false);
+    if (format === "docx") {
+      handleExportDocx();
+    } else {
+      window.open(`/resumes/${resumeId}/print`, "_blank");
     }
   };
 
@@ -146,8 +179,24 @@ export function EditorPreviewPanel({
           </button>
         </div>
 
-        {/* Export Controls */}
-        <div className="flex items-center gap-1.5">
+        {/* Export & Review Controls */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setShowVersionDiffModal(true)}
+            className="flex items-center gap-1 text-xs px-2.5 py-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-md shadow-xs transition-colors"
+            title="Inspect version differences, bullet provenance, and branch history (PRD 18.5)"
+          >
+            <GitCompare className="w-3.5 h-3.5 text-blue-600" /> Version Diff (18.5)
+          </button>
+
+          <button
+            onClick={() => setShowQualityGateModal(true)}
+            className="flex items-center gap-1 text-xs px-2.5 py-1 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-md shadow-xs transition-colors"
+            title="Pre-export inspection for unsupported claims, formatting defects, and ATS compatibility (PRD 18.7)"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Quality Gate (18.7)
+          </button>
+
           <Link
             href={`/resumes/${resumeId}/print`}
             target="_blank"
@@ -186,6 +235,32 @@ export function EditorPreviewPanel({
         resumeVersionId={doc.versionId || resumeId}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+      />
+
+      {/* Pre-Export Quality Gate Modal (PRD 18.7) */}
+      <QualityGateModal
+        isOpen={showQualityGateModal}
+        onClose={() => setShowQualityGateModal(false)}
+        resumeId={resumeId}
+        currentDoc={doc}
+        onProceedExport={handleQualityGateProceed}
+      />
+
+      {/* Version Diff Inspector Modal (PRD 18.5) */}
+      <VersionDiffModal
+        isOpen={showVersionDiffModal}
+        onClose={() => setShowVersionDiffModal(false)}
+        resumeId={resumeId}
+        versions={resumeVersions}
+        onRestoreVersion={async (vId) => {
+          const res = await fetch(`/api/v1/resumes/${resumeId}`);
+          if (res.ok) {
+            const data = await res.json();
+            const serverDoc = data.latestVersion?.resumeDocJson || data.documentJson;
+            if (serverDoc) store.updateProfile(serverDoc.contact || {});
+          }
+        }}
+        onBranchCreated={loadVersions}
       />
 
       {/* Main Preview Container */}

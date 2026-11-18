@@ -33,12 +33,14 @@ interface Props {
   applications: ApplicationItem[];
   onStatusChange: (id: string, newStatus: ApplicationStatus) => void;
   onDelete: (id: string) => void;
+  onOpenInterviews?: (app: ApplicationItem) => void;
 }
 
 export function ApplicationKanbanBoard({
   applications,
   onStatusChange,
   onDelete,
+  onOpenInterviews,
 }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 overflow-x-auto pb-4">
@@ -97,27 +99,38 @@ export function ApplicationKanbanBoard({
                       )}
                     </div>
 
-                    {/* Quick Move and Delete Footer */}
-                    <div className="pt-2 border-t flex items-center justify-between">
+                    {/* Quick Move, Interviews and Delete Footer */}
+                    <div className="pt-2 border-t flex items-center justify-between gap-1">
                       <select
                         value={app.status}
                         onChange={(e) => onStatusChange(app.id, e.target.value as ApplicationStatus)}
-                        className="text-[10px] border rounded bg-white py-0.5 px-1 text-gray-600 font-medium"
+                        className="text-[10px] border rounded bg-white py-0.5 px-1 text-gray-600 font-medium max-w-[90px]"
                       >
                         {STAGES.map((s) => (
                           <option key={s.id} value={s.id}>
-                            Move: {s.label}
+                            {s.label}
                           </option>
                         ))}
                       </select>
 
-                      <button
-                        onClick={() => onDelete(app.id)}
-                        className="text-gray-300 hover:text-red-600 p-1"
-                        title="Delete application"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {onOpenInterviews && (
+                          <button
+                            onClick={() => onOpenInterviews(app)}
+                            className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold px-1.5 py-0.5 bg-blue-50 rounded border border-blue-200"
+                            title="Manage interview rounds & notes"
+                          >
+                            Rounds
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onDelete(app.id)}
+                          className="text-gray-300 hover:text-red-600 p-1"
+                          title="Delete application"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

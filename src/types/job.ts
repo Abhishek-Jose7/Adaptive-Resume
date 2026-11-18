@@ -132,3 +132,69 @@ export interface GapReport {
   inBankUnusedCount: number;
   notInBankCount: number;
 }
+
+// Section 18.6: Enhanced Qualification Intelligence
+export type QualificationKind =
+  | "mandatory"
+  | "preferred"
+  | "technical_skill"
+  | "responsibility"
+  | "seniority"
+  | "domain"
+  | "implied";
+
+export type EvidenceMatchStatus =
+  | "confirmed_match"
+  | "partial_match"
+  | "missing_evidence"
+  | "genuine_gap";
+
+export interface EvaluatedRequirement {
+  id: string;
+  requirementText: string;
+  text?: string;
+  kind: QualificationKind;
+  status: EvidenceMatchStatus;
+  matchingBullets: string[];
+  explanation: string;
+}
+
+// Section 18.11: JD-Based Project Recommendation
+export interface ProjectRecommendation {
+  projectId: string;
+  entryId?: string;
+  title: string;
+  projectTitle?: string;
+  organization?: string | null;
+  maturityLevel: string;
+  relevanceScore: number; // 0 to 1
+  relevanceRationale: string;
+  relevanceExplanation?: string;
+  demonstratedSkills: string[];
+  supportedRequirements: string[];
+  supportedJobRequirements?: string[];
+  existingEvidenceCount: number;
+  knownGaps: string[];
+  userContribution?: string | null;
+  selected: boolean;
+  tailoredDescription?: string;
+  userApproved: boolean;
+  metadata?: any;
+}
+
+// Section 18.10: Skills Roadmap & Learning
+export interface SkillsRoadmapItem {
+  skillName: string;
+  category: string;
+  importance?: string;
+  evidenceGrade: "strong_evidence" | "limited_evidence" | "unrecorded";
+  evidenceDetails?: string;
+  isGenuineGap: boolean;
+  learningResources: Array<{
+    title: string;
+    url?: string;
+    type: "docs" | "tutorial" | "book" | "course";
+  }>;
+  practicalProjectIdeas: string[];
+}
+

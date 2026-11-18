@@ -1,6 +1,7 @@
 import { db } from "../db/client";
-import { applications, jobs, resumeVersions } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { applications, jobs, resumeVersions, coverLetters, applicationInterviews } from "../db/schema";
+import { eq, and, desc, asc } from "drizzle-orm";
+import { ApplicationInterview } from "@/types/bank";
 
 export type ApplicationStatus =
   | "Saved"
@@ -9,7 +10,8 @@ export type ApplicationStatus =
   | "Interview"
   | "Offer"
   | "Rejected"
-  | "Withdrawn";
+  | "Withdrawn"
+  | "Archived";
 
 export interface ApplicationInput {
   jobId?: string | null;
@@ -22,10 +24,10 @@ export interface ApplicationInput {
 
 export class ApplicationService {
   /**
-   * Lists all applications for a user with joined job and version details
+   * Lists all applications for a user with joined job, version, and cover letter details
    */
   static async listApplications(userId: string, statusFilter?: ApplicationStatus) {
-    let query = db
+    const list = await db
       .select({
         id: applications.id,
         userId: applications.userId,
@@ -40,6 +42,8 @@ export class ApplicationService {
         jobTitle: jobs.title,
         jobCompany: jobs.company,
         jobLocation: jobs.location,
+        jobSourceUrl: jobs.sourceUrl,
+        jobRawTextSnippet: jobs.rawText,
         versionNumber: resumeVersions.versionNumber,
       })
       .from(applications)
@@ -52,11 +56,11 @@ export class ApplicationService {
       )
       .orderBy(desc(applications.updatedAt));
 
-    return await query;
+    return list;
   }
 
   /**
-   * Retrieves single application
+   * Retrieves single application with full context: job description, cover letter, and interview history
    */
   static async getApplication(userId: string, id: string) {
     const list = await db
@@ -74,7 +78,10 @@ export class ApplicationService {
         jobTitle: jobs.title,
         jobCompany: jobs.company,
         jobLocation: jobs.location,
+        jobSourceUrl: jobs.sourceUrl,
+        jobRawText: jobs.rawText,
         versionNumber: resumeVersions.versionNumber,
+        versionDocJson: resumeVersions.resumeDocJson,
       })
       .from(applications)
       .leftJoin(jobs, eq(applications.jobId, jobs.id))
@@ -82,7 +89,94 @@ export class ApplicationService {
       .where(and(eq(applications.userId, userId), eq(applications.id, id)))
       .limit(1);
 
-    return list[0] || null;
+    if (list.length === 0) return null;
+    const app = list[0];
+
+    // Fetch cover letters for this application or job
+    const clList = await db
+      .select()
+      .from(coverLetters)
+      .where(and(eq(coverLetters.userId, userId), eq(coverLetters.applicationId, id)));
+
+    // Fetch interview history
+    const interviews = await db
+      .select()
+      .from(applicationInterviews)
+      .where(and(eq(applicationInterviews.userId, userId), eq(applicationInterviews.applicationId, id)))
+      .orderBy(asc(applicationInterviews.roundNumber));
+
+    return {
+      ...app,
+      coverLetters: clList,
+      interviews: interviews as ApplicationInterview[],
+    };
+  }
+
+  /**
+   * Adds an interview round to an application
+   */
+  static async addInterview(
+    userId: string,
+    applicationId: string,
+    roundData: {
+      roundName: string;
+      roundNumber?: number;
+      scheduledAt?: string | null;
+      interviewers?: string;
+      prepNotes?: string;
+    }
+  ): Promise<ApplicationInterview> {
+    const id = `int_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const [inserted] = await db
+      .insert(applicationInterviews)
+      .values({
+        id,
+        userId,
+        applicationId,
+        roundName: roundData.roundName,
+        roundNumber: roundData.roundNumber || 1,
+        scheduledAt: roundData.scheduledAt ? new Date(roundData.scheduledAt) : null,
+        interviewers: roundData.interviewers || null,
+        prepNotes: roundData.prepNotes || null,
+        status: "scheduled",
+      })
+      .returning();
+
+    return inserted as ApplicationInterview;
+  }
+
+  /**
+   * Updates an interview round
+   */
+  static async updateInterview(
+    userId: string,
+    interviewId: string,
+    updates: Partial<{
+      status: "scheduled" | "passed" | "failed" | "cancelled" | "rescheduled";
+      feedbackNotes: string;
+      prepNotes: string;
+      completedAt: string;
+    }>
+  ) {
+    const [updated] = await db
+      .update(applicationInterviews)
+      .set({
+        ...updates,
+        completedAt: updates.completedAt ? new Date(updates.completedAt) : undefined,
+      })
+      .where(and(eq(applicationInterviews.id, interviewId), eq(applicationInterviews.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Deletes an interview round
+   */
+  static async deleteInterview(userId: string, interviewId: string): Promise<boolean> {
+    const res = await db
+      .delete(applicationInterviews)
+      .where(and(eq(applicationInterviews.id, interviewId), eq(applicationInterviews.userId, userId)));
+    return (res as any).rowCount > 0;
   }
 
   /**

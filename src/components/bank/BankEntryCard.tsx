@@ -26,6 +26,7 @@ interface BankEntryCardProps {
   onAddBullet: (entryId: string, text: string) => Promise<void>;
   onUpdateBullet: (bulletId: string, updated: Partial<AchievementBullet>) => Promise<void>;
   onDeleteBullet: (bulletId: string) => Promise<void>;
+  onQuantifyBullet?: (entry: BankEntry, bullet: AchievementBullet) => void;
 }
 
 export function BankEntryCard({
@@ -35,6 +36,7 @@ export function BankEntryCard({
   onAddBullet,
   onUpdateBullet,
   onDeleteBullet,
+  onQuantifyBullet,
 }: BankEntryCardProps) {
   const [isAddingBullet, setIsAddingBullet] = useState(false);
   const [newBulletText, setNewBulletText] = useState("");
@@ -169,6 +171,7 @@ export function BankEntryCard({
                 bullet={bullet}
                 onUpdate={(updated) => onUpdateBullet(bullet.id, updated)}
                 onDelete={() => onDeleteBullet(bullet.id)}
+                onQuantify={onQuantifyBullet ? () => onQuantifyBullet(entry, bullet) : undefined}
               />
             ))}
           </div>

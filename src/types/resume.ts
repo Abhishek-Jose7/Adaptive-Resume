@@ -142,3 +142,73 @@ export interface ResumeDoc {
   certifications?: ResumeCertification[];
 }
 
+// Section 18.5: Resume Version Diff
+export type DiffChangeType = "added" | "removed" | "modified" | "unchanged";
+
+export interface BulletDiffItem {
+  id: string;
+  section: string;
+  changeType: DiffChangeType;
+  originalText?: string;
+  currentText?: string;
+  sourceBulletIds?: string[];
+  sourceFactIds?: string[];
+  claimMap?: Array<{
+    claim: string;
+    evidenceIds: string[];
+    claimType: string;
+  }>;
+}
+
+export interface ResumeVersionDiff {
+  baseVersionId: string;
+  targetVersionId: string;
+  baseVersionNumber: number;
+  targetVersionNumber: number;
+  profileChanges: Array<{ field: string; before?: string; after?: string }>;
+  bulletChanges: BulletDiffItem[];
+  bullets?: BulletDiffItem[];
+  profileDiff?: any;
+  stats: {
+    addedCount: number;
+    removedCount: number;
+    modifiedCount: number;
+    unchangedCount: number;
+  };
+  summary?: {
+    addedCount: number;
+    removedCount: number;
+    modifiedCount: number;
+    unchangedCount: number;
+  };
+}
+
+// Section 18.7: Resume Pre-Export Quality Gate
+export interface QualityGateAuditResult {
+  passed: boolean;
+  score: number; // 0 to 100
+  exportBlocked: boolean;
+  errors?: Array<{
+    rule: string;
+    message: string;
+    section?: string;
+    bulletId?: string;
+  }>;
+  criticalErrors: Array<{
+    rule: string;
+    message: string;
+    section?: string;
+    bulletId?: string;
+  }>;
+  warnings: Array<{
+    rule: string;
+    message: string;
+    section?: string;
+    bulletId?: string;
+  }>;
+  passedChecks: string[];
+  pdfBinaryValid?: boolean;
+  docxBinaryValid?: boolean;
+}
+
+

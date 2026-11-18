@@ -1341,9 +1341,58 @@ The app's own cost target is $0/month. This is not a guarantee that external pro
 
 ---
 
-## v1.1 sign-off checklist
+## 18. Section 18: Advanced Enterprise & Integrity Extensions (v1.2)
 
-- [ ] Owner accepts the adopted defaults in Section 15.1.
+### 18.1 Fact Provenance and Traceability
+- **Claim Mapping**: Every AI-generated or modified bullet must retain explicit structured references (`sourceEntryId`, `sourceBulletIds`, `sourceFactIds`, `claimMap`).
+- **Interactive Review Gate**: Users must inspect the source Data Bank records, see exact visual character- and word-level diffs, reject unsupported additions, and approve changes before merging into any resume document.
+
+### 18.2 Experience Isolation in Tailoring Engine
+- **Boundary Enforcement**: When tailoring content for a specific experience, project, or education entry, the prompt context and candidate retrieval must strictly restrict evidence to facts belonging to that specific entry.
+- **Cross-Contamination Prohibition**: The engine must never transfer tools, technologies, metrics, responsibilities, or claims from unrelated projects or experiences into another entry.
+
+### 18.3 Career Graph
+- **Explicit Entity-Relationship Network**: Connects projects, skills, achievements, experience entries, and supporting evidence through typed relationships (`used_skill`, `produced_outcome`, `demonstrated_competency`, `verified_by`).
+- **Realistic Maturity Attribution**: Represents skills in the context where they were actually applied without assuming complete or production-ready implementation.
+
+### 18.4 Achievement Quantification Assistant
+- **Targeted Interactive Discovery**: Prompts users with targeted follow-up questions when achievement statements lack useful context or measurable impact (e.g., college hackathon website: participant count, team size, individual contributions, features implemented, technologies used, actual outcomes).
+- **Non-Hallucination Invariant**: Never invents metrics. Clearly categorizes figures as verified evidence, user-provided estimates, or unestablished claims.
+
+### 18.5 Resume Version Diff & Branching
+- **Side-by-Side Visual Diff**: Compares original and tailored resumes at the section and bullet level (highlighting additions, deletions, rewrites).
+- **Non-Destructive Branching**: Allows branching from any immutable version or restoring historical versions into the active editor without mutating locked records.
+
+### 18.6 Enhanced Job Description Intelligence
+- **Structured Qualification Breakdown**: Categorizes JD requirements into mandatory vs preferred qualifications, technical skills, core responsibilities, experience expectations, seniority levels, and implied technical competencies.
+- **Evidence Gap Mapping**: Maps qualifications to candidate Data Bank as confirmed matches, partial matches, missing evidence, or genuine skill gaps. Prohibits recommending claiming unevidenced skills.
+
+### 18.7 Comprehensive Resume Quality Gate Pre-Export
+- **Multi-Point Export Audit**: Verifies unsupported claims, duplicate bullets, inconsistent dates, missing sections, broken hyperlinks, excessive whitespace, font rendering, target page overflows, and ATS text extractability.
+- **Independent File Verification**: Runs automated integrity tests on actual generated PDF and DOCX binaries prior to allowing export download.
+
+### 18.8 Comprehensive Application Workspace & Interview History
+- **Application Context Preservation**: Preserves original JD snapshot, source URL, tailored resume version, grounded cover letter, application status, notes, follow-up dates, and complete interview round histories.
+- **Lifecycle Management**: Supports editing, archiving, and cascading deletion with user confirmation and data integrity.
+
+### 18.9 Transparent Free-Tier Usage and Limits Dashboard
+- **Upfront Quota Communication**: Provides real-time visibility into AI token consumption, monthly generation allowances, storage utilization, export limits, and BYOK credentials.
+- **Zero Bait-and-Switch**: Never advertises a feature as free and reveals constraints only after user effort has been invested.
+
+### 18.10 Skills Gap Analysis & Defensible Learning Roadmap
+- **Evidence-Based Categorization**: Groups skills into strong evidence, limited evidence, and unrecorded.
+- **No Arbitrary Scores**: Prohibits unsubstantiated numerical scores; provides curated learning roadmaps and practical project ideas to address genuine skill gaps.
+
+### 18.11 JD-Based Project Recommendation and Selection
+- **Ranked Project Shortlist**: Analyzes Data Bank projects against target JD, explaining relevance, demonstrated skills, supported requirements, existing evidence, and missing details.
+- **Project Maturity Classification**: Captures user-confirmed project maturity (`idea`, `in_development`, `partially_implemented`, `functional_prototype`, `completed`, `deployed`), implementation gaps, limitations, and user contribution.
+- **Scope-Preserving Language**: Prohibits inflated buzzwords ("production-ready", "enterprise-grade") unless explicitly verified by user. Users explicitly select and approve which projects appear on the tailored resume.
+
+---
+
+## v1.2 sign-off checklist
+
+- [ ] Owner accepts the adopted defaults in Section 15.1 and Section 18.
 - [ ] Architecture spikes S-1 through S-7 completed.
 - [ ] Free-tier quotas rechecked against the actual Vercel Hobby, Neon Free, Clerk and AI provider accounts; verify no-card activation.
 - [ ] Data model, migrations, indexes and representative query plans reviewed before feature implementation.
@@ -1351,3 +1400,4 @@ The app's own cost target is $0/month. This is not a guarantee that external pro
 - [ ] Security and privacy requirements reviewed before public sharing is enabled.
 - [ ] AI golden-set gates pass before AI tailoring is released.
 - [ ] PDF/DOCX/TXT parity and immutability tests pass before final export is released.
+- [ ] Section 18 extensions (Provenance, Isolation, Career Graph, Quantification, Diff, Quality Gate, Project Recommender) implemented, integrated, and verified.

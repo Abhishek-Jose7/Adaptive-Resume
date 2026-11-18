@@ -535,3 +535,137 @@ export const backgroundJobs = pgTable(
       .where(sql`idempotency_key IS NOT NULL`),
   ]
 );
+
+// ==========================================
+// 17. Career Graph Edges (Section 18.3)
+// ==========================================
+export const careerGraphEdges = pgTable(
+  "career_graph_edges",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").notNull(), // experience, project, education, skill
+    sourceId: text("source_id").notNull(),
+    targetType: text("target_type").notNull(), // skill, tool, achievement_bullet, fact, evidence
+    targetId: text("target_id").notNull(),
+    relationshipType: text("relationship_type").notNull(), // used_skill, produced_outcome, demonstrated_competency, verified_by
+    weight: doublePrecision("weight").default(1.0),
+    metadataJson: jsonb("metadata_json"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("career_graph_user_source_idx").on(table.userId, table.sourceType, table.sourceId),
+    index("career_graph_user_target_idx").on(table.userId, table.targetType, table.targetId),
+    index("career_graph_user_rel_idx").on(table.userId, table.relationshipType),
+  ]
+);
+
+// ==========================================
+// 18. Project Metadata & Maturity (Section 18.11)
+// ==========================================
+export const projectMetadata = pgTable(
+  "project_metadata",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => bankEntries.id, { onDelete: "cascade" }),
+    maturityLevel: text("maturity_level").notNull().default("functional_prototype"), // idea, in_development, partially_implemented, functional_prototype, completed, deployed
+    actualContribution: text("actual_contribution"),
+    implementationGaps: text("implementation_gaps"),
+    unfinishedFeatures: text("unfinished_features"),
+    limitations: text("limitations"),
+    isProductionReady: boolean("is_production_ready").notNull().default(false),
+    architectureNotes: text("architecture_notes"),
+    repositoryUrl: text("repository_url"),
+    liveUrl: text("live_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("project_metadata_user_entry_idx").on(table.userId, table.entryId),
+  ]
+);
+
+// ==========================================
+// 19. Application Interviews History (Section 18.8)
+// ==========================================
+export const applicationInterviews = pgTable(
+  "application_interviews",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    roundName: text("round_name").notNull(), // Recruiter Screen, Technical Screen, Coding, System Design, Behavioral, Executive Onsite
+    roundNumber: integer("round_number").notNull().default(1),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    interviewers: text("interviewers"),
+    status: text("status").notNull().default("scheduled"), // scheduled, passed, failed, cancelled, rescheduled
+    feedbackNotes: text("feedback_notes"),
+    prepNotes: text("prep_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("app_interviews_user_app_idx").on(table.userId, table.applicationId),
+  ]
+);
+
+// ==========================================
+// 20. Quantification Interviews (Section 18.4)
+// ==========================================
+export const quantificationInterviews = pgTable(
+  "quantification_interviews",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    entryId: text("entry_id").references(() => bankEntries.id, { onDelete: "cascade" }),
+    bulletId: text("bullet_id").references(() => achievementBullets.id, { onDelete: "cascade" }),
+    questionKey: text("question_key").notNull(), // scale_users, team_size, throughput, latency, outcome
+    promptQuestion: text("prompt_question").notNull(),
+    userResponse: text("user_response"),
+    metricEstimate: doublePrecision("metric_estimate"),
+    metricUnit: text("metric_unit"),
+    isVerified: boolean("is_verified").notNull().default(false),
+    status: text("status").notNull().default("pending"), // pending, answered, dismissed
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("quant_interviews_user_bullet_idx").on(table.userId, table.bulletId),
+    index("quant_interviews_user_entry_idx").on(table.userId, table.entryId),
+  ]
+);
+
+// ==========================================
+// 21. User Usage & Free-Tier Quotas (Section 18.9)
+// ==========================================
+export const userUsageQuotas = pgTable(
+  "user_usage_quotas",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    monthlyPeriod: text("monthly_period").notNull(), // YYYY-MM
+    aiTokensConsumed: integer("ai_tokens_consumed").notNull().default(0),
+    aiGenerationsCount: integer("ai_generations_count").notNull().default(0),
+    exportsGeneratedCount: integer("exports_generated_count").notNull().default(0),
+    activeResumesCount: integer("active_resumes_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("user_usage_quotas_user_period_idx").on(table.userId, table.monthlyPeriod),
+  ]
+);
+
