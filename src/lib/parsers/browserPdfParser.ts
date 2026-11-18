@@ -4,6 +4,8 @@ export interface PdfParseResult {
   text: string;
   pageCount: number;
   pages: string[];
+  isScanned: boolean;
+  charCount: number;
 }
 
 export async function parsePdfBuffer(
@@ -46,9 +48,15 @@ export async function parsePdfBuffer(
   }
 
   const fullText = pages.join("\n\n");
+  const charCount = fullText.trim().length;
+  // Browser-side detection: scanned PDFs have negligible/empty selectable text (< 50 chars)
+  const isScanned = charCount < 50;
+
   return {
     text: fullText,
     pageCount,
     pages,
+    isScanned,
+    charCount,
   };
 }

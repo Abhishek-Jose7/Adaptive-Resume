@@ -20,6 +20,7 @@ import {
   X,
   User,
 } from "lucide-react";
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -102,9 +103,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>BYOK</span>
             </Link>
 
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 text-white font-semibold flex items-center justify-center text-xs shadow-inner border border-white/10">
-              U
-            </div>
+            <SignedIn>
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8 rounded-full border border-blue-500/40 shadow-sm",
+                  },
+                }}
+              />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors shadow-sm">
+                  Sign In
+                </button>
+              </SignInButton>
+            </SignedOut>
 
             {/* Mobile Menu Button */}
             <button

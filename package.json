@@ -15,6 +15,8 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.9.15",
+    "@neon/config": "^1.14.3",
+    "@neon/env": "^2.1.6",
     "@neondatabase/serverless": "^0.10.4",
     "clsx": "^2.1.1",
     "diff": "^7.0.0",

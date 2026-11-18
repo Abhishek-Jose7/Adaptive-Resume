@@ -3,7 +3,10 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres@localhost:5432/resume_maker";
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.NEON_DATABASE_URL ||
+  "postgresql://postgres@localhost:5432/resume_maker";
 
 // Global client caching to prevent connection exhaustion in serverless environments
 declare global {

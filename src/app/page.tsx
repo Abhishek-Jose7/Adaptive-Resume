@@ -18,6 +18,7 @@ import {
   BarChart3,
   HelpCircle,
 } from "lucide-react";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 export default function LandingPage() {
   return (
@@ -59,13 +60,36 @@ export default function LandingPage() {
             >
               BYOK Setup
             </Link>
-            <Link
-              href="/bank"
-              className="text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
-            >
-              <span>Launch Studio</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="text-xs font-semibold px-3.5 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5">
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                href="/bank"
+                className="text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
+              >
+                <span>Launch Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8 rounded-full border border-blue-500/40",
+                  },
+                }}
+              />
+            </SignedIn>
           </div>
         </div>
       </nav>
@@ -96,19 +120,29 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/bank"
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-xl shadow-blue-500/25 transition-all flex items-center gap-2"
-            >
-              <span>Start Building Free</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+            <SignedIn>
+              <Link
+                href="/bank"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-xl shadow-blue-500/25 transition-all flex items-center gap-2"
+              >
+                <span>Open Data Bank Studio</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </SignedIn>
+            <SignedOut>
+              <SignUpButton mode="modal">
+                <button className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-xl shadow-blue-500/25 transition-all flex items-center gap-2 cursor-pointer">
+                  <span>Start Building Free</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </SignUpButton>
+            </SignedOut>
             <Link
               href="/bank/intake"
               className="px-6 py-3.5 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-900/60 hover:bg-slate-800 text-slate-200 font-semibold text-sm transition-all flex items-center gap-2"
             >
               <FileText className="w-4 h-4 text-slate-400" />
-              <span>Import Existing Resume</span>
+              <span>Import Resume / Scanned OCR</span>
             </Link>
           </div>
 
