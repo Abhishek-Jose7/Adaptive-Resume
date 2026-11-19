@@ -1,21 +1,8 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
+import "@fontsource-variable/bricolage-grotesque";
+import "@fontsource-variable/ibm-plex-sans";
 import "./globals.css";
-
-const display = localFont({
-  src: "../../public/fonts/fraunces-latin-variable.woff2",
-  weight: "100 900",
-  variable: "--font-display-source",
-  display: "swap",
-});
-
-const sans = localFont({
-  src: "../../public/fonts/manrope-latin-variable.woff2",
-  weight: "200 800",
-  variable: "--font-sans-source",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Adaptive Resume — a resume for this job",
@@ -30,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider dynamic afterSignOutUrl="/">
-      <html lang="en" className={`${display.variable} ${sans.variable}`}>
+      <html lang="en">
         <body className="min-h-screen antialiased">{children}</body>
       </html>
     </ClerkProvider>

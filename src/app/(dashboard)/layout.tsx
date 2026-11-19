@@ -18,6 +18,7 @@ import {
   FilePlus2,
 } from "lucide-react";
 import { UserButton, Show, SignInButton } from "@clerk/nextjs";
+import { DropdownMenu } from "radix-ui";
 
 const primaryItems = [
   { label: "Data Bank", short: "Bank", href: "/bank", icon: Database },
@@ -44,19 +45,23 @@ function isActive(pathname: string | null, href: string) {
 function MoreMenu({ pathname }: { pathname: string | null }) {
   const active = moreItems.some((item) => isActive(pathname, item.href));
   return (
-    <details className={`proof-more ${active ? "is-active" : ""}`}>
-      <summary aria-label="More sections">
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className={`proof-more-trigger ${active ? "is-active" : ""}`} aria-label="More sections">
         More <ChevronDown aria-hidden="true" size={14} />
-      </summary>
-      <div className="proof-more-menu">
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="proof-more-menu" sideOffset={8} align="end">
         {moreItems.map(({ label, href, icon: Icon }) => (
-          <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
-            <Icon size={16} strokeWidth={1.8} />
-            <span>{label}</span>
-          </Link>
+          <DropdownMenu.Item key={href} asChild>
+            <Link href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+              <Icon size={16} strokeWidth={1.8} />
+              <span>{label}</span>
+            </Link>
+          </DropdownMenu.Item>
         ))}
-      </div>
-    </details>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

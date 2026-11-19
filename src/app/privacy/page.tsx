@@ -33,8 +33,7 @@ export default function PrivacyPage() {
 
         <article className="privacy-document">
           <div className="privacy-heading">
-            <span className="privacy-eyebrow">Your information, clearly explained</span>
-            <h1>Privacy should be<br /><em>easy to understand.</em></h1>
+            <h1>Your information,<br /><em>clearly explained.</em></h1>
             <p>Adaptive Resume works with personal career details. This page tells you what the app uses, when information leaves your browser, and how you can manage what you’ve saved.</p>
             <span className="privacy-date">Last updated November 19, 2026</span>
           </div>

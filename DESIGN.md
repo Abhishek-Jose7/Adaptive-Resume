@@ -1,57 +1,59 @@
 ---
-version: 4.1.0
-name: Adaptive Resume — Starry Blue
-description: A focused career product with Van Gogh-inspired ultramarine, sunflower gold, open-sky blue, and expressive editorial typography.
+version: 1
+name: Adaptive Resume — Dark Archive
+description: A career workspace with quiet graphite surfaces, warm archive paper, and citron markers that connect each resume line to its source.
 colors:
-  paper: "#DCE8F0"
-  paper-deep: "#C6D8E7"
-  sheet: "#F7F7F0"
-  ink: "#162D5B"
-  graphite: "#4D5F7C"
-  rule: "#B3C5D4"
-  rule-strong: "#809AB5"
-  accent: "#E1AD25"
-  proof: "#F1C640"
-  ultramarine: "#244DA8"
-  positive: "#24654E"
-  warning: "#805510"
-  alarm: "#A53D38"
+  shell: "#151A17"
+  raised: "#202722"
+  raised-soft: "#27302A"
+  resume-paper: "#F1F0E8"
+  resume-ink: "#20251F"
+  foreground: "#EEF0E8"
+  secondary: "#B1B9AD"
+  rule: "#39433B"
+  accent: "#C7E35B"
+  accent-ink: "#1B2415"
+  positive: "#9BC8A8"
+  warning: "#D6BA71"
+  alarm: "#E2A49A"
 typography:
   display:
-    fontFamily: "Fraunces, Georgia, serif"
-    usage: "large page titles and a few strong section headings"
+    fontFamily: "Bricolage Grotesque"
+    usage: "page titles, section headings, and editorial moments"
   body:
-    fontFamily: "Manrope, Arial, sans-serif"
-    usage: "navigation, controls, instructions, and dense records"
+    fontFamily: "IBM Plex Sans"
+    usage: "navigation, controls, instructions, and records"
   mono:
-    fontFamily: "ui-monospace, monospace"
-    usage: "small counts and measured values only"
+    fontFamily: "ui-monospace"
+    usage: "small counts and source measurements only"
 rounded:
-  control: "0px"
-  panel: "0px"
+  control: "6px"
+  panel: "12px"
 spacing:
   rhythm: "4 / 8 / 12 / 16 / 24 / 32 / 40 / 64"
 components:
-  primary-action: "deep raspberry fill with cool white type; solid rectangular control"
-  input: "cool white surface, full outline, visible raspberry focus ring"
-  navigation: "separate, non-sticky ultramarine top bar; direct links for core tasks and a familiar More menu"
-  evidence-mark: "a short sunflower-gold mark beside a resume line that opens its saved Data Bank source"
-  resume-preview: "a clean document panel beside the pasted job description on wide screens; mobile tabs switch panes"
+  primary-action: "citron fill with dark text; reserved for the next clear action"
+  input: "raised graphite surface, full border, citron focus ring"
+  navigation: "separate, non-sticky top bar; direct core routes and keyboard-accessible More menu"
+  resume-preview: "warm paper sheet beside the job brief on wide screens; mobile tabs switch panes"
+  source-trace: "citron marker identifies a resume line that comes from a saved career record"
+  format-strip: "bold text-only ticker; seamless loop, no color block, static when reduced motion is preferred"
+  editorial: "asymmetric compositions on the public story and section transitions; orderly controls in work areas"
 ---
 
 ## Product direction
 
-Adaptive Resume helps a job seeker turn a job description into a role-specific resume draft using details they have already saved. Every imported or suggested detail stays reviewable and editable. Nothing should imply that the product invents experience.
+Adaptive Resume turns a job description into a role-specific resume draft using career details the job seeker has already saved. Each suggestion stays reviewable and editable, and source records remain connected to the draft.
 
 ## Visual language
 
-- Starry Blue takes its cues from Van Gogh's ultramarine night skies and sunflower gold. Open-sky blue keeps the working areas light, while dark blue carries navigation and long-form reading.
-- Fraunces brings a lively editorial voice to large titles. Manrope keeps navigation, forms, and career details direct and easy to scan. Both are self-hosted.
-- A short gold source mark beside a suggested line signals that the line has a source in the Data Bank. Use a small number of star and sun details as accents; keep all forms, buttons, and document controls familiar and readable.
-- Keep standard web navigation, tabs, forms, and buttons. The print world lends type, palette, density, and its source mark; it never dictates the page layout or turns controls into props.
-- On wide screens, keep the job description and resume draft visible beside each other. On phones, use clear accessible tabs to switch between the two panes.
-- Use full borders and spacing to group content. Avoid gradients, decorative grain, fake paper textures, nested cards, dashboard metrics, and miniature all-caps labels.
-- The landing page shows the real workflow with clearly marked illustrative content. Use one reveal when the use cases enter view; keep all content visible when reduced motion is preferred.
+- Charcoal and graphite make a calm, focused workspace. Warm archive paper is reserved for the resume preview. Citron marks actions, selections, and links between a proposed line and its saved source.
+- Bricolage Grotesque gives headings a compact editorial voice. IBM Plex Sans keeps forms and career details legible. Both font families are served from the project dependencies.
+- Public storytelling can use asymmetry and generous space. Editing, navigation, profile data, and application tracking use familiar web layouts and controls.
+- Keep job details and resume draft visible beside each other on wide screens. On phones, accessible tabs switch between panes without hiding the primary actions.
+- The public example follows one believable transition from customer support to customer success. Requirements connect to saved work, and the proposed resume line remains reviewable; never invent metrics or unsupported claims.
+- Keep the public page on one charcoal background. Use borders and spacing to define sections, then reveal those sections as they enter the viewport without concealing content when reduced motion is preferred.
+- Prefer strong contrast, clear borders, responsive spacing, and a text-only looping ticker. Respect reduced-motion preferences and keep focus rings visible.
 
 ## Language
 

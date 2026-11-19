@@ -3,7 +3,7 @@ import { SignInButton, SignUpButton, Show } from "@clerk/nextjs";
 import { AdaptiveResumeWorkspace } from "@/components/workspace/AdaptiveResumeWorkspace";
 import DashboardLayout from "@/app/(dashboard)/layout";
 import { RevealSection } from "@/components/marketing/RevealSection";
-import { ArrowDown, MoveRight, CircleCheck, FileText, Fingerprint, Upload, Sun } from "lucide-react";
+import { ArrowDown, MoveRight, CircleCheck, FileText, Fingerprint } from "lucide-react";
 
 function ResumeWorkbenchExample() {
   return (
@@ -59,11 +59,10 @@ export default function LandingPage() {
           <main>
             <section className="proof-hero">
               <div className="proof-hero-copy">
-                <p className="proof-hero-kicker"><Sun size={17} aria-hidden="true" /> A clearer next step</p>
-                <h1>One job description.<br /><em>A resume that fits.</em></h1>
-                <p>Paste the job you want. Get a clear draft built from the experience you’ve already saved.</p>
+                <h1>Your next role,<br /><em>grounded in your work.</em></h1>
+                <p>Paste a job description. See a resume draft shaped from your experience, with every line ready for your review.</p>
                 <div className="proof-hero-actions">
-                  <SignUpButton mode="modal"><button className="proof-primary-button">Start with a job description <MoveRight size={17} /></button></SignUpButton>
+                  <SignUpButton mode="modal"><button className="proof-primary-button">Paste a job description <MoveRight size={17} /></button></SignUpButton>
                   <Link href="#how-it-works" className="proof-scroll-link">See how it works <ArrowDown size={15} /></Link>
                 </div>
                 <p className="proof-hero-promise"><Fingerprint size={17} /> Your experience stays yours. You approve every line.</p>
@@ -71,14 +70,21 @@ export default function LandingPage() {
               <ResumeWorkbenchExample />
             </section>
 
-            <div className="proof-format-strip" aria-label="Ways to start your Data Bank">
-              <span>Start with what you have</span>
-              <span><Upload size={16} /> Upload a PDF or DOCX</span>
-              <span><FileText size={16} /> Paste a resume or work history</span>
-              <span><CircleCheck size={16} /> Review before saving</span>
+            <div className="proof-format-strip" role="region" tabIndex={0} aria-label="Ways to get started. Focus or hover to pause the moving text.">
+              <p className="sr-only">Upload your resume. Paste your work history. Review every detail. Start with the job you want.</p>
+              <div className="proof-format-track" aria-hidden="true">
+                {[0, 1].map((copy) => (
+                  <div className="proof-format-group" key={copy} aria-hidden={copy === 1 ? "true" : undefined}>
+                    <strong>Upload your resume</strong>
+                    <strong>Paste your work history</strong>
+                    <strong>Review every detail</strong>
+                    <strong>Start with the job you want</strong>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <section className="proof-how" id="how-it-works">
+            <RevealSection className="proof-how" id="how-it-works">
               <div className="proof-how-heading">
                 <h2>Your work, shaped for this role.</h2>
                 <p>Keep the details once. Bring the right ones forward when a new opportunity comes along.</p>
@@ -88,30 +94,44 @@ export default function LandingPage() {
                 <article><span className="proof-step-mark proof-step-match" aria-hidden="true"><CircleCheck size={19} /></span><h3>Paste the job</h3><p>Share the job description. Adaptive Resume finds relevant details from your own saved experience.</p><Link href="/sign-up">Tailor a resume <MoveRight size={15} /></Link></article>
                 <article><span className="proof-step-mark proof-step-edit" aria-hidden="true"><FileText size={18} /></span><h3>Review and make it yours</h3><p>Edit, keep, or skip every suggestion. Then export a resume that reflects the work you’ve really done.</p><Link href="/privacy">See how your data is handled <MoveRight size={15} /></Link></article>
               </div>
-            </section>
+            </RevealSection>
 
             <RevealSection className="proof-use-cases" id="your-work">
               <div className="proof-use-intro">
-                <h2>One career story.<br /><em>More than one next step.</em></h2>
-                <p>Keep your source details in one place. Build a clear version for each job you’re considering.</p>
+                <h2>Show how your work<br /><em>travels with you.</em></h2>
+                <p>A support specialist applying for a customer success role can bring forward relevant experience without changing the facts.</p>
               </div>
-              <div className="proof-use-list">
-                <article><span>Moving into a new field</span><p>Pull forward transferable work, like customer research or process improvements, when you apply for a different kind of role.</p><MoveRight size={18} /></article>
-                <article><span>Applying for a close match</span><p>Bring the most relevant projects and responsibilities to the top, while keeping the details tied to your saved experience.</p><MoveRight size={18} /></article>
-                <article><span>Managing a busy search</span><p>Keep each job description beside its resume draft and cover letter, so you can pick up where you left off.</p><MoveRight size={18} /></article>
+              <div className="proof-use-list" aria-label="Example: customer support specialist applying for customer success manager">
+                <div className="proof-scenario-heading"><span>Illustrative example</span><strong>Customer support → Customer success</strong></div>
+                <div className="proof-scenario-grid">
+                  <article className="proof-scenario-role">
+                    <span>What the role asks for</span>
+                    <h3>Customer Success Manager</h3>
+                    <p>Guide new accounts through setup, resolve recurring blockers, and bring customer feedback to the product team.</p>
+                  </article>
+                  <article className="proof-scenario-record">
+                    <span>Already in your Data Bank</span>
+                    <ul><li>Wrote a setup guide for new customers</li><li>Passed recurring onboarding issues to product</li></ul>
+                  </article>
+                  <article className="proof-scenario-draft">
+                    <span>Suggested resume line</span>
+                    <blockquote>Created onboarding resources and brought recurring customer setup issues to the product team.</blockquote>
+                    <small>Linked to two saved career records. Review or edit before saving.</small>
+                  </article>
+                </div>
               </div>
             </RevealSection>
 
-            <section className="proof-privacy-band">
+            <RevealSection className="proof-privacy-band">
               <div><h2>Your work is personal.<br />Your resume should be, too.</h2><p>Imported details wait for your review. Contact information stays private unless you choose to share a resume.</p></div>
               <Link href="/privacy" className="proof-outline-link">Read the privacy policy <MoveRight size={16} /></Link>
-            </section>
+            </RevealSection>
 
-            <section className="proof-final-cta">
+            <RevealSection className="proof-final-cta">
               <h2>Ready to make your next resume?</h2>
               <p>Start with a job description. Add your experience as you go.</p>
               <SignUpButton mode="modal"><button className="proof-primary-button">Make a resume for this job <MoveRight size={17} /></button></SignUpButton>
-            </section>
+            </RevealSection>
           </main>
 
           <footer className="proof-public-footer">

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Tabs as TabsPrimitive } from "radix-ui";
 
 export type TabItem = {
   id: string;
@@ -13,31 +14,30 @@ export function Tabs({
   value,
   onChange,
   className = "",
+  children,
 }: {
   items: TabItem[];
   value: string;
   onChange: (id: string) => void;
   className?: string;
+  children?: React.ReactNode;
 }) {
   return (
-    <div className={`tabbar ${className}`} role="tablist">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          role="tab"
-          type="button"
-          aria-selected={value === item.id}
-          data-active={value === item.id}
-          onClick={() => onChange(item.id)}
-          className="tab"
-        >
-          {item.label}
-          {item.count !== undefined && (
-            <span className="font-mono text-[10.5px] text-graphite">{item.count}</span>
-          )}
-        </button>
-      ))}
-    </div>
+    <TabsPrimitive.Root value={value} onValueChange={onChange} className="product-tabs">
+      <TabsPrimitive.List className={`tabbar ${className}`} aria-label="Choose a view">
+        {items.map((item) => (
+          <TabsPrimitive.Trigger key={item.id} value={item.id} className="tab">
+            {item.label}
+            {item.count !== undefined && (
+              <span className="font-mono text-[10.5px] text-graphite">{item.count}</span>
+            )}
+          </TabsPrimitive.Trigger>
+        ))}
+      </TabsPrimitive.List>
+      <TabsPrimitive.Content value={value} className="product-tabs-panel">
+        {children}
+      </TabsPrimitive.Content>
+    </TabsPrimitive.Root>
   );
 }
 

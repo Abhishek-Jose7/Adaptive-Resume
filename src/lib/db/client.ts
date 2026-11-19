@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { createNeonDnsFallbackSocket } from "./neonDnsFallback";
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -16,12 +17,14 @@ declare global {
 
 function createClient() {
   const isServerless = process.env.VERCEL === "1";
+  const dnsFallbackEnabled = process.env.DATABASE_DNS_FALLBACK === "doh";
   return postgres(connectionString, {
     max: isServerless ? 5 : 10,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false, // Recommended for Neon connection pooling (PgBouncer mode)
     ssl: connectionString.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
+    ...(dnsFallbackEnabled ? { socket: createNeonDnsFallbackSocket } : {}),
   });
 }
 

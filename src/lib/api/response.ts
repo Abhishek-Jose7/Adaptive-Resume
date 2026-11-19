@@ -15,6 +15,7 @@ export type ApiErrorCode =
   | "QUOTA_EXCEEDED"
   | "QUOTA_EXHAUSTED"
   | "PROVIDER_UNAVAILABLE"
+  | "SERVICE_UNAVAILABLE"
   | "UNSUPPORTED_FILE"
   | "URL_FETCH_BLOCKED"
   | "JOB_FAILED"
@@ -89,6 +90,27 @@ export function handleApiError(err: unknown) {
     );
   }
 
-  const message = err instanceof Error ? err.message : "An unexpected internal error occurred.";
-  return apiError("INTERNAL_ERROR", message, 500, undefined, true);
+  const networkCodes = new Set(["EAI_AGAIN", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "CONNECT_TIMEOUT"]);
+  let cause: unknown = err;
+  for (let depth = 0; depth < 4 && cause && typeof cause === "object"; depth += 1) {
+    const errorCode = "code" in cause ? String((cause as { code?: unknown }).code ?? "") : "";
+    if (networkCodes.has(errorCode)) {
+      return apiError(
+        "SERVICE_UNAVAILABLE",
+        "We couldn’t reach a service needed for that request. Please try again in a moment.",
+        503,
+        undefined,
+        true,
+      );
+    }
+    cause = "cause" in cause ? (cause as { cause?: unknown }).cause : undefined;
+  }
+
+  return apiError(
+    "INTERNAL_ERROR",
+    "We couldn’t complete that request. Please try again.",
+    500,
+    undefined,
+    true,
+  );
 }

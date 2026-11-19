@@ -201,7 +201,7 @@ export default function DataBankPage() {
           { id: "graph", label: "Career graph" },
         ]}
         className="mb-5"
-      />
+      >
 
       {viewMode === "graph" ? (
         <CareerGraphView />
@@ -285,6 +285,7 @@ export default function DataBankPage() {
           )}
         </div>
       )}
+      </Tabs>
 
       <BankEntryModal
         isOpen={isModalOpen}

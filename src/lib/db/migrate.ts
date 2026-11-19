@@ -2,6 +2,7 @@ import postgres from "postgres";
 import fs from "fs";
 import path from "path";
 import { createHash } from "crypto";
+import { createNeonDnsFallbackSocket } from "./neonDnsFallback";
 
 const connectionString =
   process.env.DATABASE_URL || "postgresql://postgres@localhost:5432/resume_maker";
@@ -12,6 +13,9 @@ export async function runMigrations() {
   const sql = postgres(connectionString, {
     max: 1,
     ssl: connectionString.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
+    ...(process.env.DATABASE_DNS_FALLBACK === "doh"
+      ? { socket: createNeonDnsFallbackSocket }
+      : {}),
   });
 
   try {
@@ -80,7 +84,7 @@ export async function runMigrations() {
           "bullet_relations",
         ],
         indexes: [
-          "bank_entries_user_sort_idx",
+          "bank_entries_user_type_updated_idx",
           "bank_entries_user_updated_idx",
           "achievement_bullets_user_entry_sort_idx",
           "bullet_facts_user_bullet_idx",

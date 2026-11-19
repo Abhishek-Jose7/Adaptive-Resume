@@ -128,7 +128,7 @@ export default function ApplicationsPage() {
         </button>
       </header>
 
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3">
         <Tabs
           value={viewMode}
           onChange={(id) => setViewMode(id as "kanban" | "table")}
@@ -137,10 +137,7 @@ export default function ApplicationsPage() {
             { id: "table", label: "List" },
           ]}
           className="flex-1 border-b-0 sm:flex-none"
-        />
-        <span className="folio hidden sm:block">{applications.length} records</span>
-      </div>
-
+        >
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-20 text-[13px] text-graphite">
           <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
@@ -183,28 +180,12 @@ export default function ApplicationsPage() {
                         {app.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-graphite">
-                      {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-marker-dark">
-                      {app.followUpAt ? new Date(app.followUpAt).toLocaleDateString() : "—"}
-                    </td>
+                    <td className="px-4 py-3 text-graphite">{app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}</td>
+                    <td className="px-4 py-3 text-marker-dark">{app.followUpAt ? new Date(app.followUpAt).toLocaleDateString() : "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setSelectedAppForInterview(app)}
-                          className="btn btn-sm"
-                        >
-                          <Calendar className="h-3.5 w-3.5" strokeWidth={1.7} />
-                          Rounds
-                        </button>
-                        <button
-                          onClick={() => handleDelete(app.id)}
-                          className="btn btn-icon hover:text-alarm"
-                          aria-label="Delete application"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
-                        </button>
+                        <button onClick={() => setSelectedAppForInterview(app)} className="btn btn-sm"><Calendar className="h-3.5 w-3.5" strokeWidth={1.7} />Rounds</button>
+                        <button onClick={() => handleDelete(app.id)} className="btn btn-icon hover:text-alarm" aria-label="Delete application"><Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} /></button>
                       </div>
                     </td>
                   </tr>
@@ -214,6 +195,9 @@ export default function ApplicationsPage() {
           </table>
         </div>
       )}
+        </Tabs>
+        <span className="folio hidden sm:block">{applications.length} records</span>
+      </div>
 
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
