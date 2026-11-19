@@ -1,6 +1,6 @@
 import { db } from "../db/client";
 import { applications, jobs, resumeVersions, coverLetters, applicationInterviews } from "../db/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { ApplicationInterview } from "@/types/bank";
 
 export type ApplicationStatus =
@@ -25,6 +25,7 @@ export interface ApplicationInput {
 export class ApplicationService {
   /**
    * Lists all applications for a user with joined job, version, and cover letter details
+   * Enforces strict tenant isolation on joined records (PRD Section 8.6 & 11.2)
    */
   static async listApplications(userId: string, statusFilter?: ApplicationStatus) {
     const list = await db
@@ -43,12 +44,12 @@ export class ApplicationService {
         jobCompany: jobs.company,
         jobLocation: jobs.location,
         jobSourceUrl: jobs.sourceUrl,
-        jobRawTextSnippet: jobs.rawText,
+        jobRawTextSnippet: sql<string | null>`substring(${jobs.rawText} from 1 for 300)`,
         versionNumber: resumeVersions.versionNumber,
       })
       .from(applications)
-      .leftJoin(jobs, eq(applications.jobId, jobs.id))
-      .leftJoin(resumeVersions, eq(applications.resumeVersionId, resumeVersions.id))
+      .leftJoin(jobs, and(eq(applications.jobId, jobs.id), eq(jobs.userId, userId)))
+      .leftJoin(resumeVersions, and(eq(applications.resumeVersionId, resumeVersions.id), eq(resumeVersions.userId, userId)))
       .where(
         statusFilter
           ? and(eq(applications.userId, userId), eq(applications.status, statusFilter))
@@ -84,8 +85,8 @@ export class ApplicationService {
         versionDocJson: resumeVersions.resumeDocJson,
       })
       .from(applications)
-      .leftJoin(jobs, eq(applications.jobId, jobs.id))
-      .leftJoin(resumeVersions, eq(applications.resumeVersionId, resumeVersions.id))
+      .leftJoin(jobs, and(eq(applications.jobId, jobs.id), eq(jobs.userId, userId)))
+      .leftJoin(resumeVersions, and(eq(applications.resumeVersionId, resumeVersions.id), eq(resumeVersions.userId, userId)))
       .where(and(eq(applications.userId, userId), eq(applications.id, id)))
       .limit(1);
 
@@ -126,6 +127,17 @@ export class ApplicationService {
       prepNotes?: string;
     }
   ): Promise<ApplicationInterview> {
+    // Verify application exists and belongs to calling user
+    const app = await db
+      .select({ id: applications.id })
+      .from(applications)
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
+      .limit(1);
+
+    if (app.length === 0) {
+      throw new Error("Application not found or access denied");
+    }
+
     const id = `int_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const [inserted] = await db
       .insert(applicationInterviews)
@@ -180,9 +192,33 @@ export class ApplicationService {
   }
 
   /**
-   * Creates an application tracking record
+   * Creates an application tracking record with cross-tenant foreign key verification
    */
   static async createApplication(userId: string, input: ApplicationInput) {
+    // Verify referenced jobId ownership if supplied
+    if (input.jobId) {
+      const job = await db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.id, input.jobId), eq(jobs.userId, userId)))
+        .limit(1);
+      if (job.length === 0) {
+        throw new Error("Referenced job not found or access denied");
+      }
+    }
+
+    // Verify referenced resumeVersionId ownership if supplied
+    if (input.resumeVersionId) {
+      const ver = await db
+        .select({ id: resumeVersions.id })
+        .from(resumeVersions)
+        .where(and(eq(resumeVersions.id, input.resumeVersionId), eq(resumeVersions.userId, userId)))
+        .limit(1);
+      if (ver.length === 0) {
+        throw new Error("Referenced resume version not found or access denied");
+      }
+    }
+
     const id = `app_${crypto.randomUUID()}`;
     const [created] = await db
       .insert(applications)
@@ -202,9 +238,31 @@ export class ApplicationService {
   }
 
   /**
-   * Updates an application status, notes, or dates
+   * Updates an application status, notes, or dates with tenant validation
    */
   static async updateApplication(userId: string, id: string, updates: Partial<ApplicationInput>) {
+    if (updates.jobId) {
+      const job = await db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.id, updates.jobId), eq(jobs.userId, userId)))
+        .limit(1);
+      if (job.length === 0) {
+        throw new Error("Referenced job not found or access denied");
+      }
+    }
+
+    if (updates.resumeVersionId) {
+      const ver = await db
+        .select({ id: resumeVersions.id })
+        .from(resumeVersions)
+        .where(and(eq(resumeVersions.id, updates.resumeVersionId), eq(resumeVersions.userId, userId)))
+        .limit(1);
+      if (ver.length === 0) {
+        throw new Error("Referenced resume version not found or access denied");
+      }
+    }
+
     const values: Record<string, any> = { updatedAt: new Date() };
 
     if (updates.status !== undefined) values.status = updates.status;

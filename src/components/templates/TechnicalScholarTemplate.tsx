@@ -41,7 +41,7 @@ export function TechnicalScholarTemplate({
           </h1>
           {doc.profile.headline && (
             <span className="text-xs font-semibold text-emerald-700 font-sans">
-              // {doc.profile.headline}
+              {"// "}{doc.profile.headline}
             </span>
           )}
         </div>

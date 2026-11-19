@@ -3,21 +3,7 @@
 import React, { useState } from "react";
 import { BankEntry, AchievementBullet } from "@/types/bank";
 import { BulletEditor } from "./BulletEditor";
-import {
-  Briefcase,
-  GraduationCap,
-  FolderGit2,
-  Cpu,
-  Award,
-  Scroll,
-  HeartHandshake,
-  Calendar,
-  MapPin,
-  Plus,
-  Trash2,
-  Edit,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, Trash2, Edit, AlertTriangle } from "lucide-react";
 
 interface BankEntryCardProps {
   entry: BankEntry;
@@ -28,6 +14,18 @@ interface BankEntryCardProps {
   onDeleteBullet: (bulletId: string) => Promise<void>;
   onQuantifyBullet?: (entry: BankEntry, bullet: AchievementBullet) => void;
 }
+
+const typeLabel: Record<string, string> = {
+  experience: "experience",
+  education: "education",
+  project: "project",
+  skill_group: "skills",
+  certification: "certification",
+  award: "award",
+  publication: "publication",
+  volunteer: "volunteer",
+  custom: "custom",
+};
 
 export function BankEntryCard({
   entry,
@@ -41,28 +39,6 @@ export function BankEntryCard({
   const [isAddingBullet, setIsAddingBullet] = useState(false);
   const [newBulletText, setNewBulletText] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const getTypeIcon = () => {
-    switch (entry.entryType) {
-      case "experience":
-        return <Briefcase className="w-4 h-4 text-blue-600" />;
-      case "education":
-        return <GraduationCap className="w-4 h-4 text-emerald-600" />;
-      case "project":
-        return <FolderGit2 className="w-4 h-4 text-purple-600" />;
-      case "skill_group":
-        return <Cpu className="w-4 h-4 text-amber-600" />;
-      case "certification":
-      case "award":
-        return <Award className="w-4 h-4 text-rose-600" />;
-      case "publication":
-        return <Scroll className="w-4 h-4 text-indigo-600" />;
-      case "volunteer":
-        return <HeartHandshake className="w-4 h-4 text-teal-600" />;
-      default:
-        return <Briefcase className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const handleAddBulletSubmit = async () => {
     if (!newBulletText.trim()) return;
@@ -81,91 +57,73 @@ export function BankEntryCard({
     !entry.startDate &&
     !entry.isCurrent;
 
+  const bulletCount = entry.bullets?.length || 0;
+
   return (
-    <div className="border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow transition-shadow overflow-hidden">
-      {/* Entry Header */}
-      <div className="p-4 bg-gray-50/70 border-b border-gray-100 flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-white rounded-md border shadow-xs mt-0.5">
-            {getTypeIcon()}
+    <article className="panel">
+      <header className="flex items-start gap-3 px-4 py-3.5 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h3 className="text-[15px] font-semibold leading-snug tracking-tight">{entry.title}</h3>
+            <span className="border border-rule px-1.5 py-0.5 font-mono text-[10px] text-graphite">
+              {typeLabel[entry.entryType] || entry.entryType.replace("_", " ")}
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900 text-base">{entry.title}</h3>
-              <span className="text-xs uppercase tracking-wider px-2 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">
-                {entry.entryType.replace("_", " ")}
-              </span>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-600">
-              {entry.organization && (
-                <span className="font-medium text-gray-800">{entry.organization}</span>
-              )}
-              {entry.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-gray-400" />
-                  {entry.location}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-gray-400" />
-                {entry.startDate || "No date"} - {entry.isCurrent ? "Present" : entry.endDate || "Present"}
-              </span>
-            </div>
-
-            {hasMissingDates && (
-              <div className="mt-1 flex items-center gap-1 text-xs text-amber-600 font-medium">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Missing date details (PRD 6.2 B3)
-              </div>
-            )}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-graphite">
+            {entry.organization && <span className="font-medium text-ink">{entry.organization}</span>}
+            {entry.location && <span>{entry.location}</span>}
+            <span className="font-mono text-[11px]">
+              {entry.startDate || "no date"} — {entry.isCurrent ? "present" : entry.endDate || "present"}
+            </span>
           </div>
+
+          {hasMissingDates && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-marker-dark">
+              <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.8} />
+              Dates missing — parsers will read this entry as undated.
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onEdit(entry)}
-            className="p-1.5 text-gray-500 hover:text-gray-900 rounded hover:bg-gray-200"
-            title="Edit entry"
-          >
-            <Edit className="w-4 h-4" />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button onClick={() => onEdit(entry)} className="btn btn-icon" title="Edit entry">
+            <Edit className="h-3.5 w-3.5" strokeWidth={1.7} />
           </button>
           <button
             onClick={() => onDelete(entry.id)}
-            className="p-1.5 text-gray-500 hover:text-red-600 rounded hover:bg-red-50"
+            className="btn btn-icon hover:text-alarm"
             title="Delete entry"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Free-form Context Notes (PRD Section 6.2 / D-13) */}
       {entry.descriptionContext && (
-        <div className="px-4 py-2.5 bg-amber-50/40 border-b text-xs text-gray-700 italic">
-          <span className="font-semibold text-amber-800 not-italic">Career Context Note: </span>
+        <div className="border-t border-rule bg-marker-soft px-4 py-2.5 text-[12.5px] leading-relaxed sm:px-5">
+          <span className="font-mono text-[10.5px] text-marker-dark">context — </span>
           {entry.descriptionContext}
         </div>
       )}
 
-      {/* Atomic Bullets Container */}
-      <div className="p-4 space-y-2">
-        <div className="flex items-center justify-between pb-1">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Atomic Achievement Bullets ({entry.bullets?.length || 0})
+      <div className="border-t border-rule px-4 py-3.5 sm:px-5">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-[12px] text-graphite">
+            {bulletCount} {bulletCount === 1 ? "bullet" : "bullets"}
           </span>
           <button
             onClick={() => setIsAddingBullet(true)}
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-stamp hover:underline"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Add Bullet
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            Add bullet
           </button>
         </div>
 
-        {entry.bullets && entry.bullets.length > 0 ? (
-          <div className="space-y-2">
-            {entry.bullets.map((bullet) => (
+        {bulletCount > 0 ? (
+          <div className="space-y-1.5">
+            {entry.bullets?.map((bullet) => (
               <BulletEditor
                 key={bullet.id}
                 bullet={bullet}
@@ -176,35 +134,35 @@ export function BankEntryCard({
             ))}
           </div>
         ) : (
-          <div className="text-center py-4 border border-dashed rounded text-xs text-gray-400">
-            No achievement bullets added yet. Click &ldquo;Add Bullet&rdquo; to add atomic facts.
-          </div>
+          <p className="border border-dashed border-rule px-3 py-4 text-center text-[12px] text-graphite">
+            No bullets yet. A bullet is one verifiable thing you did.
+          </p>
         )}
 
-        {/* Add Bullet Input */}
         {isAddingBullet && (
-          <div className="mt-3 p-3 border rounded-md bg-blue-50/30 space-y-2">
+          <div className="mt-2.5 border border-rule bg-paper-alt p-3">
             <textarea
               value={newBulletText}
               onChange={(e) => setNewBulletText(e.target.value)}
-              placeholder="e.g., Increased pipeline throughput by 40% by migrating database queries to pooled connections..."
-              rows={2}
-              className="w-full border rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 bg-white"
+              placeholder="Led the migration of the billing worker to a queue, cutting retry failures from 4% to 0.3%"
+              rows={3}
+              className="textarea"
+              autoFocus
             />
-            <div className="flex gap-2">
+            <div className="mt-2 flex gap-2">
               <button
                 onClick={handleAddBulletSubmit}
                 disabled={loading || !newBulletText.trim()}
-                className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="btn btn-primary btn-sm"
               >
-                {loading ? "Adding..." : "Save Bullet"}
+                {loading ? "Saving" : "Save bullet"}
               </button>
               <button
                 onClick={() => {
                   setIsAddingBullet(false);
                   setNewBulletText("");
                 }}
-                className="px-3 py-1 border rounded text-xs text-gray-600 hover:bg-white"
+                className="btn btn-sm btn-quiet"
               >
                 Cancel
               </button>
@@ -212,6 +170,6 @@ export function BankEntryCard({
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

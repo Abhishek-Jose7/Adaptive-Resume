@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { AchievementBullet, BulletFact } from "@/types/bank";
+import { AchievementBullet } from "@/types/bank";
 import { FactBadge } from "./FactBadge";
-import { Plus, Trash2, Edit2, ShieldAlert, Pin, Sparkles } from "lucide-react";
+import { Trash2, Edit2, ShieldAlert, Sparkles } from "lucide-react";
 
 interface BulletEditorProps {
   bullet: AchievementBullet;
@@ -33,59 +33,52 @@ export function BulletEditor({ bullet, onUpdate, onDelete, onQuantify }: BulletE
   };
 
   return (
-    <div className="group relative border rounded-lg p-3 bg-white hover:border-gray-300 shadow-xs transition-all text-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
+    <div className="group border-t border-rule py-2 first:border-t-0 first:pt-0">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
           {isEditing ? (
             <div className="space-y-2">
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                className="w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-500 bg-white"
+                className="textarea text-[12.5px]"
                 rows={2}
               />
               <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={loading}
-                  className="px-2.5 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-                >
-                  Save
+                <button onClick={handleSave} disabled={loading} className="btn btn-primary btn-sm">
+                  {loading ? "Saving" : "Save"}
                 </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-2.5 py-1 border rounded text-xs text-gray-600 hover:bg-gray-50"
-                >
+                <button onClick={() => setIsEditing(false)} className="btn btn-sm btn-quiet">
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div>
-              <p className="text-gray-900 leading-relaxed text-xs">{bullet.text}</p>
+            <>
+              <p className="text-[13px] leading-relaxed text-ink">{bullet.text}</p>
+
               {!hasMetrics && (
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1 text-[11px] text-amber-600 font-medium">
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    <span>Lacks measurable metric</span>
-                  </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-marker-dark">
+                    <ShieldAlert className="h-3 w-3" strokeWidth={1.8} />
+                    No measurable result
+                  </span>
                   {onQuantify && (
                     <button
                       onClick={() => onQuantify(bullet)}
-                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-stamp hover:underline"
                     >
-                      <Sparkles className="w-3 h-3 text-purple-600" />
-                      Quantify with AI Assistant
+                      <Sparkles className="h-3 w-3" strokeWidth={1.8} />
+                      Work out a number
                     </button>
                   )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
-          {/* Structured Facts */}
           {bullet.facts && bullet.facts.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {bullet.facts.map((fact) => (
                 <FactBadge key={fact.id} fact={fact} />
               ))}
@@ -93,30 +86,32 @@ export function BulletEditor({ bullet, onUpdate, onDelete, onQuantify }: BulletE
           )}
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-1 text-gray-400">
+        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           {onQuantify && hasMetrics && (
             <button
               onClick={() => onQuantify(bullet)}
-              className="p-1 hover:text-purple-600 rounded hover:bg-purple-50 transition-colors"
-              title="Quantification Assistant"
+              className="btn btn-icon"
+              title="Quantification assistant"
+              aria-label="Quantification assistant"
             >
-              <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.7} />
             </button>
           )}
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="p-1 hover:text-gray-900 rounded hover:bg-gray-100 transition-colors"
+            className="btn btn-icon"
             title="Edit bullet"
+            aria-label="Edit bullet"
           >
-            <Edit2 className="w-3.5 h-3.5" />
+            <Edit2 className="h-3.5 w-3.5" strokeWidth={1.7} />
           </button>
           <button
             onClick={onDelete}
-            className="p-1 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+            className="btn btn-icon hover:text-alarm"
             title="Delete bullet"
+            aria-label="Delete bullet"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
           </button>
         </div>
       </div>

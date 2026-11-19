@@ -16,9 +16,15 @@ export async function POST(
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { provider, apiKey } = body;
+    const { provider, apiKey, mode, targetBulletId, targetSectionType, pinnedBulletIds } = body;
 
-    const runDetails = await TailoringService.tailorJob(userId, jobId, provider, apiKey);
+    const runDetails = await TailoringService.tailorJob(
+      userId,
+      jobId,
+      provider,
+      apiKey,
+      { mode, targetBulletId, targetSectionType, pinnedBulletIds }
+    );
     return successResponse(runDetails, 201);
   } catch (error: any) {
     console.error("Tailoring job error:", error);

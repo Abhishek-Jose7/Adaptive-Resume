@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ResumeDocStore, EditorState } from "@/lib/editor/resumeDocStore";
 import { IndexedDbDraftService } from "@/lib/editor/indexedDbDraft";
 import { EditorFormPanel } from "@/components/editor/EditorFormPanel";
@@ -12,7 +12,6 @@ import Link from "next/link";
 
 export default function ResumeEditorPage() {
   const params = useParams();
-  const router = useRouter();
   const resumeId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -22,10 +21,10 @@ export default function ResumeEditorPage() {
   const [resumeTitle, setResumeTitle] = useState("Untitled Resume");
   const [versionNumber, setVersionNumber] = useState(1);
   const [draftAlert, setDraftAlert] = useState<boolean>(false);
+  const [pane, setPane] = useState<"form" | "preview">("form");
 
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize Resume & Store
   useEffect(() => {
     async function initEditor() {
       try {
@@ -40,7 +39,6 @@ export default function ResumeEditorPage() {
         setResumeTitle(serverData.document?.title || "Untitled Resume");
         setVersionNumber(serverData.latestVersion?.versionNumber || 1);
 
-        // Check IndexedDB for un-synced offline draft
         const localDraft = await IndexedDbDraftService.loadDraft(resumeId);
         let initialDoc = serverDoc;
 
@@ -57,17 +55,14 @@ export default function ResumeEditorPage() {
         setStore(newStore);
         setEditorState(newStore.getState());
 
-        // Subscribe to store updates
         newStore.subscribe((newState) => {
           setEditorState(newState);
 
           if (newState.isDirty) {
             setAutosaveStatus("saving");
 
-            // Save to IndexedDB immediately for disaster resilience
             IndexedDbDraftService.saveDraft(resumeId, newState.doc, versionNumber);
 
-            // Debounce server autosave by 1.5 seconds (PRD Section 10.6)
             if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
             autosaveTimerRef.current = setTimeout(async () => {
               try {
@@ -117,50 +112,63 @@ export default function ResumeEditorPage() {
 
   if (loading || !store || !editorState) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-indigo-600 mx-auto" />
-          <p className="text-sm font-medium text-gray-600">Loading Resume Document...</p>
-        </div>
+      <div className="flex items-center justify-center gap-2 py-24 text-[13px] text-graphite">
+        <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
+        Setting out the document
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
-      {/* Top Header Bar */}
-      <header className="bg-white border-b px-4 py-2 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/resumes"
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 font-medium"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Resumes
-          </Link>
-          <span className="text-gray-300">/</span>
-          <h1 className="text-sm font-bold text-gray-900">{resumeTitle}</h1>
-          <span className="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
-            v{versionNumber}.0
-          </span>
-        </div>
+    <div className="-mx-4 -mt-6 flex h-[calc(100dvh-54px-56px)] flex-col overflow-hidden border-rule sm:-mx-6 sm:-mt-8 md:h-[calc(100dvh-54px)] md:border-t">
+      <header className="flex shrink-0 items-center gap-3 border-b border-rule bg-paper px-4 py-2.5 sm:px-5">
+        <Link
+          href="/resumes"
+          className="inline-flex items-center gap-1.5 text-[12px] text-graphite hover:text-ink"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.8} />
+          <span className="hidden sm:inline">Resumes</span>
+        </Link>
 
-        {draftAlert && (
-          <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Restored recent offline draft from browser
-          </div>
-        )}
+        <span className="h-3.5 w-px bg-rule" />
+
+        <h1 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold tracking-tight">
+          {resumeTitle}
+        </h1>
+
+        <span className="folio hidden shrink-0 sm:block">v{versionNumber}.0</span>
+
+        <div className="tabbar ml-auto shrink-0 border-b-0 md:hidden">
+          <button className="tab" data-active={pane === "form"} onClick={() => setPane("form")}>
+            Edit
+          </button>
+          <button className="tab" data-active={pane === "preview"} onClick={() => setPane("preview")}>
+            Preview
+          </button>
+        </div>
       </header>
 
-      {/* Split-Pane Workspace */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Form Panel */}
-        <div className="w-1/2 h-full overflow-hidden">
+      {draftAlert && (
+        <div className="flex items-center gap-1.5 border-b border-marker/30 bg-marker-soft px-4 py-1.5 text-[11.5px] text-marker-dark">
+          <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.8} />
+          Recovered a newer draft from this browser
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1">
+        <div
+          className={`h-full min-h-0 w-full overflow-hidden md:block md:w-1/2 md:border-r md:border-rule ${
+            pane === "form" ? "block" : "hidden"
+          }`}
+        >
           <EditorFormPanel store={store} editorState={editorState} />
         </div>
 
-        {/* Right Live Preview Panel */}
-        <div className="w-1/2 h-full overflow-hidden">
+        <div
+          className={`h-full min-h-0 w-full overflow-hidden md:block md:w-1/2 ${
+            pane === "preview" ? "block" : "hidden"
+          }`}
+        >
           <EditorPreviewPanel
             store={store}
             editorState={editorState}

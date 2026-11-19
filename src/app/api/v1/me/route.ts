@@ -30,6 +30,13 @@ const RESERVED_USERNAMES = new Set([
 
 const UpdateMeSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
+  contactEmail: z.union([z.string().email().max(254), z.literal("")]).optional(),
+  phone: z.string().max(50).optional(),
+  location: z.string().max(120).optional(),
+  headline: z.string().max(160).optional(),
+  githubUrl: profileUrlSchema().optional(),
+  linkedinUrl: profileUrlSchema().optional(),
+  portfolioUrl: profileUrlSchema().optional(),
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
@@ -37,6 +44,19 @@ const UpdateMeSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Username can only contain lowercase letters, numbers, and hyphens")
     .optional(),
 });
+
+function profileUrlSchema() {
+  return z.union([
+    z.string().url().max(500).refine((value) => {
+      try {
+        return ["http:", "https:"].includes(new URL(value).protocol);
+      } catch {
+        return false;
+      }
+    }, "Use a link beginning with http:// or https://"),
+    z.literal(""),
+  ]);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,7 +72,15 @@ export async function GET(req: NextRequest) {
       clerkSubject: user.clerkSubject,
       username: user.username,
       displayName: user.displayName,
-      email: user.email,
+      email: user.contactEmail || user.email,
+      contactEmail: user.contactEmail,
+      accountEmail: user.email,
+      phone: user.phone,
+      location: user.location,
+      headline: user.headline,
+      githubUrl: user.githubUrl,
+      linkedinUrl: user.linkedinUrl,
+      portfolioUrl: user.portfolioUrl,
       createdAt: user.createdAt,
     });
   } catch (error) {
@@ -94,13 +122,34 @@ export async function PATCH(req: NextRequest) {
       .update(users)
       .set({
         displayName: validated.displayName,
+        contactEmail: validated.contactEmail === "" ? null : validated.contactEmail?.toLowerCase(),
+        phone: validated.phone === "" ? null : validated.phone,
+        location: validated.location === "" ? null : validated.location,
+        headline: validated.headline === "" ? null : validated.headline,
+        githubUrl: validated.githubUrl === "" ? null : validated.githubUrl,
+        linkedinUrl: validated.linkedinUrl === "" ? null : validated.linkedinUrl,
+        portfolioUrl: validated.portfolioUrl === "" ? null : validated.portfolioUrl,
         username: validated.username ? validated.username.toLowerCase() : undefined,
         updatedAt: new Date(),
       })
       .where(eq(users.id, authUser.userId));
 
     const [updated] = await db.select().from(users).where(eq(users.id, authUser.userId)).limit(1);
-    return apiSuccess(updated);
+    return apiSuccess({
+      id: updated.id,
+      username: updated.username,
+      displayName: updated.displayName,
+      email: updated.contactEmail || updated.email,
+      contactEmail: updated.contactEmail,
+      accountEmail: updated.email,
+      phone: updated.phone,
+      location: updated.location,
+      headline: updated.headline,
+      githubUrl: updated.githubUrl,
+      linkedinUrl: updated.linkedinUrl,
+      portfolioUrl: updated.portfolioUrl,
+      createdAt: updated.createdAt,
+    });
   } catch (error) {
     return handleApiError(error);
   }

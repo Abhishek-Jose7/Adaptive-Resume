@@ -77,14 +77,14 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
   };
 
   return (
-    <div className="bg-white border rounded-xl shadow-sm p-6 space-y-6">
+    <div className="bg-white border rounded-lg shadow-none p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-lg font-bold text-ink flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-stamp" />
             Truth-Bound AI Tailoring & Candidate Ranking
           </h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-graphite">
             Scores candidate bullets against JD requirements and applies strict Section 10.4 truth validation. Zero hallucinations guaranteed.
           </p>
         </div>
@@ -92,7 +92,7 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
         <button
           onClick={handleStartTailoring}
           disabled={running}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50 text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-stamp hover:bg-stamp-dark text-white font-medium rounded-lg shadow-none disabled:opacity-50 text-sm"
         >
           {running ? (
             <>
@@ -109,22 +109,22 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+        <div className="p-3 bg-alarm text-white rounded-lg text-sm border border-alarm">
           {error}
         </div>
       )}
 
       {runDetails && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border">
+          <div className="flex items-center justify-between text-xs text-graphite bg-paper px-3 py-2 rounded-lg border">
             <div>
-              <span className="font-semibold text-gray-700">Provider:</span> {runDetails.provider} ({runDetails.model})
+              <span className="font-semibold text-ink">Provider:</span> {runDetails.provider} ({runDetails.model})
             </div>
             <div>
-              <span className="font-semibold text-gray-700">Run ID:</span> {runDetails.id.slice(0, 8)}...
+              <span className="font-semibold text-ink">Run ID:</span> {runDetails.id.slice(0, 8)}...
             </div>
             <div>
-              <span className="font-semibold text-gray-700">Candidates Evaluated:</span> {runDetails.results.length}
+              <span className="font-semibold text-ink">Candidates Evaluated:</span> {runDetails.results.length}
             </div>
           </div>
 
@@ -134,29 +134,29 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
                 key={item.bulletId}
                 className={`border rounded-lg p-4 transition-all ${
                   item.status === "accepted"
-                    ? "bg-green-50/50 border-green-300"
+                    ? "bg-press-soft border-press"
                     : item.status === "rejected"
-                    ? "bg-gray-50 border-gray-200 opacity-60"
-                    : "bg-white border-gray-200 hover:border-indigo-300"
+                    ? "bg-paper border-rule-strong opacity-60"
+                    : "bg-white border-rule-strong hover:border-stamp"
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                    <span className="text-xs font-bold text-graphite normal-case tracking-normal">
                       Candidate #{idx + 1}
                     </span>
                     {item.validatorStatus === "passed" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-press text-white">
                         <ShieldCheck className="w-3.5 h-3.5" /> Truth-Validated
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-marker text-white-dark">
                         <AlertTriangle className="w-3.5 h-3.5" /> Retained Original (Zero Hallucination Fallback)
                       </span>
                     )}
 
                     {item.retryCount > 0 && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-graphite">
                         (Repaired via {item.retryCount} retry)
                       </span>
                     )}
@@ -164,24 +164,24 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
 
                   <div className="flex items-center gap-2">
                     {item.status === "accepted" ? (
-                      <span className="text-xs font-semibold text-green-700 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-press flex items-center gap-1">
                         <Check className="w-4 h-4" /> Accepted
                       </span>
                     ) : item.status === "rejected" ? (
-                      <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-graphite flex items-center gap-1">
                         <X className="w-4 h-4" /> Rejected
                       </span>
                     ) : (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleAcceptItem(item.bulletId)}
-                          className="px-2.5 py-1 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded flex items-center gap-1"
+                          className="px-2.5 py-1 text-xs font-medium bg-press hover:bg-press text-white rounded flex items-center gap-1"
                         >
                           <Check className="w-3.5 h-3.5" /> Accept
                         </button>
                         <button
                           onClick={() => handleRejectItem(item.bulletId)}
-                          className="px-2.5 py-1 text-xs font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 rounded flex items-center gap-1"
+                          className="px-2.5 py-1 text-xs font-medium bg-paper hover:bg-paper text-ink rounded flex items-center gap-1"
                         >
                           <X className="w-3.5 h-3.5" /> Reject
                         </button>
@@ -192,20 +192,39 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
 
                 <div className="space-y-2 text-sm">
                   <div>
-                    <span className="text-xs font-semibold text-gray-400 block mb-0.5">Original Source:</span>
-                    <p className="text-gray-600 bg-gray-50 p-2 rounded text-xs">{item.originalText}</p>
+                    <span className="text-xs font-semibold text-graphite block mb-0.5">Original Source:</span>
+                    <p className="text-graphite bg-paper p-2 rounded text-xs">{item.originalText}</p>
                   </div>
 
                   <div>
-                    <span className="text-xs font-semibold text-indigo-600 block mb-0.5">Proposed Rewrite & Alignment:</span>
-                    <div
-                      className="text-gray-900 bg-indigo-50/40 p-2.5 rounded border border-indigo-100 text-sm font-medium"
-                      dangerouslySetInnerHTML={{ __html: item.diffHtml || item.rewrittenText }}
-                    />
+                    <span className="text-xs font-semibold text-stamp block mb-0.5">Proposed Rewrite & Alignment:</span>
+                    <div className="text-ink bg-stamp-soft p-2.5 rounded border border-stamp text-sm font-medium">
+                      {item.diffChunks && item.diffChunks.length > 0 ? (
+                        item.diffChunks.map((chunk, idx) => {
+                          if (chunk.added) {
+                            return (
+                              <ins key={idx} className="bg-press text-white no-underline font-semibold px-0.5 rounded">
+                                {chunk.value}
+                              </ins>
+                            );
+                          }
+                          if (chunk.removed) {
+                            return (
+                              <del key={idx} className="bg-alarm text-white line-through opacity-70 px-0.5 rounded">
+                                {chunk.value}
+                              </del>
+                            );
+                          }
+                          return <span key={idx}>{chunk.value}</span>;
+                        })
+                      ) : (
+                        <span>{item.rewrittenText}</span>
+                      )}
+                    </div>
                   </div>
 
                   {item.validationNotes && item.validationNotes.length > 0 && (
-                    <div className="text-xs text-gray-500 italic pt-1">
+                    <div className="text-xs text-graphite italic pt-1">
                       {item.validationNotes.join(" • ")}
                     </div>
                   )}

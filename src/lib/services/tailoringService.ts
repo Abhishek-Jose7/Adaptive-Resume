@@ -10,6 +10,21 @@ import { JDAnalysis, RewrittenBullet } from "@/types/job";
 import { BankEntry, AchievementBullet, StructuredFact } from "@/types/bank";
 import { diffWords } from "diff";
 
+export interface DiffChunk {
+  value: string;
+  added?: boolean;
+  removed?: boolean;
+}
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface TailoredBulletResult {
   bulletId: string;
   originalText: string;
@@ -22,6 +37,7 @@ export interface TailoredBulletResult {
   retryCount: number;
   status: "pending" | "accepted" | "rejected";
   diffHtml?: string;
+  diffChunks?: DiffChunk[];
 }
 
 export interface AiRunDetails {
@@ -46,7 +62,13 @@ export class TailoringService {
     userId: string,
     jobId: string,
     providerName?: string,
-    apiKey?: string
+    apiKey?: string,
+    options?: {
+      mode?: "full_resume" | "single_section" | "single_bullet";
+      targetBulletId?: string;
+      targetSectionType?: string;
+      pinnedBulletIds?: string[];
+    }
   ): Promise<AiRunDetails> {
     // 1. Fetch Job and JD Analysis
     const jobList = await db
@@ -71,7 +93,16 @@ export class TailoringService {
 
     const jdAnalysis = jdList[0].analysisJson as unknown as JDAnalysis;
 
-    // 2. Fetch User Bank Entries, Bullets and Facts
+    // Upfront Atomic Quota Gate (Fail fast & atomically reserve slot before any LLM execution)
+    const reservation = await UsageLimitService.checkAndReserveAiGeneration(userId);
+    if (!reservation.reserved) {
+      throw new Error(
+        `QUOTA_EXHAUSTED: Monthly free tier AI tailoring quota of 50 generations reached. Add a personal Gemini or Groq key in Settings for unlimited generations.`
+      );
+    }
+
+    try {
+      // 2. Fetch User Bank Entries, Bullets and Facts
     const userEntries = await db
       .select()
       .from(bankEntries)
@@ -115,7 +146,40 @@ export class TailoringService {
 
     // 3. Candidate Retrieval & Budgeting (Section 10.3)
     const retrieval = BulletRetriever.retrieveCandidates(fullEntries, jdAnalysis);
-    const candidates = retrieval.candidates;
+    let candidates = retrieval.candidates;
+
+    // Filter by mode (PRD Section 10 & T1)
+    if (options?.mode === "single_bullet" && options?.targetBulletId) {
+      candidates = candidates.filter((c) => c.bullet.id === options.targetBulletId);
+      if (candidates.length === 0) {
+        for (const ent of fullEntries) {
+          const b = (ent.bullets || []).find((bul) => bul.id === options.targetBulletId);
+          if (b) {
+            candidates = [{
+              bullet: b,
+              parentEntry: ent,
+              facts: b.facts || [],
+              scoreBreakdown: {
+                bulletId: b.id,
+                totalScore: 50,
+                mustHaveScore: 15,
+                responsibilityScore: 10,
+                outcomeScore: 10,
+                domainScore: 5,
+                recencyScore: 5,
+                seniorityScore: 5,
+                importanceScore: 0,
+                matchedKeywords: jdAnalysis.keywords.slice(0, 5).map((k) => k.canonical),
+                isExcluded: false,
+              },
+            }];
+            break;
+          }
+        }
+      }
+    } else if (options?.mode === "single_section" && options?.targetSectionType) {
+      candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
+    }
 
     const provider = ProviderFactory.getProvider(providerName, apiKey);
     let totalTokensIn = 0;
@@ -141,6 +205,25 @@ CRITICAL INTEGRITY RULES:
     for (const item of candidates) {
       const sourceBullet = item.bullet;
       const relevantKeywords = item.scoreBreakdown.matchedKeywords;
+
+      // Check if bullet is pinned (PRD Section 10.4 & T9)
+      const isPinned = options?.pinnedBulletIds?.includes(sourceBullet.id);
+      if (isPinned) {
+        tailoredResults.push({
+          bulletId: sourceBullet.id,
+          originalText: sourceBullet.text,
+          rewrittenText: sourceBullet.text,
+          sourceBulletIds: [sourceBullet.id],
+          sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+          claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+          validatorStatus: "passed",
+          validationNotes: ["Preserved: bullet is pinned by candidate (PRD Section 10.4 & T9)"],
+          retryCount: 0,
+          status: "accepted",
+          diffChunks: [{ value: sourceBullet.text }],
+        });
+        continue;
+      }
 
       const userPayload = {
         sourceBullet,
@@ -181,12 +264,21 @@ CRITICAL INTEGRITY RULES:
 
         const candidateRewrite = res.data;
 
-        // Run Deterministic Truth-Bound Validation
+        // Scope evidence strictly to the target entry being tailored (Experience Isolation & Truth Scoping)
+        const targetEntryBullets = allCandidateBullets.filter((b) => b.entryId === item.parentEntry.id);
+        const targetBulletIds = new Set(targetEntryBullets.map((b) => b.id));
+        const targetEntryFacts = allCandidateFacts.filter(
+          (f: any) => f.entryId === item.parentEntry.id || (f.bulletId && targetBulletIds.has(f.bulletId))
+        );
+        const targetEntries = fullEntries.filter((e) => e.id === item.parentEntry.id);
+
+        // Run Deterministic Truth-Bound Validation scoped strictly to target entry
         const validation = TruthBoundValidator.validate(
           candidateRewrite,
-          allCandidateBullets,
-          allCandidateFacts,
-          fullEntries
+          targetEntryBullets,
+          targetEntryFacts,
+          targetEntries,
+          item.parentEntry.id
         );
 
         // Run Experience Isolation Audit (Section 18.2)
@@ -210,11 +302,17 @@ CRITICAL INTEGRITY RULES:
         if (validation.isValid) {
           // Compute diff
           const diff = diffWords(sourceBullet.text, candidateRewrite.text);
+          const diffChunks: DiffChunk[] = diff.map((part) => ({
+            value: part.value,
+            added: Boolean(part.added),
+            removed: Boolean(part.removed),
+          }));
           const diffHtml = diff
             .map((part) => {
-              if (part.added) return `<ins class="bg-green-100 text-green-800">${part.value}</ins>`;
-              if (part.removed) return `<del class="bg-red-100 text-red-800 line-through">${part.value}</del>`;
-              return part.value;
+              const escaped = escapeHtml(part.value);
+              if (part.added) return `<ins class="bg-press text-press">${escaped}</ins>`;
+              if (part.removed) return `<del class="bg-alarm text-alarm line-through">${escaped}</del>`;
+              return escaped;
             })
             .join("");
 
@@ -230,6 +328,7 @@ CRITICAL INTEGRITY RULES:
             retryCount: attempt - 1,
             status: "pending",
             diffHtml,
+            diffChunks,
           };
           break;
         } else {
@@ -258,7 +357,8 @@ CRITICAL INTEGRITY RULES:
               ],
               retryCount: attempt - 1,
               status: "pending",
-              diffHtml: sourceBullet.text,
+              diffHtml: escapeHtml(sourceBullet.text),
+              diffChunks: [{ value: sourceBullet.text }],
             };
           }
         }
@@ -285,21 +385,27 @@ CRITICAL INTEGRITY RULES:
       validatorReportJson: { results: tailoredResults } as any,
     };
 
-    await db.insert(aiRuns).values(newRun);
-    await UsageLimitService.recordAiGeneration(userId, totalTokensIn + totalTokensOut);
+      await db.insert(aiRuns).values(newRun);
+      await UsageLimitService.recordAiTokens(userId, totalTokensIn + totalTokensOut);
 
-    return {
-      id: runId,
-      userId,
-      jobId,
-      provider: provider.name,
-      model: "v1-truth-bound",
-      promptVersion: "v1.0",
-      tokensIn: totalTokensIn,
-      tokensOut: totalTokensOut,
-      createdAt: new Date().toISOString(),
-      results: tailoredResults,
-    };
+      return {
+        id: runId,
+        userId,
+        jobId,
+        provider: provider.name,
+        model: "v1-truth-bound",
+        promptVersion: "v1.0",
+        tokensIn: totalTokensIn,
+        tokensOut: totalTokensOut,
+        createdAt: new Date().toISOString(),
+        results: tailoredResults,
+      };
+    } catch (err) {
+      if (!reservation.isByok) {
+        await UsageLimitService.refundAiGeneration(userId);
+      }
+      throw err;
+    }
   }
 
   /**

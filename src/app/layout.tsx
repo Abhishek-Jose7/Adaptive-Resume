@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
+const display = localFont({
+  src: "../../public/fonts/fraunces-latin-variable.woff2",
+  weight: "100 900",
+  variable: "--font-display-source",
+  display: "swap",
+});
+
+const sans = localFont({
+  src: "../../public/fonts/manrope-latin-variable.woff2",
+  weight: "200 800",
+  variable: "--font-sans-source",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Resume Maker - Truth-Bound ATS Tailoring",
-  description: "Tailor resumes strictly from your career facts with ATS match scoring.",
+  title: "Adaptive Resume — a resume for this job",
+  description:
+    "Shape a resume around the job you want, using the experience and skills you already have.",
 };
 
 export default function RootLayout({
@@ -13,9 +29,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider dynamic>
-      <html lang="en">
-        <body className="antialiased min-h-screen">{children}</body>
+    <ClerkProvider dynamic afterSignOutUrl="/">
+      <html lang="en" className={`${display.variable} ${sans.variable}`}>
+        <body className="min-h-screen antialiased">{children}</body>
       </html>
     </ClerkProvider>
   );

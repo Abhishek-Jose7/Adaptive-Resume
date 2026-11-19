@@ -26,6 +26,9 @@ export async function GET(
       },
     });
   } catch (err: any) {
+    if (err.message?.includes("Monthly export limit reached") || err.message?.includes("QUOTA_EXHAUSTED")) {
+      return errorResponse("QUOTA_EXHAUSTED", err.message, 429);
+    }
     return errorResponse("INTERNAL_ERROR", err.message, 500);
   }
 }

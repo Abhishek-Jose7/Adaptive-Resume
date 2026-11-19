@@ -9,7 +9,8 @@ export interface ValidationFailure {
     | "UNGROUNDED_SCOPE"
     | "VERB_PROMOTION"
     | "MISSING_CLAIM_COVERAGE"
-    | "ENTAILMENT_FAILURE";
+    | "ENTAILMENT_FAILURE"
+    | "CROSS_EXPERIENCE_CONTAMINATION";
   message: string;
   offendingToken?: string;
 }
@@ -61,35 +62,53 @@ const PROMOTED_LEADERSHIP_VERBS = [
 export class TruthBoundValidator {
   /**
    * Validates a rewritten bullet against source evidence
-   * PRD Section 10.4
+   * PRD Section 10.4 & Section 18.2 (Experience Isolation)
    */
   static validate(
     rewritten: RewrittenBullet,
     candidateBullets: AchievementBullet[],
     candidateFacts: StructuredFact[],
-    candidateEntries: BankEntry[] = []
+    candidateEntries: BankEntry[] = [],
+    targetEntryId?: string
   ): ValidationResult {
     const failures: ValidationFailure[] = [];
 
-    // 1. Schema Validation: Check source IDs existence
+    const effectiveTargetEntryId =
+      targetEntryId || (candidateEntries.length === 1 ? candidateEntries[0].id : undefined);
+
+    // 1. Schema Validation & Experience Isolation: Check source IDs existence & cross-experience contamination
     const bulletMap = new Map(candidateBullets.map((b) => [b.id, b]));
     const factMap = new Map(candidateFacts.map((f) => [f.id, f]));
 
     for (const bId of rewritten.sourceBulletIds) {
-      if (!bulletMap.has(bId)) {
+      const b = bulletMap.get(bId);
+      if (!b) {
         failures.push({
           rule: "SCHEMA_MISMATCH",
           message: `Referenced sourceBulletId "${bId}" does not exist in supplied candidate set.`,
+          offendingToken: bId,
+        });
+      } else if (effectiveTargetEntryId && b.entryId && b.entryId !== effectiveTargetEntryId) {
+        failures.push({
+          rule: "CROSS_EXPERIENCE_CONTAMINATION",
+          message: `Cross-Experience Contamination: Bullet "${bId}" belongs to entry "${b.entryId}" but target entry is "${effectiveTargetEntryId}". Experience isolation forbids citing evidence across unrelated experiences.`,
           offendingToken: bId,
         });
       }
     }
 
     for (const fId of rewritten.sourceFactIds) {
-      if (!factMap.has(fId)) {
+      const f = factMap.get(fId);
+      if (!f) {
         failures.push({
           rule: "SCHEMA_MISMATCH",
           message: `Referenced sourceFactId "${fId}" does not exist in supplied candidate facts.`,
+          offendingToken: fId,
+        });
+      } else if (effectiveTargetEntryId && (f as any).entryId && (f as any).entryId !== effectiveTargetEntryId) {
+        failures.push({
+          rule: "CROSS_EXPERIENCE_CONTAMINATION",
+          message: `Cross-Experience Contamination: Fact "${fId}" belongs to an unrelated entry and cannot be transferred.`,
           offendingToken: fId,
         });
       }
@@ -123,7 +142,11 @@ export class TruthBoundValidator {
     }
 
     const sourceTexts = referencedBullets.map((b) => b.text);
-    const sourceContexts = candidateEntries.map((e) => e.descriptionContext || "");
+    // Source contexts scoped strictly to target entry to avoid leaking other projects' vocabulary
+    const scopedEntries = effectiveTargetEntryId
+      ? candidateEntries.filter((e) => e.id === effectiveTargetEntryId)
+      : candidateEntries;
+    const sourceContexts = scopedEntries.map((e) => e.descriptionContext || "");
     const combinedSourceText = [...sourceTexts, ...sourceContexts].join(" ").toLowerCase();
     const combinedFactsText = referencedFacts
       .map((f) => `${f.valueNumeric ?? ""} ${f.valueText} ${f.unit || ""}`)
@@ -237,7 +260,7 @@ export class TruthBoundValidator {
     const ungroundedEntities = this.detectUngroundedEntities(
       rewritten.text,
       combinedSourceText,
-      candidateEntries,
+      scopedEntries,
       candidateFacts
     );
     for (const ent of ungroundedEntities) {

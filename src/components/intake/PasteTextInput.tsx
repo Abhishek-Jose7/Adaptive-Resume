@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { FileEdit, Sparkles, AlertTriangle } from "lucide-react";
 import { MAX_PASTED_TEXT_LENGTH } from "@/lib/parsers/fileValidator";
 
+import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
+
 interface PasteTextInputProps {
   onParsedItemsReady: (sourceType: string, sourceLabel: string, items: any[]) => Promise<void>;
 }
@@ -26,33 +28,9 @@ export function PasteTextInput({ onParsedItemsReady }: PasteTextInputProps) {
     setError(null);
 
     try {
-      // Parse pasted text into structured candidates by detecting paragraphs and bullet lines
-      const paragraphs = text
-        .split(/\n\s*\n/)
-        .map((p) => p.trim())
-        .filter(Boolean);
-
-      const items = paragraphs.map((p, idx) => {
-        const lines = p
-          .split(/\n/)
-          .map((l) => l.trim())
-          .filter(Boolean);
-
-        const title = lines[0] || `Career Entry #${idx + 1}`;
-        const bullets = lines.slice(1).map((l) => l.replace(/^[•\-\*]\s*/, ""));
-
-        return {
-          entryType: "experience",
-          rawSnippet: p.substring(0, 150) + (p.length > 150 ? "..." : ""),
-          parsedDataJson: {
-            title,
-            organization: "Pasted Career History",
-            descriptionContext: p,
-            bullets: bullets.length > 0 ? bullets : [title],
-          },
-          confidence: 0.85,
-        };
-      });
+      // Parse pasted text into structured candidates across profile, experiences, education, skills, projects
+      const structuredSections = ResumeStructuringService.structureResumeText(text, "Pasted Career Text");
+      const items = ResumeStructuringService.toStagedItemInputs(structuredSections);
 
       await onParsedItemsReady("free_text", "Pasted Career Text", items);
       setText("");
@@ -64,19 +42,19 @@ export function PasteTextInput({ onParsedItemsReady }: PasteTextInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border rounded-xl p-6 bg-white shadow-xs space-y-4">
+    <form onSubmit={handleSubmit} className="border rounded-lg p-6 bg-white shadow-none space-y-4">
       <div className="flex items-center gap-2">
-        <FileEdit className="w-5 h-5 text-blue-600" />
-        <h3 className="text-sm font-semibold text-gray-900">
+        <FileEdit className="w-5 h-5 text-stamp" />
+        <h3 className="text-sm font-semibold text-ink">
           Paste Free-Form Career Text or LinkedIn Profile
         </h3>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-graphite">
         Paste paragraphs, bio, or job bullet lists. Content is structured into candidate entries and atomic bullets and placed in the staging area for your review. (Max {MAX_PASTED_TEXT_LENGTH} chars).
       </p>
 
       {error && (
-        <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-1.5">
+        <div className="p-2.5 bg-alarm border border-alarm text-white text-xs rounded-lg flex items-center gap-1.5">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -87,17 +65,17 @@ export function PasteTextInput({ onParsedItemsReady }: PasteTextInputProps) {
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste your resume content, LinkedIn 'About' text, or role descriptions here..."
         rows={6}
-        className="w-full border rounded-lg p-3 text-sm focus:ring-1 focus:ring-blue-500 bg-gray-50/50"
+        className="w-full border rounded-lg p-3 text-sm focus:ring-1 focus:ring-stamp bg-paper/50"
       />
 
-      <div className="flex items-center justify-between text-xs text-gray-400">
+      <div className="flex items-center justify-between text-xs text-graphite">
         <span>
           {text.length.toLocaleString()} / {MAX_PASTED_TEXT_LENGTH.toLocaleString()} characters
         </span>
         <button
           type="submit"
           disabled={loading || !text.trim()}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-stamp text-white rounded-lg text-xs font-semibold hover:bg-stamp-dark disabled:opacity-50"
         >
           <Sparkles className="w-3.5 h-3.5" />
           {loading ? "Structuring..." : "Structure and Stage"}

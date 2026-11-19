@@ -38,20 +38,27 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { document, versionNumber } = body;
+    const { document, rowVersion } = body;
 
     if (!document) {
       return errorResponse("VALIDATION_ERROR", "Document is required for autosave", 400);
     }
 
-    const saved = await ResumeService.autosaveDraft(userId, resumeId, document, versionNumber);
+    if (rowVersion === undefined || rowVersion === null || typeof rowVersion !== "number" || rowVersion <= 0) {
+      return errorResponse("VALIDATION_ERROR", "rowVersion (positive integer) is mandatory for concurrent autosave", 400);
+    }
+
+    const saved = await ResumeService.autosaveDraft(userId, resumeId, document, rowVersion);
     return successResponse(saved);
   } catch (err: any) {
-    if (err.message.startsWith("VERSION_IMMUTABLE")) {
+    if (err.message?.startsWith("INVALID_ROW_VERSION") || err.statusCode === 400) {
+      return errorResponse("VALIDATION_ERROR", err.message, 400);
+    }
+    if (err.message?.startsWith("VERSION_IMMUTABLE")) {
       return errorResponse("VERSION_IMMUTABLE", err.message, 400);
     }
-    if (err.message.startsWith("CONFLICT")) {
-      return errorResponse("CONFLICT", err.message, 409);
+    if (err.message?.startsWith("CONFLICT") || err.message?.startsWith("CONCURRENCY_CONFLICT") || err.statusCode === 409) {
+      return errorResponse("CONCURRENCY_CONFLICT", err.message, 409);
     }
     return errorResponse("INTERNAL_ERROR", err.message, 500);
   }

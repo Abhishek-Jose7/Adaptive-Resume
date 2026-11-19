@@ -129,34 +129,34 @@ export function ProjectRecommendationPanel({
     switch (maturity) {
       case "deployed":
       case "completed":
-        return "bg-emerald-950/60 border-emerald-800 text-emerald-300";
+        return "bg-press-soft border-press text-press";
       case "functional_prototype":
-        return "bg-blue-950/60 border-blue-800 text-blue-300";
+        return "bg-stamp-soft border-stamp text-stamp";
       case "partially_implemented":
       case "in_development":
-        return "bg-amber-950/60 border-amber-800 text-amber-300";
+        return "bg-marker-soft border-marker text-marker-dark";
       case "idea":
       default:
-        return "bg-gray-800 border-gray-700 text-gray-400";
+        return "bg-paper-deep border-rule text-graphite";
     }
   };
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl text-white">
+    <div className="bg-paper border border-rule rounded-lg overflow-hidden shadow-plate text-ink">
       {/* Header */}
-      <div className="p-4 bg-gray-900 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-4 bg-sheet border-b border-rule flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400">
+          <div className="p-2 bg-stamp-soft border border-stamp/30 rounded-lg text-stamp">
             <FolderGit2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <h3 className="text-base font-bold text-ink flex items-center gap-2">
               JD-Targeted Project Recommendations
-              <span className="text-[10px] font-semibold px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-full">
+              <span className="text-[10px] font-semibold px-2 py-0.5 bg-stamp-soft text-stamp border border-stamp/30 rounded-full">
                 PRD 18.11
               </span>
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-graphite">
               Ranked by job relevance. Honest maturity levels and explicit user approval required.
             </p>
           </div>
@@ -165,7 +165,7 @@ export function ProjectRecommendationPanel({
         <button
           onClick={fetchRecommendations}
           disabled={loading}
-          className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors self-start sm:self-auto"
+          className="p-1.5 text-graphite hover:text-ink rounded-lg hover:bg-paper-deep transition-colors self-start sm:self-auto"
           title="Refresh recommendations"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -173,14 +173,14 @@ export function ProjectRecommendationPanel({
       </div>
 
       {/* Honest Scope Callout */}
-      <div className="px-5 py-2.5 bg-gray-900/40 border-b border-gray-800/80 flex items-center justify-between text-xs text-gray-400">
+      <div className="px-5 py-2.5 bg-sheet/40 border-b border-rule/80 flex items-center justify-between text-xs text-graphite">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-press shrink-0" />
           <span>
             Non-production and hackathon projects are represented honestly without inflated claims.
           </span>
         </div>
-        <span className="text-[11px] font-mono text-purple-400">
+        <span className="text-[11px] font-mono text-stamp">
           {selectedIds.size} of {recommendations.length} selected for resume
         </span>
       </div>
@@ -188,13 +188,13 @@ export function ProjectRecommendationPanel({
       {/* Content list */}
       <div className="p-5 space-y-4">
         {loading ? (
-          <div className="py-16 text-center text-gray-400 space-y-2">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-400" />
+          <div className="py-16 text-center text-graphite space-y-2">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-stamp" />
             <p className="text-xs">Analyzing job description requirements against candidate projects...</p>
           </div>
         ) : recommendations.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 text-xs space-y-2">
-            <FolderGit2 className="w-8 h-8 text-gray-600 mx-auto" />
+          <div className="text-center py-12 text-graphite text-xs space-y-2">
+            <FolderGit2 className="w-8 h-8 text-graphite mx-auto" />
             <p>No candidate projects found in Data Bank or JD analysis not yet triggered.</p>
           </div>
         ) : (
@@ -206,10 +206,10 @@ export function ProjectRecommendationPanel({
               return (
                 <div
                   key={pId}
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`p-4 rounded-lg border transition-all ${
                     isSelected
-                      ? "bg-gray-900/90 border-purple-500/60 ring-1 ring-purple-500/20"
-                      : "bg-gray-900/30 border-gray-800 hover:border-gray-700"
+                      ? "bg-sheet/90 border-stamp/60 ring-1 ring-stamp/20"
+                      : "bg-sheet/30 border-rule hover:border-rule"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -218,20 +218,20 @@ export function ProjectRecommendationPanel({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelect(pId)}
-                        className="mt-1 rounded bg-gray-800 border-gray-700 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        className="mt-1 rounded bg-paper-deep border-rule text-stamp focus:ring-stamp cursor-pointer"
                       />
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-sm font-bold text-white">{rec.projectTitle || rec.title}</h4>
-                          <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${getMaturityBadge(rec.maturityLevel as ProjectMaturityLevel)}`}>
+                          <h4 className="text-sm font-bold text-ink">{rec.projectTitle || rec.title}</h4>
+                          <span className={`text-[10px] normal-case font-mono px-2 py-0.5 rounded border ${getMaturityBadge(rec.maturityLevel as ProjectMaturityLevel)}`}>
                             {rec.maturityLevel.replace(/_/g, " ")}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-300 font-mono">
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-paper-deep text-ink font-mono">
                             Match Score: {rec.relevanceScore}%
                           </span>
                         </div>
 
-                        <p className="text-xs text-purple-300 mt-1 font-medium">
+                        <p className="text-xs text-stamp mt-1 font-medium">
                           {rec.relevanceExplanation || rec.relevanceRationale}
                         </p>
                       </div>
@@ -239,7 +239,7 @@ export function ProjectRecommendationPanel({
 
                     <button
                       onClick={() => handleOpenEditMetadata(rec)}
-                      className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-800 transition-colors"
+                      className="p-1.5 text-graphite hover:text-ink rounded hover:bg-paper-deep transition-colors"
                       title="Edit project maturity & limitations"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -247,14 +247,14 @@ export function ProjectRecommendationPanel({
                   </div>
 
                   {/* Skills & Requirements badges */}
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-gray-800/60 pt-3">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-rule/60 pt-3">
                     <div>
-                      <span className="text-[10px] uppercase text-gray-500 font-bold block mb-1">
+                      <span className="text-[10px] normal-case text-graphite font-bold block mb-1">
                         Demonstrated Skills
                       </span>
                       <div className="flex flex-wrap gap-1">
                         {rec.demonstratedSkills.map((s, i) => (
-                          <span key={i} className="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[10px] font-mono">
+                          <span key={i} className="px-1.5 py-0.5 rounded bg-paper-deep text-ink text-[10px] font-mono">
                             {s}
                           </span>
                         ))}
@@ -262,12 +262,12 @@ export function ProjectRecommendationPanel({
                     </div>
 
                     <div>
-                      <span className="text-[10px] uppercase text-gray-500 font-bold block mb-1">
+                      <span className="text-[10px] normal-case text-graphite font-bold block mb-1">
                         Supported JD Qualifications
                       </span>
                       <div className="flex flex-wrap gap-1">
                         {supportedReqs.map((r, i) => (
-                          <span key={i} className="px-1.5 py-0.5 rounded bg-purple-950/40 border border-purple-800/40 text-purple-300 text-[10px]">
+                          <span key={i} className="px-1.5 py-0.5 rounded bg-stamp-soft border border-stamp/40 text-stamp text-[10px]">
                             {r}
                           </span>
                         ))}
@@ -277,8 +277,8 @@ export function ProjectRecommendationPanel({
 
                   {/* Implementation scope and limitations */}
                   {(rec.metadata?.implementationGaps || rec.metadata?.limitations) && (
-                    <div className="mt-2.5 p-2 bg-gray-950 rounded border border-gray-800/80 text-[11px] text-gray-400">
-                      <span className="font-semibold text-amber-400">Known Scope / Gaps: </span>
+                    <div className="mt-2.5 p-2 bg-paper rounded border border-rule/80 text-[11px] text-graphite">
+                      <span className="font-semibold text-marker-dark">Known Scope / Gaps: </span>
                       {rec.metadata.implementationGaps || rec.metadata.limitations}
                     </div>
                   )}
@@ -291,16 +291,16 @@ export function ProjectRecommendationPanel({
 
       {/* Edit Project Maturity Modal */}
       {editingMetadataEntryId && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl text-white">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-800">
+        <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-sheet border border-rule rounded-lg max-w-lg w-full p-5 space-y-4 shadow-plate text-ink">
+            <div className="flex items-center justify-between pb-2 border-b border-rule">
               <h4 className="text-sm font-bold flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-purple-400" />
+                <Sliders className="w-4 h-4 text-stamp" />
                 Edit Project Maturity &amp; Scope
               </h4>
               <button
                 onClick={() => setEditingMetadataEntryId(null)}
-                className="text-gray-400 hover:text-white text-xs font-bold"
+                className="text-graphite hover:text-ink text-xs font-bold"
               >
                 ✕
               </button>
@@ -308,11 +308,11 @@ export function ProjectRecommendationPanel({
 
             <form onSubmit={handleSaveMetadata} className="space-y-3 text-xs">
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Project Maturity Level</label>
+                <label className="block text-graphite mb-1 font-medium">Project Maturity Level</label>
                 <select
                   value={editMaturity}
                   onChange={(e) => setEditMaturity(e.target.value as ProjectMaturityLevel)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-purple-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs focus:outline-none focus:border-stamp"
                 >
                   <option value="idea">Idea / Conceptual</option>
                   <option value="in_development">In Development (Active Coding)</option>
@@ -324,36 +324,36 @@ export function ProjectRecommendationPanel({
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Your Actual Contribution</label>
+                <label className="block text-graphite mb-1 font-medium">Your Actual Contribution</label>
                 <input
                   type="text"
                   value={editContribution}
                   onChange={(e) => setEditContribution(e.target.value)}
                   placeholder="e.g. Built frontend UI and auth flow; team partner handled backend DB"
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs placeholder-graphite focus:outline-none focus:border-stamp"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Unfinished Features / Known Gaps</label>
+                <label className="block text-graphite mb-1 font-medium">Unfinished Features / Known Gaps</label>
                 <textarea
                   value={editGaps}
                   onChange={(e) => setEditGaps(e.target.value)}
                   placeholder="e.g. Payment gateway is mocked; caching layer not yet deployed"
                   rows={2}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs placeholder-graphite focus:outline-none focus:border-stamp"
                 />
               </div>
 
-              <div className="flex items-center gap-2 p-2.5 bg-gray-950 rounded border border-gray-800">
+              <div className="flex items-center gap-2 p-2.5 bg-paper rounded border border-rule">
                 <input
                   type="checkbox"
                   id="prodReady"
                   checked={editProductionReady}
                   onChange={(e) => setEditProductionReady(e.target.checked)}
-                  className="rounded bg-gray-800 border-gray-700 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  className="rounded bg-paper-deep border-rule text-stamp focus:ring-stamp cursor-pointer"
                 />
-                <label htmlFor="prodReady" className="text-gray-300 cursor-pointer">
+                <label htmlFor="prodReady" className="text-ink cursor-pointer">
                   Explicitly verified as production-grade with live uptime / users
                 </label>
               </div>
@@ -362,14 +362,14 @@ export function ProjectRecommendationPanel({
                 <button
                   type="button"
                   onClick={() => setEditingMetadataEntryId(null)}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs"
+                  className="px-3 py-1.5 bg-paper-deep hover:bg-paper-deep text-ink rounded-lg text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingMetadata}
-                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow"
+                  className="px-4 py-1.5 bg-stamp hover:bg-stamp-dark disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow"
                 >
                   {savingMetadata ? "Saving..." : "Save Scope Details"}
                 </button>

@@ -5,14 +5,7 @@ import { FileUploadDropzone } from "@/components/intake/FileUploadDropzone";
 import { PasteTextInput } from "@/components/intake/PasteTextInput";
 import { GitHubImportModal } from "@/components/intake/GitHubImportModal";
 import { StagingReviewTable, StagedItemView } from "@/components/intake/StagingReviewTable";
-import {
-  UploadCloud,
-  FolderGit2,
-  Database,
-  ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { FolderGit2, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -33,37 +26,48 @@ export default function DataIntakePage() {
     setErrorMessage(null);
 
     try {
-      // 1. Create Batch
       const batchRes = await fetch("/api/v1/imports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceType, sourceLabel }),
       });
-      if (!batchRes.ok) throw new Error("Failed to create import batch");
+      if (!batchRes.ok) {
+        const payload = await batchRes.json().catch(() => null);
+        const apiError = payload?.error;
+        const detail = apiError?.message || "We couldn’t start the import.";
+        const request = apiError?.requestId ? ` Support reference: ${apiError.requestId}.` : "";
+        throw new Error(`${detail}${request}`);
+      }
       const { batchId } = await batchRes.json();
       setCurrentBatchId(batchId);
 
-      // 2. Stage Parsed Candidates
       const parseRes = await fetch(`/api/v1/imports/${batchId}/parse`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items }),
       });
-      if (!parseRes.ok) throw new Error("Failed to stage parsed items");
+      if (!parseRes.ok) {
+        const payload = await parseRes.json().catch(() => null);
+        const support = payload?.error?.requestId ? ` Support reference: ${payload.error.requestId}.` : "";
+        throw new Error(`${payload?.error?.message || "We couldn’t read the imported details."}${support}`);
+      }
 
-      // 3. Fetch Staged Items for Review
       const reviewRes = await fetch(`/api/v1/imports/${batchId}`);
-      if (!reviewRes.ok) throw new Error("Failed to load staged items");
+      if (!reviewRes.ok) {
+        const payload = await reviewRes.json().catch(() => null);
+        throw new Error(payload?.error?.message || "We couldn’t load the details for review.");
+      }
       const data = await reviewRes.json();
       setStagedItems(data.items || []);
 
-      setMessage(`Staged ${items.length} candidate items from ${sourceLabel}. Review and accept below.`);
+      setMessage(`Staged ${items.length} candidate items from ${sourceLabel}. Review them below.`);
     } catch (err: any) {
       setErrorMessage(err.message || "Import processing failed.");
+      throw err;
     }
   };
 
-  const handleCommitSelected = async (accepted: Array<{ stagedItemId: string }>) => {
+  const handleCommitSelected = async (accepted: Array<{ stagedItemId: string; overrideData?: Partial<StagedItemView["parsedDataJson"]> }>) => {
     if (!currentBatchId) return;
 
     try {
@@ -73,11 +77,11 @@ export default function DataIntakePage() {
         body: JSON.stringify({ acceptedItems: accepted }),
       });
 
-      if (!res.ok) throw new Error("Failed to commit items to Data Bank.");
-      const result = await res.json();
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error?.message || "Couldn’t save those details. Please try again.");
+      const result = payload;
 
-      setMessage(`Successfully committed ${result.committedCount} items into your Data Bank!`);
-      // Update local staged items
+      setMessage(`Saved ${result.committedCount} experience details.`);
       setStagedItems((prev) =>
         prev.map((item) =>
           accepted.some((a) => a.stagedItemId === item.id)
@@ -91,6 +95,7 @@ export default function DataIntakePage() {
       }, 1500);
     } catch (err: any) {
       setErrorMessage(err.message);
+      throw err;
     }
   };
 
@@ -116,61 +121,60 @@ export default function DataIntakePage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
+    <div>
+      <header className="mb-6 flex flex-col gap-4 border-b border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
             href="/bank"
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium mb-1"
+            className="mb-2 inline-flex items-center gap-1.5 text-[12px] text-graphite hover:text-ink"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Data Bank
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.8} />
+            Your experience
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Data Bank Intake &amp; Staging
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Import existing resumes, LinkedIn exports, or GitHub repositories into the staging area before committing.
+          <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+            Add experience
+          </h2>
+          <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+            Upload a resume or add details yourself. Review everything before it is saved.
           </p>
         </div>
 
         <button
           onClick={() => setIsGitHubModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 shadow-xs"
+          className="btn self-start sm:self-auto"
         >
-          <FolderGit2 className="w-4 h-4" />
-          GitHub Repo Import
+          <FolderGit2 className="h-4 w-4" strokeWidth={1.8} />
+          Pull from GitHub
         </button>
-      </div>
+      </header>
 
       {message && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="mb-4 flex items-start gap-2 border border-press/30 bg-press-soft px-3 py-2 text-[12.5px] text-press">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span>{message}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+        <div className="mb-4 flex items-start gap-2 border border-alarm/35 bg-alarm-soft px-3 py-2 text-[12.5px] text-alarm">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* Intake Methods Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <FileUploadDropzone onParsedItemsReady={handleParsedItemsReady} />
         <PasteTextInput onParsedItemsReady={handleParsedItemsReady} />
       </div>
 
-      {/* Staging Review Area */}
-      <StagingReviewTable
-        items={stagedItems}
-        onCommitSelected={handleCommitSelected}
-        onRejectItems={handleRejectItems}
-      />
+      <div className="mt-6">
+        <StagingReviewTable
+          items={stagedItems}
+          onCommitSelected={handleCommitSelected}
+          onRejectItems={handleRejectItems}
+        />
+      </div>
 
-      {/* GitHub Import Modal */}
       <GitHubImportModal
         isOpen={isGitHubModalOpen}
         onClose={() => setIsGitHubModalOpen(false)}

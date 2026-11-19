@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Copy, Check, Printer, Trash2, Mail, Building2 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, Save, Copy, Check, Printer } from "lucide-react";
 import Link from "next/link";
 
 interface CoverLetterData {
@@ -16,7 +16,6 @@ interface CoverLetterData {
 
 export default function CoverLetterDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const letterId = params?.id as string;
 
   const [letter, setLetter] = useState<CoverLetterData | null>(null);
@@ -75,82 +74,78 @@ export default function CoverLetterDetailPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-sm text-gray-500">Loading cover letter...</div>;
+    return <p className="py-20 text-center text-[13px] text-graphite">Reading the letter</p>;
   }
 
   if (!letter) {
     return (
-      <div className="p-8 text-center text-sm text-red-600">
-        Cover letter not found.{" "}
-        <Link href="/cover-letters" className="underline">
-          Return to list
+      <div className="py-20 text-center">
+        <p className="text-[13px] text-alarm">This letter is gone.</p>
+        <Link href="/cover-letters" className="mt-2 inline-block text-[13px] text-stamp hover:underline">
+          Back to cover letters
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/cover-letters"
-            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div>
+    <div className="mx-auto max-w-3xl">
+      <header className="mb-5 border-b border-rule pb-4">
+        <Link
+          href="/cover-letters"
+          className="mb-2 inline-flex items-center gap-1.5 text-[12px] text-graphite hover:text-ink print:hidden"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.8} />
+          Cover letters
+        </Link>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 flex-1">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-lg font-bold text-gray-900 border-b border-transparent hover:border-gray-300 focus:border-indigo-600 focus:outline-none"
+              className="w-full border-b border-transparent bg-transparent font-display text-[24px] font-semibold tracking-tightest hover:border-rule focus:border-stamp focus:outline-none"
             />
             {letter.jobCompany && (
-              <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                <Building2 className="w-3 h-3 text-gray-400" />
-                Target: {letter.jobTitle || "Role"} at {letter.jobCompany}
+              <p className="mt-1 text-[12.5px] text-graphite">
+                {letter.jobTitle || "Role"} at {letter.jobCompany} · tone {letter.tone}
               </p>
             )}
           </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 print:hidden">
+            <button onClick={handleCopy} className="btn btn-sm">
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-press" strokeWidth={2} />
+              ) : (
+                <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
+              )}
+              {copied ? "Copied" : "Copy"}
+            </button>
+            <button onClick={() => window.print()} className="btn btn-sm">
+              <Printer className="h-3.5 w-3.5" strokeWidth={1.7} />
+              Print
+            </button>
+            <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary">
+              <Save className="h-3.5 w-3.5" strokeWidth={1.8} />
+              {saving ? "Saving" : "Save"}
+            </button>
+          </div>
         </div>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border hover:bg-gray-50 text-gray-700 font-medium rounded-lg shadow-xs"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied!" : "Copy Text"}
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border hover:bg-gray-50 text-gray-700 font-medium rounded-lg shadow-xs print:hidden"
-          >
-            <Printer className="w-3.5 h-3.5" /> Print
-          </button>
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 text-xs px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-xs disabled:opacity-50"
-          >
-            <Save className="w-3.5 h-3.5" />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+      <div className="plate">
+        <div className="plate-caption print:hidden">
+          <span>letter sheet</span>
+          <span>{content.trim().split(/\s+/).filter(Boolean).length} words</span>
         </div>
-      </div>
-
-      {/* Editor Sheet */}
-      <div className="bg-white border rounded-xl shadow-sm p-8 print:p-0 print:border-none print:shadow-none space-y-4">
         <textarea
           rows={22}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="w-full text-sm text-gray-800 leading-relaxed font-sans border-0 focus:ring-0 resize-none p-0 focus:outline-none"
-          placeholder="Cover letter text..."
+          className="w-full resize-none border-0 bg-sheet px-6 py-6 text-[14px] leading-[1.75] text-ink focus:outline-none print:px-0"
+          placeholder="Letter text"
         />
       </div>
     </div>

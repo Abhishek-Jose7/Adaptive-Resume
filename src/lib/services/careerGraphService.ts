@@ -217,6 +217,54 @@ export class CareerGraphService {
       metadataJson?: Record<string, unknown>;
     }
   ): Promise<CareerGraphEdge> {
+    // Validate tenant ownership if sourceId points to a tenant-scoped database record
+    if (edgeData.sourceType === "achievement_bullet") {
+      const b = await db
+        .select({ id: achievementBullets.id })
+        .from(achievementBullets)
+        .where(and(eq(achievementBullets.id, edgeData.sourceId), eq(achievementBullets.userId, userId)))
+        .limit(1);
+      if (b.length === 0) throw new Error("Source achievement bullet not found or access denied");
+    } else if (["experience", "project", "education", "certification", "bank_entry"].includes(edgeData.sourceType)) {
+      const e = await db
+        .select({ id: bankEntries.id })
+        .from(bankEntries)
+        .where(and(eq(bankEntries.id, edgeData.sourceId), eq(bankEntries.userId, userId)))
+        .limit(1);
+      if (e.length === 0) throw new Error("Source bank entry not found or access denied");
+    } else if (["fact", "bullet_fact"].includes(edgeData.sourceType)) {
+      const f = await db
+        .select({ id: bulletFacts.id })
+        .from(bulletFacts)
+        .where(and(eq(bulletFacts.id, edgeData.sourceId), eq(bulletFacts.userId, userId)))
+        .limit(1);
+      if (f.length === 0) throw new Error("Source bullet fact not found or access denied");
+    }
+
+    // Validate tenant ownership if targetId points to a tenant-scoped database record
+    if (edgeData.targetType === "achievement_bullet") {
+      const b = await db
+        .select({ id: achievementBullets.id })
+        .from(achievementBullets)
+        .where(and(eq(achievementBullets.id, edgeData.targetId), eq(achievementBullets.userId, userId)))
+        .limit(1);
+      if (b.length === 0) throw new Error("Target achievement bullet not found or access denied");
+    } else if (["experience", "project", "education", "certification", "bank_entry"].includes(edgeData.targetType)) {
+      const e = await db
+        .select({ id: bankEntries.id })
+        .from(bankEntries)
+        .where(and(eq(bankEntries.id, edgeData.targetId), eq(bankEntries.userId, userId)))
+        .limit(1);
+      if (e.length === 0) throw new Error("Target bank entry not found or access denied");
+    } else if (["fact", "bullet_fact"].includes(edgeData.targetType)) {
+      const f = await db
+        .select({ id: bulletFacts.id })
+        .from(bulletFacts)
+        .where(and(eq(bulletFacts.id, edgeData.targetId), eq(bulletFacts.userId, userId)))
+        .limit(1);
+      if (f.length === 0) throw new Error("Target bullet fact not found or access denied");
+    }
+
     const id = `edge_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const [inserted] = await db
       .insert(careerGraphEdges)

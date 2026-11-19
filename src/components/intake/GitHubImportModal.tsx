@@ -61,14 +61,14 @@ export function GitHubImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[85vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+      <div className="bg-white rounded-lg shadow-plate w-full max-w-xl max-h-[85vh] overflow-y-auto">
         <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white">
           <div className="flex items-center gap-2">
-            <FolderGit2 className="w-5 h-5 text-purple-600" />
-            <h2 className="text-base font-semibold text-gray-900">Import GitHub Repositories</h2>
+            <FolderGit2 className="w-5 h-5 text-stamp" />
+            <h2 className="text-base font-semibold text-ink">Import GitHub Repositories</h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400">
+          <button onClick={onClose} className="p-1 hover:bg-paper rounded text-graphite">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -77,7 +77,7 @@ export function GitHubImportModal({
           <form onSubmit={handleFetchRepos} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                <label className="block text-xs font-semibold text-ink normal-case mb-1">
                   GitHub Username *
                 </label>
                 <input
@@ -85,12 +85,12 @@ export function GitHubImportModal({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. torvalds"
-                  className="w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-500"
+                  className="w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-stamp"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                <label className="block text-xs font-semibold text-ink normal-case mb-1">
                   Personal Token (Optional)
                 </label>
                 <input
@@ -98,7 +98,7 @@ export function GitHubImportModal({
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   placeholder="ghp_..."
-                  className="w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-500"
+                  className="w-full border rounded-lg p-2 text-xs focus:ring-1 focus:ring-stamp"
                 />
               </div>
             </div>
@@ -106,7 +106,7 @@ export function GitHubImportModal({
             <button
               type="submit"
               disabled={loading || !username.trim()}
-              className="w-full py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-sheet text-ink rounded-lg text-xs font-semibold hover:bg-paper-deep disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               Fetch Repositories
@@ -114,7 +114,7 @@ export function GitHubImportModal({
           </form>
 
           {error && (
-            <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-1.5">
+            <div className="p-2.5 bg-alarm border border-alarm text-white text-xs rounded-lg flex items-center gap-1.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -122,12 +122,12 @@ export function GitHubImportModal({
 
           {repos.length > 0 && (
             <div className="space-y-2 pt-2 border-t">
-              <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center justify-between text-xs text-graphite">
                 <span>Select repositories to stage as Project entries:</span>
                 <span>{selectedRepoNames.size} selected</span>
               </div>
 
-              <div className="max-h-60 overflow-y-auto space-y-1.5 border rounded-lg p-2 bg-gray-50">
+              <div className="max-h-60 overflow-y-auto space-y-1.5 border rounded-lg p-2 bg-paper">
                 {repos.map((repo) => {
                   const isChecked = selectedRepoNames.has(repo.name);
                   return (
@@ -136,33 +136,33 @@ export function GitHubImportModal({
                       onClick={() => toggleRepo(repo.name)}
                       className={`p-2.5 rounded-md border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
                         isChecked
-                          ? "bg-purple-50/70 border-purple-200"
-                          : "bg-white border-gray-200 hover:border-gray-300"
+                          ? "bg-stamp-soft border-stamp"
+                          : "bg-white border-rule-strong hover:border-rule-strong"
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => {}}
-                        className="rounded text-purple-600 mt-0.5"
+                        className="rounded text-stamp mt-0.5"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center justify-between font-semibold text-gray-900">
+                        <div className="flex items-center justify-between font-semibold text-ink">
                           <span>{repo.name}</span>
                           {repo.stars > 0 && (
-                            <span className="flex items-center gap-0.5 text-amber-600 font-normal">
-                              <Star className="w-3 h-3 fill-amber-400" />
+                            <span className="flex items-center gap-0.5 text-marker-dark font-normal">
+                              <Star className="w-3 h-3 fill-marker" />
                               {repo.stars}
                             </span>
                           )}
                         </div>
                         {repo.description && (
-                          <p className="text-gray-600 text-[11px] line-clamp-1 mt-0.5">
+                          <p className="text-graphite text-[11px] line-clamp-1 mt-0.5">
                             {repo.description}
                           </p>
                         )}
                         {repo.language && (
-                          <span className="inline-block mt-1 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                          <span className="inline-block mt-1 px-1.5 py-0.5 bg-paper rounded text-[10px] text-graphite">
                             {repo.language}
                           </span>
                         )}
@@ -175,7 +175,7 @@ export function GitHubImportModal({
               <button
                 onClick={handleImport}
                 disabled={selectedRepoNames.size === 0}
-                className="w-full py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50"
+                className="w-full py-2 bg-stamp text-white rounded-lg text-xs font-semibold hover:bg-stamp-dark disabled:opacity-50"
               >
                 Stage {selectedRepoNames.size} Selected Repositories
               </button>

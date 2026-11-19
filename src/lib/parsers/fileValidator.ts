@@ -18,7 +18,9 @@ export function validateFileBuffer(
   buffer: ArrayBuffer | Uint8Array,
   filename: string
 ): FileValidationResult {
-  const bytes = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
+  const bytes = buffer instanceof ArrayBuffer
+    ? new Uint8Array(buffer)
+    : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
   // 1. Check size
   if (bytes.byteLength > MAX_FILE_SIZE_BYTES) {

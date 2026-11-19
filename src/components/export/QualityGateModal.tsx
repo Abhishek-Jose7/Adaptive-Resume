@@ -68,35 +68,35 @@ export function QualityGateModal({
   const canExport = audit?.passed || (hasWarnings && !hasCriticalErrors && acknowledgedWarnings);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-gray-950 border border-gray-800 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh] text-white">
+    <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-paper border border-rule rounded-lg max-w-2xl w-full overflow-hidden shadow-plate flex flex-col max-h-[90vh] text-ink">
         {/* Header */}
-        <div className="p-4 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
+        <div className="p-4 bg-sheet border-b border-rule flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl border ${
+            <div className={`p-2 rounded-lg border ${
               hasCriticalErrors
-                ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                ? "bg-alarm-soft border-alarm/30 text-alarm"
                 : hasWarnings
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                ? "bg-marker-soft border-marker/30 text-marker-dark"
+                : "bg-press-soft border-press/30 text-press"
             }`}>
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
                 Pre-Export Quality Gate
-                <span className="text-[10px] font-semibold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full">
+                <span className="text-[10px] font-semibold px-2 py-0.5 bg-stamp-soft text-stamp border border-stamp/30 rounded-full">
                   PRD 18.7
                 </span>
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-graphite">
                 Automated multi-point inspection to prevent broken exports and ATS parsing failures.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800"
+            className="text-graphite hover:text-ink p-1 rounded-lg hover:bg-paper-deep"
           >
             ✕
           </button>
@@ -105,40 +105,40 @@ export function QualityGateModal({
         {/* Content Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
           {loading ? (
-            <div className="py-16 text-center text-gray-400 space-y-2">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-blue-400" />
+            <div className="py-16 text-center text-graphite space-y-2">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-stamp" />
               <p className="text-xs">Auditing formatting, dates, ATS text extractability, and link integrity...</p>
             </div>
           ) : !audit ? (
-            <div className="text-center py-12 text-gray-500 text-xs">
+            <div className="text-center py-12 text-graphite text-xs">
               Click below to run the quality gate audit.
             </div>
           ) : (
             <div className="space-y-4">
               {/* Overall Status Banner */}
-              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+              <div className={`p-4 rounded-lg border flex items-start gap-3 ${
                 hasCriticalErrors
-                  ? "bg-rose-950/40 border-rose-800/80 text-rose-200"
+                  ? "bg-alarm-soft border-alarm/80 text-alarm"
                   : hasWarnings
-                  ? "bg-amber-950/40 border-amber-800/80 text-amber-200"
-                  : "bg-emerald-950/40 border-emerald-800/80 text-emerald-200"
+                  ? "bg-marker-soft border-marker/80 text-marker-dark"
+                  : "bg-press-soft border-press/80 text-press"
               }`}>
                 {hasCriticalErrors ? (
-                  <XCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                  <XCircle className="w-5 h-5 text-alarm shrink-0 mt-0.5" />
                 ) : hasWarnings ? (
-                  <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-marker-dark shrink-0 mt-0.5" />
                 ) : (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-5 h-5 text-press shrink-0 mt-0.5" />
                 )}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider">
+                  <h4 className="text-xs font-bold normal-case tracking-normal">
                     {hasCriticalErrors
                       ? "Export Blocked: Critical Errors Found"
                       : hasWarnings
                       ? "Passed with Quality Warnings"
                       : "All Quality Checks Passed (100% Export-Ready)"}
                   </h4>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p className="text-xs text-ink mt-1">
                     {hasCriticalErrors
                       ? "Please resolve the critical errors listed below before generating your final PDF or DOCX file."
                       : hasWarnings
@@ -153,16 +153,16 @@ export function QualityGateModal({
                 const errList = audit.criticalErrors || audit.errors || [];
                 return (
                   <div className="space-y-2">
-                    <h5 className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <h5 className="text-xs font-bold text-alarm normal-case tracking-normal flex items-center gap-1.5">
                       <XCircle className="w-3.5 h-3.5" /> Critical Errors ({errList.length})
                     </h5>
                     <div className="space-y-1.5">
                       {errList.map((err, idx) => (
                       <div
                         key={idx}
-                        className="p-2.5 bg-rose-950/30 border border-rose-900/60 rounded-lg text-xs text-rose-200 flex items-start gap-2"
+                        className="p-2.5 bg-alarm-soft border border-alarm/60 rounded-lg text-xs text-alarm flex items-start gap-2"
                       >
-                        <span className="font-mono text-rose-400 font-bold shrink-0">[{err.rule}]</span>
+                        <span className="font-mono text-alarm font-bold shrink-0">[{err.rule}]</span>
                         <span>{err.message}</span>
                       </div>
                     ))}
@@ -174,16 +174,16 @@ export function QualityGateModal({
               {/* Warnings List */}
               {hasWarnings && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <h5 className="text-xs font-bold text-marker-dark normal-case tracking-normal flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Quality Warnings ({audit.warnings.length})
                   </h5>
                   <div className="space-y-1.5">
                     {audit.warnings.map((warn, idx) => (
                       <div
                         key={idx}
-                        className="p-2.5 bg-amber-950/30 border border-amber-900/60 rounded-lg text-xs text-amber-200 flex items-start gap-2"
+                        className="p-2.5 bg-marker-soft border border-marker/60 rounded-lg text-xs text-marker-dark flex items-start gap-2"
                       >
-                        <span className="font-mono text-amber-400 font-bold shrink-0">[{warn.rule}]</span>
+                        <span className="font-mono text-marker-dark font-bold shrink-0">[{warn.rule}]</span>
                         <span>{warn.message}</span>
                       </div>
                     ))}
@@ -194,16 +194,16 @@ export function QualityGateModal({
               {/* Passed Checks Summary */}
               {audit.passedChecks && audit.passedChecks.length > 0 && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <h5 className="text-xs font-bold text-press normal-case tracking-normal flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Verified Checks ({audit.passedChecks.length})
                   </h5>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {audit.passedChecks.map((rule, idx) => (
                       <div
                         key={idx}
-                        className="p-2 bg-emerald-950/20 border border-emerald-900/40 rounded-lg text-[11px] text-emerald-300 flex items-center gap-1.5"
+                        className="p-2 bg-press-soft border border-press/40 rounded-lg text-[11px] text-press flex items-center gap-1.5"
                       >
-                        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <CheckCircle2 className="w-3 h-3 text-press shrink-0" />
                         <span className="font-mono">{rule}</span>
                       </div>
                     ))}
@@ -213,14 +213,14 @@ export function QualityGateModal({
 
               {/* Warning Acknowledgment Checkbox */}
               {hasWarnings && !hasCriticalErrors && (
-                <label className="flex items-start gap-2.5 p-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:bg-gray-900/80 transition-colors">
+                <label className="flex items-start gap-2.5 p-3 bg-sheet border border-rule rounded-lg cursor-pointer hover:bg-sheet/80 transition-colors">
                   <input
                     type="checkbox"
                     checked={acknowledgedWarnings}
                     onChange={(e) => setAcknowledgedWarnings(e.target.checked)}
-                    className="mt-0.5 rounded bg-gray-800 border-gray-700 text-blue-600 focus:ring-blue-500"
+                    className="mt-0.5 rounded bg-paper-deep border-rule text-stamp focus:ring-stamp"
                   />
-                  <span className="text-xs text-gray-300">
+                  <span className="text-xs text-ink">
                     I acknowledge these quality warnings and want to proceed with document export anyway.
                   </span>
                 </label>
@@ -230,11 +230,11 @@ export function QualityGateModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-gray-900 border-t border-gray-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="p-4 bg-sheet border-t border-rule flex flex-wrap items-center justify-between gap-3 text-xs">
           <button
             onClick={runAudit}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper-deep hover:bg-paper-deep text-ink rounded-lg font-medium transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Re-run Audit
@@ -244,15 +244,15 @@ export function QualityGateModal({
             <button
               onClick={() => onProceedExport("docx")}
               disabled={!canExport}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white rounded-lg font-semibold border border-gray-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-paper-deep hover:bg-paper-deep disabled:opacity-40 text-ink rounded-lg font-semibold border border-rule transition-colors shadow-none"
             >
-              <FileCode className="w-3.5 h-3.5 text-blue-400" />
+              <FileCode className="w-3.5 h-3.5 text-stamp" />
               Export DOCX
             </button>
             <button
               onClick={() => onProceedExport("pdf")}
               disabled={!canExport}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-lg font-semibold transition-all shadow"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-stamp hover:bg-stamp-dark disabled:opacity-40 text-white rounded-lg font-semibold transition-all shadow"
             >
               <FileText className="w-3.5 h-3.5" />
               Export PDF

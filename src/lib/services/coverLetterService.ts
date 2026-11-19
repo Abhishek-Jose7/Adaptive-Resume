@@ -33,7 +33,7 @@ export class CoverLetterService {
         jobCompany: jobs.company,
       })
       .from(coverLetters)
-      .leftJoin(jobs, eq(coverLetters.jobId, jobs.id))
+      .leftJoin(jobs, and(eq(coverLetters.jobId, jobs.id), eq(jobs.userId, userId)))
       .where(eq(coverLetters.userId, userId))
       .orderBy(desc(coverLetters.updatedAt));
   }
@@ -56,7 +56,7 @@ export class CoverLetterService {
         jobCompany: jobs.company,
       })
       .from(coverLetters)
-      .leftJoin(jobs, eq(coverLetters.jobId, jobs.id))
+      .leftJoin(jobs, and(eq(coverLetters.jobId, jobs.id), eq(jobs.userId, userId)))
       .where(and(eq(coverLetters.userId, userId), eq(coverLetters.id, id)))
       .limit(1);
 

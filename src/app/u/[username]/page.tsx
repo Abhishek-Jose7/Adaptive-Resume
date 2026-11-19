@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, use } from "react";
-import { User, Briefcase, GraduationCap, Award, ShieldCheck, MapPin, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 
 interface PublicProfileData {
   user: {
@@ -41,7 +42,7 @@ export default function PublicUserProfilePage({
     fetch(`/api/v1/public/u/${username}`)
       .then((res) => {
         if (!res.ok) {
-          throw new Error("This candidate profile does not exist or has not published public records.");
+          throw new Error("This profile does not exist or has not published public records.");
         }
         return res.json();
       })
@@ -58,30 +59,26 @@ export default function PublicUserProfilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-600">Loading public career portfolio...</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-paper p-4">
+        <p className="text-[13px] text-graphite">Opening the record</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Profile Not Found</h1>
-          <p className="text-sm text-gray-600 leading-relaxed mb-6">
+      <div className="flex min-h-screen items-center justify-center bg-paper p-4">
+        <div className="plate w-full max-w-md p-6">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-alarm" strokeWidth={1.8} />
+            <h2 className="font-display text-[18px] font-semibold tracking-tight">Profile not found</h2>
+          </div>
+          <p className="mt-2 text-[13px] leading-relaxed text-graphite">
             {error || "The requested profile is not public."}
           </p>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Go to Resume Maker
-          </a>
+          <Link href="/" className="btn mt-4">
+            Go to Adaptive Resume
+          </Link>
         </div>
       </div>
     );
@@ -90,126 +87,117 @@ export default function PublicUserProfilePage({
   const { user, portfolio } = data;
   const experienceEntries = portfolio.filter((p) => p.entryType === "experience");
   const educationEntries = portfolio.filter((p) => p.entryType === "education");
-  const projectEntries = portfolio.filter((p) => p.entryType === "project" || p.entryType === "publication");
+  const projectEntries = portfolio.filter(
+    (p) => p.entryType === "project" || p.entryType === "publication"
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header Profile Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-md">
-                {(user.fullName || user.username).charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {user.fullName || `@${user.username}`}
-                  </h1>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
-                    <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                    Verified Career Facts
-                  </span>
-                </div>
-                {user.headline && (
-                  <p className="text-base text-gray-600 font-medium mt-1">{user.headline}</p>
-                )}
-                {user.location && (
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {user.location}
-                  </p>
-                )}
-              </div>
-            </div>
+    <div className="min-h-screen bg-paper">
+      <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
+        <header className="border-b border-ink pb-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <h1 className="font-display text-[clamp(2rem,5vw,2.9rem)] font-semibold leading-none tracking-tightest">
+              {user.fullName || `@${user.username}`}
+            </h1>
+            <p className="font-mono text-[10.5px] text-graphite">public record · facts only</p>
+          </div>
+
+          {user.headline && (
+            <p className="mt-3 text-[15px] leading-relaxed text-graphite">{user.headline}</p>
+          )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-graphite">
+            {user.location && <span>{user.location}</span>}
+            <span className="font-mono text-[11px]">@{user.username}</span>
           </div>
 
           {user.bio && (
-            <p className="mt-6 text-sm text-gray-700 leading-relaxed border-t border-gray-100 pt-4">
-              {user.bio}
-            </p>
+            <p className="mt-5 max-w-[68ch] text-[13.5px] leading-relaxed text-ink">{user.bio}</p>
+          )}
+        </header>
+
+        <div className="mt-10 space-y-10">
+          {experienceEntries.length > 0 && (
+            <section>
+              <h2 className="rule-label mb-4 text-[12px]">experience</h2>
+              <div className="space-y-7">
+                {experienceEntries.map((exp) => (
+                  <article key={exp.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[130px_1fr] sm:gap-6">
+                    <p className="font-mono text-[11px] text-graphite">
+                      {exp.startDate} — {exp.isCurrent ? "present" : exp.endDate || "present"}
+                    </p>
+                    <div>
+                      <h3 className="text-[15px] font-semibold tracking-tight">{exp.title}</h3>
+                      <p className="mt-0.5 text-[12.5px] text-graphite">
+                        {exp.organization}
+                        {exp.location ? ` · ${exp.location}` : ""}
+                      </p>
+
+                      {exp.bullets && exp.bullets.length > 0 && (
+                        <ul className="mt-2 space-y-1.5">
+                          {exp.bullets.map((b) => (
+                            <li key={b.id} className="flex gap-2.5 text-[13px] leading-relaxed">
+                              <span className="mt-2 h-px w-2.5 shrink-0 bg-rule-strong" />
+                              <span>{b.text}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {projectEntries.length > 0 && (
+            <section>
+              <h2 className="rule-label mb-4 text-[12px]">projects and publications</h2>
+              <ul className="divide-y divide-rule">
+                {projectEntries.map((proj) => (
+                  <li key={proj.id} className="py-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h3 className="text-[14px] font-semibold tracking-tight">{proj.title}</h3>
+                      {proj.organization && (
+                        <span className="text-[12px] text-graphite">{proj.organization}</span>
+                      )}
+                    </div>
+                    {proj.bullets && proj.bullets.length > 0 && (
+                      <p className="mt-1 max-w-[68ch] text-[13px] leading-relaxed text-graphite">
+                        {proj.bullets[0].text}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {educationEntries.length > 0 && (
+            <section>
+              <h2 className="rule-label mb-4 text-[12px]">education</h2>
+              <ul className="divide-y divide-rule">
+                {educationEntries.map((edu) => (
+                  <li key={edu.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
+                    <div>
+                      <h3 className="text-[14px] font-semibold tracking-tight">{edu.title}</h3>
+                      <p className="text-[12.5px] text-graphite">{edu.organization}</p>
+                    </div>
+                    <span className="font-mono text-[11px] text-graphite">
+                      {edu.startDate} — {edu.endDate}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </div>
 
-        {/* Experience Timeline */}
-        {experienceEntries.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
-              <Briefcase className="w-5 h-5 text-blue-600" />
-              Verified Work Experience
-            </h2>
-
-            <div className="space-y-8">
-              {experienceEntries.map((exp) => (
-                <div key={exp.id} className="relative pl-6 border-l-2 border-blue-200">
-                  <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-4 border-blue-600" />
-                  <div className="flex items-baseline justify-between flex-wrap gap-2">
-                    <h3 className="text-base font-semibold text-gray-900">{exp.title}</h3>
-                    <span className="text-xs font-medium text-gray-500">
-                      {exp.startDate} – {exp.isCurrent ? "Present" : exp.endDate || "Present"}
-                    </span>
-                  </div>
-                  <div className="text-sm font-medium text-gray-600 mb-2">
-                    {exp.organization} {exp.location ? `• ${exp.location}` : ""}
-                  </div>
-
-                  {exp.bullets && exp.bullets.length > 0 && (
-                    <ul className="list-disc list-outside ml-4 space-y-1.5 text-xs text-gray-700 leading-relaxed">
-                      {exp.bullets.map((b) => (
-                        <li key={b.id}>{b.text}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Education */}
-        {educationEntries.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
-              <GraduationCap className="w-5 h-5 text-indigo-600" />
-              Education & Credentials
-            </h2>
-
-            <div className="space-y-6">
-              {educationEntries.map((edu) => (
-                <div key={edu.id}>
-                  <div className="flex items-baseline justify-between flex-wrap gap-2">
-                    <h3 className="text-base font-semibold text-gray-900">{edu.title}</h3>
-                    <span className="text-xs text-gray-500">{edu.startDate} – {edu.endDate}</span>
-                  </div>
-                  <div className="text-sm text-gray-600">{edu.organization}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Selected Projects */}
-        {projectEntries.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
-              <Award className="w-5 h-5 text-emerald-600" />
-              Key Projects & Technical Works
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {projectEntries.map((proj) => (
-                <div key={proj.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
-                  <h3 className="text-sm font-bold text-gray-900">{proj.title}</h3>
-                  <p className="text-xs text-gray-500 mb-2">{proj.organization}</p>
-                  {proj.bullets && proj.bullets.length > 0 && (
-                    <p className="text-xs text-gray-700 leading-relaxed">{proj.bullets[0].text}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <footer className="mt-12 border-t border-rule pt-4">
+          <Link href="/" className="text-[11.5px] text-graphite hover:text-ink">
+            Built with Adaptive Resume
+          </Link>
+        </footer>
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 import { db } from "../db/client";
 import { resumeDocuments, resumeVersions, jobs } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, isNull } from "drizzle-orm";
 import { ResumeDoc } from "@/types/resume";
 import { createHash } from "crypto";
 import { PlainTextSerializer } from "../export/plainTextSerializer";
 import { DocxGenerator } from "../export/docxGenerator";
+import { UsageLimitService } from "./usageLimitService";
 
 export class ResumeService {
   /**
@@ -65,13 +66,13 @@ export class ResumeService {
       versionId,
       jobId: jobId || undefined,
       profile: {
-        name: "Your Name",
-        fullName: "Your Full Name",
-        headline: "Professional Headline",
-        summary: "Results-driven professional with proven experience delivering measurable outcomes.",
-        email: "user@example.com",
-        phone: "+1 555-0100",
-        location: "City, State",
+        name: "",
+        fullName: "",
+        headline: "",
+        summary: "",
+        email: "",
+        phone: "",
+        location: "",
         links: [],
         ...(initialDoc?.profile || {}),
       },
@@ -133,15 +134,28 @@ export class ResumeService {
   }
 
   /**
-   * Autosaves draft with optimistic concurrency check
+   * Autosaves draft with atomic optimistic concurrency check via row_version
    * PRD Section 9.1 & 10.6
    */
   static async autosaveDraft(
     userId: string,
     resumeId: string,
     updatedDoc: ResumeDoc,
-    clientVersionNumber?: number
+    expectedRowVersion: number
   ) {
+    if (
+      expectedRowVersion === undefined ||
+      expectedRowVersion === null ||
+      typeof expectedRowVersion !== "number" ||
+      expectedRowVersion <= 0
+    ) {
+      const err: any = new Error(
+        "INVALID_ROW_VERSION: rowVersion (positive integer) is mandatory for concurrent autosave."
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
     const resume = await this.getResume(userId, resumeId);
     if (!resume) throw new Error("Resume not found");
 
@@ -153,57 +167,104 @@ export class ResumeService {
       throw new Error("VERSION_IMMUTABLE: This finalized snapshot cannot be modified. Create a new version instead.");
     }
 
-    // Optimistic Concurrency check
-    if (clientVersionNumber !== undefined && currentVersion.versionNumber !== clientVersionNumber) {
-      throw new Error(`CONFLICT: Working version out of date (server: ${currentVersion.versionNumber}, client: ${clientVersionNumber})`);
-    }
-
     const docJsonString = JSON.stringify(updatedDoc);
     const contentHash = createHash("sha256").update(docJsonString).digest("hex");
 
-    await db
+    // Atomic Optimistic Concurrency Update at SQL execution level
+    const [updatedVersion] = await db
       .update(resumeVersions)
       .set({
         resumeDocJson: updatedDoc as any,
         contentHash,
         templateId: updatedDoc.template?.id || currentVersion.templateId,
+        rowVersion: sql`${resumeVersions.rowVersion} + 1`,
       })
-      .where(and(eq(resumeVersions.userId, userId), eq(resumeVersions.id, currentVersion.id)));
+      .where(
+        and(
+          eq(resumeVersions.userId, userId),
+          eq(resumeVersions.id, currentVersion.id),
+          isNull(resumeVersions.immutableAt),
+          eq(resumeVersions.rowVersion, expectedRowVersion)
+        )
+      )
+      .returning();
+
+    if (!updatedVersion) {
+      const check = await db
+        .select()
+        .from(resumeVersions)
+        .where(eq(resumeVersions.id, currentVersion.id))
+        .limit(1);
+
+      if (!check.length) throw new Error("Resume version not found");
+      if (check[0].immutableAt || check[0].versionKind === "final") {
+        throw new Error("VERSION_IMMUTABLE: This finalized snapshot cannot be modified. Create a new version instead.");
+      }
+      const err: any = new Error(
+        `CONCURRENCY_CONFLICT: Working version out of date (server row_version: ${check[0].rowVersion}, expected: ${expectedRowVersion})`
+      );
+      err.statusCode = 409;
+      throw err;
+    }
 
     await db
       .update(resumeDocuments)
       .set({
         updatedAt: new Date(),
+        rowVersion: sql`${resumeDocuments.rowVersion} + 1`,
       })
       .where(and(eq(resumeDocuments.userId, userId), eq(resumeDocuments.id, resumeId)));
 
     return {
-      versionId: currentVersion.id,
-      versionNumber: currentVersion.versionNumber,
+      versionId: updatedVersion.id,
+      versionNumber: updatedVersion.versionNumber,
+      rowVersion: updatedVersion.rowVersion,
       contentHash,
       savedAt: new Date().toISOString(),
     };
   }
 
   /**
-   * Generates plaintext for export
+   * Generates plaintext for export with atomic quota checks and tracking
    */
   static async exportPlainText(userId: string, resumeId: string): Promise<string> {
-    const resume = await this.getResume(userId, resumeId);
-    if (!resume || !resume.latestVersion) throw new Error("Resume not found");
+    const quota = await UsageLimitService.checkAndConsumeExportQuota(userId);
+    if (!quota.allowed) {
+      throw new Error("Monthly export limit reached (20 exports/month). Free tier quota resets next month.");
+    }
 
-    const doc = resume.latestVersion.resumeDocJson as unknown as ResumeDoc;
-    return PlainTextSerializer.serialize(doc);
+    try {
+      const resume = await this.getResume(userId, resumeId);
+      if (!resume || !resume.latestVersion) throw new Error("Resume not found");
+
+      const doc = resume.latestVersion.resumeDocJson as unknown as ResumeDoc;
+      const text = PlainTextSerializer.serialize(doc);
+      return text;
+    } catch (err) {
+      await UsageLimitService.refundExportQuota(userId);
+      throw err;
+    }
   }
 
   /**
-   * Generates DOCX blob for export
+   * Generates DOCX blob for export with atomic quota checks and tracking
    */
   static async exportDocx(userId: string, resumeId: string): Promise<Blob> {
-    const resume = await this.getResume(userId, resumeId);
-    if (!resume || !resume.latestVersion) throw new Error("Resume not found");
+    const quota = await UsageLimitService.checkAndConsumeExportQuota(userId);
+    if (!quota.allowed) {
+      throw new Error("Monthly export limit reached (20 exports/month). Free tier quota resets next month.");
+    }
 
-    const doc = resume.latestVersion.resumeDocJson as unknown as ResumeDoc;
-    return await DocxGenerator.generateDocxBlob(doc);
+    try {
+      const resume = await this.getResume(userId, resumeId);
+      if (!resume || !resume.latestVersion) throw new Error("Resume not found");
+
+      const doc = resume.latestVersion.resumeDocJson as unknown as ResumeDoc;
+      const blob = await DocxGenerator.generateDocxBlob(doc);
+      return blob;
+    } catch (err) {
+      await UsageLimitService.refundExportQuota(userId);
+      throw err;
+    }
   }
 }

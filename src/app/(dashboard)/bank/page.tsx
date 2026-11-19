@@ -8,20 +8,9 @@ import { CompletenessWarning } from "@/components/bank/CompletenessWarning";
 import { DuplicateDetectorModal } from "@/components/bank/DuplicateDetectorModal";
 import { CareerGraphView } from "@/components/career/CareerGraphView";
 import { QuantificationAssistantModal } from "@/components/quantification/QuantificationAssistantModal";
-import {
-  Plus,
-  Search,
-  Filter,
-  Copy,
-  RefreshCw,
-  Sparkles,
-  UploadCloud,
-  CheckCircle,
-  Network,
-  ListFilter,
-  ShieldCheck,
-} from "lucide-react";
+import { Plus, Search, Copy, RefreshCw, UploadCloud, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { Tabs } from "@/components/ui/Tabs";
 
 export default function DataBankPage() {
   const [viewMode, setViewMode] = useState<"facts" | "graph">("facts");
@@ -94,7 +83,7 @@ export default function DataBankPage() {
     if (!confirm("Are you sure you want to delete this entry?")) return;
     const res = await fetch(`/api/v1/bank/entries/${id}`, { method: "DELETE" });
     if (res.ok) {
-      setNotification("Entry deleted successfully.");
+      setNotification("Entry deleted. Every resume built from it will ask again.");
       setTimeout(() => setNotification(null), 4000);
       await fetchEntries();
     }
@@ -152,7 +141,7 @@ export default function DataBankPage() {
   };
 
   const categories = [
-    { id: "all", label: "All Items" },
+    { id: "all", label: "All" },
     { id: "experience", label: "Experience" },
     { id: "education", label: "Education" },
     { id: "project", label: "Projects" },
@@ -164,157 +153,116 @@ export default function DataBankPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+    <div>
+      <header className="mb-5 flex flex-col gap-4 border-b border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Career Data Bank
-            <span className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full">
-              Truth Anchor
-            </span>
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Single source of truth. Your tailored resumes and cover letters are created strictly from these verified facts.
+          <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+            Your experience
+          </h2>
+          <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+            Keep your work, projects, education, and skills together. Reuse the details that fit each job.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* View Toggle */}
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-0.5 flex items-center">
-            <button
-              onClick={() => setViewMode("facts")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${
-                viewMode === "facts"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <ListFilter className="w-3.5 h-3.5" />
-              Facts List
-            </button>
-            <button
-              onClick={() => setViewMode("graph")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${
-                viewMode === "graph"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              Career Graph (18.3)
-            </button>
-          </div>
-
-          <button
-            onClick={handleDetectDuplicates}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-800 rounded-lg text-xs font-medium text-gray-300 bg-gray-900 hover:bg-gray-800 transition-colors"
-          >
-            <Copy className="w-3.5 h-3.5 text-gray-400" />
-            Check Duplicates
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={handleDetectDuplicates} className="btn btn-sm">
+            <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
+            Find duplicates
           </button>
-          <Link
-            href="/bank/intake"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-blue-500/30 rounded-lg text-xs font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            Import / Ingest
+          <Link href="/bank/intake" className="btn btn-sm">
+            <UploadCloud className="h-3.5 w-3.5" strokeWidth={1.7} />
+            Import
           </Link>
           <button
             onClick={() => {
               setEntryToEdit(null);
               setIsModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+            className="btn btn-primary btn-sm"
           >
-            <Plus className="w-4 h-4" />
-            New Entry
+            <Plus className="h-4 w-4" strokeWidth={1.9} />
+            New entry
           </button>
         </div>
-      </div>
+      </header>
 
       {notification && (
-        <div className="p-3 bg-emerald-950/40 border border-emerald-800/80 text-emerald-300 text-xs rounded-xl flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
+        <div className="mb-4 flex items-start gap-2 border border-press/30 bg-press-soft px-3 py-2 text-[12.5px] text-press">
+          <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span>{notification}</span>
         </div>
       )}
 
-      {/* Render View Mode */}
+      <Tabs
+        value={viewMode}
+        onChange={(id) => setViewMode(id as "facts" | "graph")}
+        items={[
+          { id: "facts", label: "Facts", count: entries.length || undefined },
+          { id: "graph", label: "Career graph" },
+        ]}
+        className="mb-5"
+      />
+
       {viewMode === "graph" ? (
         <CareerGraphView />
       ) : (
-        <div className="space-y-6">
-          {/* Completeness Health Warning */}
+        <div className="space-y-5">
           <CompletenessWarning report={completeness} />
 
-          {/* Filter and Search Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Category Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
               {categories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setSelectedType(c.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                    selectedType === c.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800"
-                  }`}
+                  className="chip"
+                  data-active={selectedType === c.id}
                 >
                   {c.label}
                 </button>
               ))}
             </div>
 
-            {/* Search */}
-            <form onSubmit={handleSearchSubmit} className="relative sm:w-64">
+            <form onSubmit={handleSearchSubmit} className="relative lg:w-64">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search bank facts..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-800 rounded-lg bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                placeholder="Search the record"
+                className="input pl-8"
               />
-              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-graphite" strokeWidth={1.8} />
             </form>
           </div>
 
-          {/* Entries List */}
           {loading ? (
-            <div className="flex items-center justify-center py-20 text-gray-400 text-xs">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2 text-blue-500" />
-              Loading your verified Data Bank records...
+            <div className="flex items-center justify-center gap-2 py-20 text-[13px] text-graphite">
+              <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
+              Reading your records
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-16 bg-gray-900/40 border border-dashed border-gray-800 rounded-2xl p-8 space-y-3">
-              <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-semibold text-white">Your Data Bank is empty</h3>
-              <p className="text-xs text-gray-400 max-w-md mx-auto">
-                Add your career history, projects, and skills manually or import existing resumes (PDF/DOCX) or LinkedIn exports.
+            <div className="panel px-6 py-14 text-center">
+              <h3 className="font-display text-[18px] font-semibold">Your experience will show up here</h3>
+              <p className="mx-auto mt-2 max-w-[48ch] text-[13px] leading-relaxed text-graphite">
+                Add a past role or import a resume you already trust. You can update these details whenever you like.
               </p>
-              <div className="pt-2 flex justify-center gap-3">
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
                 <button
                   onClick={() => {
                     setEntryToEdit(null);
                     setIsModalOpen(true);
                   }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition-all"
+                  className="btn btn-primary"
                 >
-                  Add First Entry
+                  Add the first entry
                 </button>
-                <Link
-                  href="/bank/intake"
-                  className="px-4 py-2 border border-gray-700 rounded-lg text-xs font-medium text-gray-300 hover:bg-gray-800 transition-colors"
-                >
-                  Import Resume / LinkedIn
+                <Link href="/bank/intake" className="btn">
+                  Import a resume
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {entries.map((entry) => (
                 <BankEntryCard
                   key={entry.id}
@@ -338,7 +286,6 @@ export default function DataBankPage() {
         </div>
       )}
 
-      {/* Entry Modal */}
       <BankEntryModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -346,14 +293,12 @@ export default function DataBankPage() {
         onSave={handleSaveEntry}
       />
 
-      {/* Duplicate Detection Modal */}
       <DuplicateDetectorModal
         isOpen={isDuplicateModalOpen}
         onClose={() => setIsDuplicateModalOpen(false)}
         duplicates={duplicateReport}
       />
 
-      {/* Quantification Assistant Modal (Section 18.4) */}
       {quantifyTarget && (
         <QuantificationAssistantModal
           isOpen={isQuantifyOpen}

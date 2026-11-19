@@ -44,7 +44,7 @@ export class CredentialService {
     if (!trimmedKey) throw new Error("API key cannot be empty");
 
     const last4 = trimmedKey.slice(-4);
-    const { ciphertext, nonce } = EncryptionService.encrypt(trimmedKey);
+    const { ciphertext, nonce, keyVersion } = EncryptionService.encrypt(trimmedKey);
 
     const id = `cred_${crypto.randomUUID()}`;
     const now = new Date();
@@ -58,6 +58,7 @@ export class CredentialService {
         provider,
         encryptedApiKey: ciphertext,
         keyNonce: nonce,
+        keyVersion,
         last4,
         isValid: true,
         lastTestedAt: now,
@@ -68,6 +69,7 @@ export class CredentialService {
         set: {
           encryptedApiKey: ciphertext,
           keyNonce: nonce,
+          keyVersion,
           last4,
           isValid: true,
           lastTestedAt: now,
@@ -89,7 +91,7 @@ export class CredentialService {
       action: "byok_added",
       resourceType: "provider_credential",
       resourceId: stored.id,
-      metadataJson: { provider, last4 },
+      metadataJson: { provider, last4, keyVersion },
     });
 
     return stored;
@@ -111,6 +113,7 @@ export class CredentialService {
     return EncryptionService.decrypt({
       ciphertext: cred.encryptedApiKey,
       nonce: cred.keyNonce,
+      keyVersion: cred.keyVersion,
     });
   }
 
@@ -132,6 +135,7 @@ export class CredentialService {
       const apiKey = EncryptionService.decrypt({
         ciphertext: cred.encryptedApiKey,
         nonce: cred.keyNonce,
+        keyVersion: cred.keyVersion,
       });
 
       const provider = ProviderFactory.getProvider(cred.provider, apiKey);
@@ -181,4 +185,86 @@ export class CredentialService {
 
     return Boolean(deleted);
   }
+
+  /**
+   * Rotates stored BYOK credentials to a new key version with round-trip verification
+   * and transactional audit logging.
+   */
+  static async rotateCredentials(
+    targetKeyVersion: number,
+    newSecret?: string,
+    targetUserId?: string
+  ): Promise<{ rotatedCount: number; failureCount: number; errors: string[] }> {
+    const query = targetUserId
+      ? db.select().from(providerCredentials).where(eq(providerCredentials.userId, targetUserId))
+      : db.select().from(providerCredentials);
+
+    const allCreds = await query;
+    let rotatedCount = 0;
+    let failureCount = 0;
+    const errors: string[] = [];
+
+    for (const cred of allCreds) {
+      if (cred.keyVersion === targetKeyVersion) {
+        continue; // Already at target key version
+      }
+
+      try {
+        // 1. Decrypt existing key using stored keyVersion
+        const plaintext = EncryptionService.decrypt({
+          ciphertext: cred.encryptedApiKey,
+          nonce: cred.keyNonce,
+          keyVersion: cred.keyVersion,
+        });
+
+        // 2. Re-encrypt with new secret or targetKeyVersion
+        const reencrypted = newSecret
+          ? EncryptionService.encryptWithSecret(plaintext, newSecret, targetKeyVersion)
+          : EncryptionService.encrypt(plaintext, targetKeyVersion);
+
+        // 3. Verify round-trip decryption BEFORE modifying database
+        const verifyDecrypted = newSecret
+          ? EncryptionService.decryptWithSecret(reencrypted, newSecret)
+          : EncryptionService.decrypt(reencrypted);
+
+        if (verifyDecrypted !== plaintext) {
+          throw new Error("Integrity check failed: Round-trip decrypted key does not match original plaintext.");
+        }
+
+        // 4. Atomically persist update and write audit log
+        await db.transaction(async (tx) => {
+          await tx
+            .update(providerCredentials)
+            .set({
+              encryptedApiKey: reencrypted.ciphertext,
+              keyNonce: reencrypted.nonce,
+              keyVersion: targetKeyVersion,
+              updatedAt: new Date(),
+            })
+            .where(eq(providerCredentials.id, cred.id));
+
+          await tx.insert(auditEvents).values({
+            id: `audit_${crypto.randomUUID()}`,
+            userId: cred.userId,
+            action: "byok_key_rotated",
+            resourceType: "provider_credential",
+            resourceId: cred.id,
+            metadataJson: {
+              provider: cred.provider,
+              oldKeyVersion: cred.keyVersion,
+              newKeyVersion: targetKeyVersion,
+            },
+          });
+        });
+
+        rotatedCount++;
+      } catch (err: any) {
+        failureCount++;
+        errors.push(`Failed to rotate credential ${cred.id} (${cred.provider}) for user ${cred.userId}: ${err.message}`);
+      }
+    }
+
+    return { rotatedCount, failureCount, errors };
+  }
 }
+

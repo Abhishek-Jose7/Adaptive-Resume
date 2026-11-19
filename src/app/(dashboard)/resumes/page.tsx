@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FileText, Plus, Printer, FileDown, Download, Edit3, Clock, Sparkles, ExternalLink } from "lucide-react";
+import { FileText, Plus, Printer, FileDown, Download, RefreshCw, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -65,145 +65,133 @@ export default function ResumesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+    <div>
+      <header className="mb-6 flex flex-col gap-4 border-b border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Resume Documents
-            <span className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full font-mono">
-              ATS Optimized
-            </span>
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            Build, edit, tailor, and export ATS-compliant resumes strictly grounded in your Data Bank facts.
+          <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+            Resumes
+          </h2>
+          <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+            One document per version you would actually send. Open the editor to change a layout, tighten
+            a page, or tailor the wording to a posting.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs shadow transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Create New Resume
+        <button onClick={() => setShowCreateModal(true)} className="btn btn-primary self-start sm:self-auto">
+          <Plus className="h-4 w-4" strokeWidth={1.9} />
+          New resume
         </button>
-      </div>
+      </header>
 
-      {/* Resumes Grid */}
       {loading ? (
-        <div className="text-center py-20 text-xs text-gray-400">Loading your resumes...</div>
+        <div className="flex items-center justify-center gap-2 py-20 text-[13px] text-graphite">
+          <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
+          Reading your documents
+        </div>
       ) : resumes.length === 0 ? (
-        <div className="text-center py-16 bg-gray-900/40 border border-dashed border-gray-800 rounded-2xl p-8 space-y-3">
-          <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto">
-            <FileText className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-white">No resumes created yet</h3>
-          <p className="text-xs text-gray-400 max-w-sm mx-auto">
-            Create your first canonical resume document. You can tailor it to target job descriptions at any time.
+        <div className="panel px-6 py-14 text-center">
+          <FileText className="mx-auto h-6 w-6 text-rule-strong" strokeWidth={1.4} />
+          <h3 className="mt-3 font-display text-[18px] font-semibold">No documents yet</h3>
+          <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-graphite">
+            Start with a job description and build a draft from experience you’ve saved. Make final edits before you export.
           </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" /> Create First Resume
+          <button onClick={() => setShowCreateModal(true)} className="btn btn-primary mt-5">
+            Create the first resume
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {resumes.map((resume) => (
-            <div
-              key={resume.id}
-              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-2xl hover:border-blue-500/50 transition-all space-y-4 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-bold text-white line-clamp-1">{resume.title}</h3>
-                  <span className="text-[10px] font-mono px-2 py-0.5 bg-gray-800 text-gray-300 rounded border border-gray-700">
-                    Active
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-2">
-                  <Clock className="w-3 h-3 text-gray-600" />
-                  <span>Updated {new Date(resume.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-gray-800 flex items-center justify-between gap-2">
-                <Link
-                  href={`/resumes/${resume.id}/edit`}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Open Editor
-                </Link>
-
-                <div className="flex items-center gap-1">
+        <div className="panel">
+          <div className="plate-caption">
+            <span>{resumes.length} documents</span>
+            <span>print · docx · text</span>
+          </div>
+          <ul className="divide-y divide-rule">
+            {resumes.map((resume) => (
+              <li key={resume.id} className="group px-4 py-3.5 hover:bg-paper-alt sm:px-5">
+                <div className="flex items-center gap-3">
                   <Link
-                    href={`/resumes/${resume.id}/print`}
-                    target="_blank"
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
-                    title="Print / Save PDF"
+                    href={`/resumes/${resume.id}/edit`}
+                    className="min-w-0 flex-1"
                   >
-                    <Printer className="w-3.5 h-3.5" />
+                    <h3 className="truncate text-[14.5px] font-semibold tracking-tight group-hover:text-stamp">
+                      {resume.title}
+                    </h3>
+                    <p className="mt-0.5 font-mono text-[11px] text-graphite">
+                      edited {new Date(resume.updatedAt).toLocaleDateString()}
+                    </p>
                   </Link>
-                  <a
-                    href={`/api/v1/resumes/${resume.id}/export/docx`}
-                    className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition-colors"
-                    title="Download DOCX"
-                  >
-                    <FileDown className="w-3.5 h-3.5" />
-                  </a>
-                  <a
-                    href={`/api/v1/resumes/${resume.id}/export/txt`}
-                    className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded transition-colors"
-                    title="Download Plain Text"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </a>
+
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Link
+                      href={`/resumes/${resume.id}/print`}
+                      target="_blank"
+                      className="btn btn-icon"
+                      title="Print or save as PDF"
+                    >
+                      <Printer className="h-3.5 w-3.5" strokeWidth={1.7} />
+                    </Link>
+                    <a
+                      href={`/api/v1/resumes/${resume.id}/export/docx`}
+                      className="btn btn-icon"
+                      title="Download DOCX"
+                    >
+                      <FileDown className="h-3.5 w-3.5" strokeWidth={1.7} />
+                    </a>
+                    <a
+                      href={`/api/v1/resumes/${resume.id}/export/txt`}
+                      className="btn btn-icon"
+                      title="Download plain text"
+                    >
+                      <Download className="h-3.5 w-3.5" strokeWidth={1.7} />
+                    </a>
+                    <Link href={`/resumes/${resume.id}/edit`} className="btn btn-sm btn-quiet ml-1">
+                      Edit
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 text-white">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Plus className="w-4 h-4 text-blue-400" />
-              Create New Resume Document
-            </h2>
-            <form onSubmit={handleCreateResume} className="space-y-4 text-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+          <div className="w-full max-w-md border border-rule bg-sheet">
+            <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
+              <h2 className="font-display text-[17px] font-semibold tracking-tight">New resume</h2>
+              <button onClick={() => setShowCreateModal(false)} className="btn btn-icon" aria-label="Close">
+                <X className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateResume} className="space-y-4 px-5 py-5">
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">
-                  Resume Title
-                </label>
+                <label className="field-label">Title</label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Senior Backend Engineer - 2026"
-                  className="w-full text-xs border border-gray-800 rounded-lg p-2.5 bg-gray-950 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  placeholder="Senior backend engineer, 2026"
+                  className="input"
                   autoFocus
                 />
+                <p className="mt-1.5 text-[11.5px] text-graphite">
+                  Name it after the role it is for — you will keep several.
+                </p>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-3.5 py-1.5 text-xs font-medium text-gray-400 hover:text-white rounded-lg"
-                >
+              <div className="flex justify-end gap-2 border-t border-rule pt-4">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-quiet">
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating || !newTitle.trim()}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg disabled:opacity-50 shadow"
+                  className="btn btn-primary"
                 >
-                  {creating ? "Creating..." : "Create & Open Editor"}
+                  {creating ? "Creating" : "Create and open"}
                 </button>
               </div>
             </form>

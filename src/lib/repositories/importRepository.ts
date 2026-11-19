@@ -1,4 +1,5 @@
 import { db } from "../db/client";
+import crypto from "crypto";
 import {
   importBatches,
   stagedItems,
@@ -109,7 +110,7 @@ export class ImportRepository {
     return db
       .select()
       .from(stagedItems)
-      .where(and(eq(stagedItems.userId, userId), eq(stagedItems.id, batchId)))
+      .where(and(eq(stagedItems.userId, userId), eq(stagedItems.batchId, batchId)))
       .orderBy(stagedItems.createdAt);
   }
 
@@ -145,9 +146,19 @@ export class ImportRepository {
     const overrideMap = new Map(acceptedItems.map((a) => [a.stagedItemId, a.overrideData]));
     const newEntryIds: string[] = [];
 
+    // 0. Fetch batch to obtain linked sourceId for full provenance chain
+    const [batchRecord] = await db
+      .select({ sourceId: importBatches.sourceId })
+      .from(importBatches)
+      .where(and(eq(importBatches.userId, userId), eq(importBatches.id, batchId)))
+      .limit(1);
+
+    const sourceId = batchRecord?.sourceId || null;
+
     await db.transaction(async (tx) => {
       const entryInserts: Array<typeof bankEntries.$inferInsert> = [];
       const bulletInserts: Array<typeof achievementBullets.$inferInsert> = [];
+      const evidenceInserts: Array<typeof sourceEvidence.$inferInsert> = [];
       const statusUpdates: string[] = [];
 
       for (const row of rows) {
@@ -158,6 +169,21 @@ export class ImportRepository {
         const entryId = `entry_${crypto.randomUUID()}`;
         newEntryIds.push(entryId);
         statusUpdates.push(row.id);
+
+        let evidenceId: string | null = null;
+        if (sourceId) {
+          evidenceId = `ev_${crypto.randomUUID()}`;
+          const snippetText = row.rawSnippet || data.title || "Imported content";
+          evidenceInserts.push({
+            id: evidenceId,
+            userId,
+            sourceId,
+            sourceLocator: `import_batch:${batchId}:${row.entryType}`,
+            snippet: snippetText.substring(0, 1000),
+            contentHash: crypto.createHash("sha256").update(snippetText).digest("hex"),
+            confidence: row.confidence ?? 0.9,
+          });
+        }
 
         entryInserts.push({
           id: entryId,
@@ -189,9 +215,15 @@ export class ImportRepository {
               usagePolicy: "eligible",
               sortOrder: bIdx,
               rowVersion: 1,
+              sourceId: sourceId || undefined,
             });
           });
         }
+      }
+
+      // 1. Batch insert source evidence if present
+      if (evidenceInserts.length > 0) {
+        await tx.insert(sourceEvidence).values(evidenceInserts);
       }
 
       // 2. Batch insert entries (1 query)

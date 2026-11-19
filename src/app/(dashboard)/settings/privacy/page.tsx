@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShieldCheck, Download, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Download, Trash2, AlertTriangle, CheckCircle2, ShieldCheck } from "lucide-react";
 
 export default function PrivacySettingsPage() {
   const [downloading, setDownloading] = useState(false);
@@ -38,7 +38,7 @@ export default function PrivacySettingsPage() {
     try {
       const res = await fetch("/api/v1/account", { method: "DELETE" });
       if (res.ok) {
-        setDeleteStatus("Account successfully purged. Redirecting...");
+        setDeleteStatus("Account purged. Closing the tab shortly.");
         setTimeout(() => {
           window.location.href = "/";
         }, 2000);
@@ -54,92 +54,94 @@ export default function PrivacySettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Privacy & Data Governance</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage your personal data, export all your career records in machine-readable JSON, or exercise your Right to be
-          Forgotten with instant, irreversible data eradication.
+    <div>
+      <header className="mb-6 border-b border-rule pb-5">
+        <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+          Privacy and data
+        </h2>
+        <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+          Your career record belongs to you. Take all of it as JSON, or remove the whole account and
+          everything attached to it.
         </p>
-      </div>
+      </header>
 
       {deleteStatus && (
-        <div className="mb-6 p-4 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-3 text-sm">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+        <div className="mb-5 flex items-start gap-2 border border-press/30 bg-press-soft px-3 py-2 text-[12.5px] text-press">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span>{deleteStatus}</span>
         </div>
       )}
 
-      {/* Zero Training & Truth Guarantee Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5 text-blue-600" />
+      <div className="space-y-4">
+        <section className="panel px-5 py-5">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-press" strokeWidth={1.6} />
+            <div>
+              <h3 className="font-display text-[16px] font-semibold tracking-tight">
+                No training, no resale
+              </h3>
+              <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-graphite">
+                Employer names, compensation and achievement metrics stay private. Nothing is used to train
+                a model, and keys you add are encrypted at rest before they are stored.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">Zero-Retention & Zero AI Model Training Guarantee</h2>
-            <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-              Your career facts, employer names, compensation, and achievement metrics are strictly your personal property.
-              Resume Maker never sells your data, never trains AI foundation models on your profile, and encrypts all
-              external API integrations end-to-end.
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">
+            <h3 className="panel-title">Export everything</h3>
+            <span className="folio">json</span>
+          </div>
+          <div className="px-5 py-4">
+            <p className="max-w-[62ch] text-[13px] leading-relaxed text-graphite">
+              One archive: your saved experience, each resume version, the job descriptions,
+              application stages and letters.
             </p>
+            <button onClick={handleDownloadExport} disabled={downloading} className="btn btn-primary mt-4">
+              <Download className="h-4 w-4" strokeWidth={1.8} />
+              {downloading ? "Preparing the archive" : "Download the archive"}
+            </button>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Data Export Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
-          <Download className="w-5 h-5 text-indigo-600" />
-          Export All Account Data (GDPR / CCPA)
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Download a complete portable archive containing every Data Bank item, verified bullet, numeric fact, tailored
-          resume version, target job description, application stage, and cover letter in standard JSON format.
-        </p>
+        <section className="panel border-alarm/40">
+          <div className="panel-head border-alarm/25">
+            <h3 className="panel-title flex items-center gap-2 text-alarm">
+              <AlertTriangle className="h-4 w-4" strokeWidth={1.8} />
+              Delete the account
+            </h3>
+            <span className="folio text-alarm">irreversible</span>
+          </div>
+          <div className="px-5 py-4">
+            <p className="max-w-[62ch] text-[13px] leading-relaxed text-graphite">
+              This removes the account, the records, the resume versions, the score history and the stored
+              keys. There is no restore.
+            </p>
 
-        <button
-          onClick={handleDownloadExport}
-          disabled={downloading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          {downloading ? "Preparing Archive..." : "Download Full JSON Archive"}
-        </button>
-      </div>
+            <div className="mt-4 max-w-sm">
+              <label className="field-label">
+                Type <span className="font-mono text-alarm">DELETE MY DATA</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE MY DATA"
+                className="input font-mono"
+              />
 
-      {/* Danger Zone: Account Deletion */}
-      <div className="bg-rose-50/50 rounded-xl border border-rose-200 p-6">
-        <h2 className="text-lg font-semibold text-rose-900 flex items-center gap-2 mb-2">
-          <AlertTriangle className="w-5 h-5 text-rose-600" />
-          Danger Zone: Permanent Account Deletion
-        </h2>
-        <p className="text-sm text-rose-700 mb-4 leading-relaxed">
-          This action will permanently eradicate your user account and cascade-delete all associated career history,
-          resumes, ATS score records, tailored documents, and encrypted credentials. This cannot be undone.
-        </p>
-
-        <div className="max-w-md space-y-3">
-          <label className="block text-xs font-semibold text-rose-900">
-            Type <span className="font-mono bg-rose-100 px-1 py-0.5 rounded text-rose-800">DELETE MY DATA</span> to confirm:
-          </label>
-          <input
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="DELETE MY DATA"
-            className="w-full text-sm border border-rose-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
-          />
-
-          <button
-            onClick={handleDeleteAccount}
-            disabled={confirmText !== "DELETE MY DATA" || deleting}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-40 shadow-sm"
-          >
-            <Trash2 className="w-4 h-4" />
-            {deleting ? "Purging All Records..." : "Permanently Erase Everything"}
-          </button>
-        </div>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={confirmText !== "DELETE MY DATA" || deleting}
+                className="btn btn-danger mt-3"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                {deleting ? "Erasing" : "Erase everything"}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

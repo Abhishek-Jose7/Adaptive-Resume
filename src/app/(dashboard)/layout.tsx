@@ -1,228 +1,112 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Database,
-  UploadCloud,
-  Briefcase,
+  BriefcaseBusiness,
   FileText,
-  Kanban,
+  KanbanSquare,
   Mail,
-  Key,
+  UserRound,
+  Upload,
   ShieldCheck,
-  Compass,
   Gauge,
-  Sparkles,
-  ChevronRight,
-  Menu,
-  X,
-  User,
+  SlidersHorizontal,
+  ChevronDown,
+  FilePlus2,
 } from "lucide-react";
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { UserButton, Show, SignInButton } from "@clerk/nextjs";
+
+const primaryItems = [
+  { label: "Data Bank", short: "Bank", href: "/bank", icon: Database },
+  { label: "Tailor a resume", short: "Tailor", href: "/jobs", icon: BriefcaseBusiness },
+  { label: "My resumes", short: "Resumes", href: "/resumes", icon: FileText },
+  { label: "Applications", short: "Applications", href: "/applications", icon: KanbanSquare },
+];
+
+const moreItems = [
+  { label: "Add experience", href: "/bank/intake", icon: Upload },
+  { label: "Cover letters", href: "/cover-letters", icon: Mail },
+  { label: "Profile", href: "/profile", icon: UserRound },
+  { label: "Usage", href: "/settings/usage", icon: Gauge },
+  { label: "AI settings", href: "/settings/providers", icon: SlidersHorizontal },
+  { label: "Privacy & data", href: "/settings/privacy", icon: ShieldCheck },
+];
+
+function isActive(pathname: string | null, href: string) {
+  if (!pathname) return false;
+  if (href === "/bank") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function MoreMenu({ pathname }: { pathname: string | null }) {
+  const active = moreItems.some((item) => isActive(pathname, item.href));
+  return (
+    <details className={`proof-more ${active ? "is-active" : ""}`}>
+      <summary aria-label="More sections">
+        More <ChevronDown aria-hidden="true" size={14} />
+      </summary>
+      <div className="proof-more-menu">
+        {moreItems.map(({ label, href, icon: Icon }) => (
+          <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+            <Icon size={16} strokeWidth={1.8} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </div>
+    </details>
+  );
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const mainNavItems = [
-    { label: "Data Bank", href: "/bank", icon: Database },
-    { label: "Data Intake", href: "/bank/intake", icon: UploadCloud },
-    { label: "Target Jobs", href: "/jobs", icon: Briefcase },
-    { label: "Resumes", href: "/resumes", icon: FileText },
-    { label: "Applications Tracker", href: "/applications", icon: Kanban },
-    { label: "Cover Letters", href: "/cover-letters", icon: Mail },
-  ];
-
-  const secondaryNavItems = [
-    { label: "Quotas & Limits", href: "/settings/usage", icon: Gauge },
-    { label: "AI & BYOK Keys", href: "/settings/providers", icon: Key },
-    { label: "Privacy & Data", href: "/settings/privacy", icon: ShieldCheck },
-  ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col font-sans selection:bg-blue-500/30 selection:text-blue-200">
-      {/* Top Navbar */}
-      <header className="bg-gray-900/90 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-105 transition-transform">
-                R
-              </div>
-              <div className="flex items-center">
-                <span className="font-bold text-white tracking-tight text-base">Resume Maker</span>
-                <span className="ml-2.5 px-2 py-0.5 text-[10px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 rounded-full font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  \$0 Free Tier
-                </span>
-              </div>
-            </Link>
+    <div className="proof-shell min-h-screen">
+      <header className="proof-header">
+        <div className="proof-header-main">
+          <Link href="/" className="proof-brand" aria-label="Adaptive Resume home">
+            <span className="proof-brand-mark" aria-hidden="true"><span /></span>
+            <span>Adaptive <strong>Resume</strong></span>
+          </Link>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden xl:flex items-center space-x-1">
-              {mainNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/bank" && pathname?.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      isActive
-                        ? "bg-blue-600/15 text-blue-400 border border-blue-500/30 font-semibold"
-                        : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/60"
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+          <nav className="proof-nav proof-nav-desktop" aria-label="Main navigation">
+            {primaryItems.map(({ label, href }) => (
+              <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+                {label}
+              </Link>
+            ))}
+            <MoreMenu pathname={pathname} />
+          </nav>
 
-          {/* Right Header Utilities */}
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/settings/usage"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 border border-gray-800 transition-colors"
-            >
-              <Gauge className="w-3.5 h-3.5 text-blue-400" />
-              <span>Quotas</span>
-            </Link>
-
-            <Link
-              href="/settings/providers"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 border border-gray-800 transition-colors"
-            >
-              <Key className="w-3.5 h-3.5 text-purple-400" />
-              <span>BYOK</span>
-            </Link>
-
-            <SignedIn>
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: "w-8 h-8 rounded-full border border-blue-500/40 shadow-sm",
-                  },
-                }}
-              />
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors shadow-sm">
-                  Sign In
-                </button>
-              </SignInButton>
-            </SignedOut>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 text-gray-400 hover:text-white rounded-lg xl:hidden hover:bg-gray-800"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+          <div className="proof-header-actions">
+            <Link href="/jobs" className="proof-new-resume"><FilePlus2 size={15} /> New resume</Link>
+            <Show when="signed-in">
+              <UserButton appearance={{ elements: { avatarBox: "h-9 w-9 rounded-full ring-1 ring-white/35" } }} />
+            </Show>
+            <Show when="signed-out">
+              <SignInButton mode="modal"><button className="proof-sign-in">Sign in</button></SignInButton>
+            </Show>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="xl:hidden bg-gray-900 border-b border-gray-800 px-4 py-3 space-y-1">
-            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
-              Modules
-            </div>
-            {mainNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/bank" && pathname?.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                    isActive
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-
-            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-2 py-1 pt-2">
-              Settings &amp; Limits
-            </div>
-            {secondaryNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-gray-800"
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        <nav className="proof-nav proof-nav-mobile" aria-label="Main navigation">
+          {primaryItems.map(({ label, short, href, icon: Icon }) => (
+            <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+              <Icon size={16} strokeWidth={1.8} /><span>{short}</span>
+            </Link>
+          ))}
+          <MoreMenu pathname={pathname} />
+        </nav>
       </header>
 
-      {/* Sub-nav Secondary Header for Desktop */}
-      <div className="hidden md:block bg-gray-900/40 border-b border-gray-800/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-gray-400">
-            <span className="text-gray-500">Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-            <span className="capitalize text-white font-medium">
-              {pathname?.split("/")[1] || "Dashboard"}
-            </span>
-          </div>
+      <main className="proof-main">{children}</main>
 
-          <div className="flex items-center gap-4 text-[11px] text-gray-400">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Truth-Bound AI: Zero Fabrications
-            </span>
-            <span className="text-gray-600">|</span>
-            <span className="font-mono text-gray-400">PRD v1.2</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-900/80 border-t border-gray-800/80 py-4 text-xs text-gray-500 text-center">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Resume Maker • Grounded in Candidate Data Bank • Serverless Neon DB</span>
-          <div className="flex items-center gap-4 text-gray-400">
-            <Link href="/settings/privacy" className="hover:text-white">
-              Data Privacy
-            </Link>
-            <Link href="/settings/usage" className="hover:text-white">
-              Transparent Quotas
-            </Link>
-            <Link href="/settings/providers" className="hover:text-white">
-              BYOK Keys
-            </Link>
-          </div>
-        </div>
+      <footer className="proof-footer">
+        <span>Built around the work you’ve actually done.</span>
+        <Link href="/privacy">Privacy policy</Link>
       </footer>
     </div>
   );

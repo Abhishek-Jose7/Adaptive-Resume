@@ -87,34 +87,35 @@ export function BankEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+      <div className="bg-white rounded-lg shadow-plate w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-ink">
             {entryToEdit ? "Edit Career Entry" : "Add Career Entry"}
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400">
+          <button onClick={onClose} className="p-1 hover:bg-paper rounded text-graphite">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+            <div className="p-3 bg-alarm border border-alarm text-white text-sm rounded">
               {error}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Entry Category
               </label>
               <select
                 value={entryType}
                 onChange={(e) => setEntryType(e.target.value as EntryType)}
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500 bg-white"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp bg-white"
               >
+                <option value="profile">Profile / Summary</option>
                 <option value="experience">Experience</option>
                 <option value="education">Education</option>
                 <option value="project">Project</option>
@@ -128,13 +129,13 @@ export function BankEntryModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Visibility Scope
               </label>
               <select
                 value={visibility}
                 onChange={(e) => setVisibility(e.target.value)}
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500 bg-white"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp bg-white"
               >
                 <option value="private">Private (Default)</option>
                 <option value="resume">Resume Eligible</option>
@@ -144,7 +145,7 @@ export function BankEntryModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+            <label className="block text-xs font-semibold text-ink normal-case mb-1">
               Title / Role / Degree / Group Name *
             </label>
             <input
@@ -152,14 +153,14 @@ export function BankEntryModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Staff Systems Architect or B.S. in Computer Science"
-              className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500"
+              className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Organization / Institution / Company
               </label>
               <input
@@ -167,11 +168,11 @@ export function BankEntryModal({
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 placeholder="e.g., Alphabet / Stanford"
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Location
               </label>
               <input
@@ -179,25 +180,25 @@ export function BankEntryModal({
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g., San Francisco, CA (or Remote)"
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Start Date
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 End Date
               </label>
               <input
@@ -205,7 +206,7 @@ export function BankEntryModal({
                 value={endDate}
                 disabled={isCurrent}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp disabled:bg-paper"
               />
             </div>
           </div>
@@ -216,15 +217,15 @@ export function BankEntryModal({
               id="isCurrent"
               checked={isCurrent}
               onChange={(e) => setIsCurrent(e.target.checked)}
-              className="rounded text-blue-600 focus:ring-blue-500"
+              className="rounded text-stamp focus:ring-stamp"
             />
-            <label htmlFor="isCurrent" className="text-sm text-gray-700">
+            <label htmlFor="isCurrent" className="text-sm text-ink">
               I am currently working / enrolled here
             </label>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+            <label className="block text-xs font-semibold text-ink normal-case mb-1">
               Free-Form Career Context & Situation Note (PRD Section 6.2 D-13)
             </label>
             <textarea
@@ -232,9 +233,9 @@ export function BankEntryModal({
               onChange={(e) => setDescriptionContext(e.target.value)}
               placeholder="Background context, team constraints, architectural goals. The AI can use this as truthful evidence when rephrasing bullets."
               rows={3}
-              className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-blue-500"
+              className="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-stamp"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-graphite mt-1">
               Facts stated here are part of your Data Bank and can be cited as evidence by the truth-bound AI.
             </p>
           </div>
@@ -243,14 +244,14 @@ export function BankEntryModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium"
+              className="px-4 py-2 border rounded-lg text-sm text-ink hover:bg-paper font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-stamp text-white rounded-lg text-sm font-medium hover:bg-stamp-dark disabled:opacity-50"
             >
               {loading ? "Saving..." : entryToEdit ? "Update Entry" : "Create Entry"}
             </button>

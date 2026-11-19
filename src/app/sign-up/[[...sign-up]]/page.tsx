@@ -1,23 +1,38 @@
 import { SignUp } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="mb-6 text-center">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-500/20 mx-auto mb-2">
-          R
-        </div>
-        <h1 className="text-xl font-bold text-white tracking-tight">Create your Account</h1>
-        <p className="text-xs text-slate-400 mt-1">100% Free Tier • Zero credit card required</p>
-      </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-4 py-10">
+      <Link href="/" className="mb-7 flex items-center gap-2.5">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full rounded-bl-[8px] bg-stamp font-display text-[14px] font-semibold leading-none text-white">
+          a.
+        </span>
+        <span className="font-display text-[17px] font-semibold tracking-tightest">Adaptive Resume</span>
+      </Link>
+
+      <p className="mb-5 max-w-[34ch] text-center text-[13px] leading-relaxed text-graphite">
+        Start by adding a resume or a few details about your work. You choose which parts to use in each draft.
+      </p>
+
       <SignUp
         appearance={{
           elements: {
             rootBox: "mx-auto",
-            card: "bg-slate-900 border border-slate-800 shadow-2xl",
+            card: "bg-sheet border border-rule shadow-plate rounded-none",
+            headerTitle: "font-display tracking-tight",
+            formButtonPrimary: "bg-stamp hover:bg-stamp-dark text-white rounded-sm normal-case",
+            formFieldInput: "bg-sheet border-rule-strong text-ink rounded-sm",
+            formFieldLabel: "text-graphite text-[12px]",
+            socialButtonsBlockButton: "border-rule text-ink rounded-sm",
+            footerActionLink: "text-stamp hover:text-stamp-dark",
           },
         }}
       />
+
+      <Link href="/" className="mt-6 text-[12px] text-graphite hover:text-ink">
+        Back to Adaptive Resume
+      </Link>
     </div>
   );
 }

@@ -1,70 +1,85 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, X, Edit, ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
+import { CircleCheck, CircleAlert, Pencil, Save, X } from "lucide-react";
+
+type ParsedResumeData = {
+  title: string;
+  organization?: string | null;
+  location?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent?: boolean;
+  descriptionContext?: string | null;
+  bullets?: string[];
+};
 
 export interface StagedItemView {
   id: string;
   batchId: string;
   entryType: string;
   rawSnippet: string | null;
-  parsedDataJson: {
-    title: string;
-    organization?: string | null;
-    location?: string | null;
-    startDate?: string | null;
-    endDate?: string | null;
-    isCurrent?: boolean;
-    descriptionContext?: string | null;
-    bullets?: string[];
-  };
+  parsedDataJson: ParsedResumeData;
   confidence: number;
   status: string;
 }
 
+type AcceptedItem = { stagedItemId: string; overrideData?: Partial<ParsedResumeData> };
+
 interface StagingReviewTableProps {
   items: StagedItemView[];
-  onCommitSelected: (accepted: Array<{ stagedItemId: string; overrideData?: any }>) => Promise<void>;
+  onCommitSelected: (accepted: AcceptedItem[]) => Promise<void>;
   onRejectItems: (itemIds: string[]) => Promise<void>;
 }
 
-export function StagingReviewTable({
-  items,
-  onCommitSelected,
-  onRejectItems,
-}: StagingReviewTableProps) {
+export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: StagingReviewTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(items.filter((i) => i.status === "pending").map((i) => i.id))
+    new Set(items.filter((item) => item.status === "pending").map((item) => item.id)),
   );
+  const [edits, setEdits] = useState<Record<string, ParsedResumeData>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const pendingItems = items.filter((i) => i.status === "pending");
+  const [error, setError] = useState<string | null>(null);
 
   const toggleSelect = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const updateDraft = (id: string, update: Partial<ParsedResumeData>) => {
+    const original = items.find((item) => item.id === id)?.parsedDataJson;
+    if (!original) return;
+    setEdits((current) => ({ ...current, [id]: { ...(current[id] || original), ...update } }));
   };
 
   const handleCommit = async () => {
-    const toCommit = Array.from(selectedIds).map((id) => ({
-      stagedItemId: id,
-    }));
-    if (toCommit.length === 0) return;
-
+    if (selectedIds.size === 0) return;
     setLoading(true);
+    setError(null);
     try {
-      await onCommitSelected(toCommit);
+      await onCommitSelected(Array.from(selectedIds).map((stagedItemId) => ({
+        stagedItemId,
+        ...(edits[stagedItemId] ? { overrideData: edits[stagedItemId] } : {}),
+      })));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn’t save these details. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRejectSingle = async (id: string) => {
+  const handleReject = async (ids: string[]) => {
     setLoading(true);
+    setError(null);
     try {
-      await onRejectItems([id]);
+      await onRejectItems(ids);
+      setSelectedIds((current) => new Set([...current].filter((id) => !ids.includes(id))));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn’t reject these details. Try again.");
     } finally {
       setLoading(false);
     }
@@ -72,135 +87,83 @@ export function StagingReviewTable({
 
   if (items.length === 0) {
     return (
-      <div className="border border-dashed rounded-xl p-8 text-center bg-white text-xs text-gray-400">
-        No candidate items in the staging area. Upload a file, paste text, or import GitHub repos above to review.
+      <div className="proof-empty-state">
+        <span className="proof-empty-mark"><CircleCheck size={18} /></span>
+        <h2>Nothing to review yet</h2>
+        <p>Upload a PDF or DOCX, paste your experience, or connect GitHub. Your details will wait here for your review.</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl bg-white shadow-xs overflow-hidden space-y-4">
-      <div className="p-4 bg-gray-50 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <section className="proof-review-list" aria-labelledby="staging-title">
+      <div className="proof-review-head">
         <div>
-          <h3 className="font-semibold text-gray-900 text-sm">
-            Staging Review Area ({items.length} items)
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Per PRD R-07, verify and edit parsed career items before committing them into your canonical Data Bank.
-          </p>
+          <h2 id="staging-title">Review imported details</h2>
+          <p>{items.length} items / Nothing enters your Data Bank until you approve it.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onRejectItems(Array.from(selectedIds))}
-            disabled={loading || selectedIds.size === 0}
-            className="px-3 py-1.5 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-medium disabled:opacity-50"
-          >
-            Reject Selected
-          </button>
-          <button
-            onClick={handleCommit}
-            disabled={loading || selectedIds.size === 0}
-            className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <Check className="w-4 h-4" />
-            Commit {selectedIds.size} Selected to Bank
+        <div className="proof-review-actions">
+          <button onClick={() => void handleReject(Array.from(selectedIds))} disabled={loading || selectedIds.size === 0} className="proof-secondary-button">Reject selected</button>
+          <button onClick={() => void handleCommit()} disabled={loading || selectedIds.size === 0} className="proof-primary-button">
+            <CircleCheck size={16} /> Save {selectedIds.size} to Data Bank
           </button>
         </div>
       </div>
 
-      <div className="divide-y divide-gray-100">
+      {error && <p className="proof-review-error" role="alert"><CircleAlert size={16} />{error}</p>}
+
+      <ul className="proof-review-items">
         {items.map((item) => {
-          const isSelected = selectedIds.has(item.id);
-          const isPending = item.status === "pending";
-
+          const data = edits[item.id] || item.parsedDataJson;
+          const pending = item.status === "pending";
+          const isEditing = editingId === item.id;
           return (
-            <div
-              key={item.id}
-              className={`p-4 transition-colors ${
-                !isPending
-                  ? "bg-gray-50 opacity-60"
-                  : isSelected
-                  ? "bg-blue-50/20"
-                  : "bg-white"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {isPending && (
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelect(item.id)}
-                    className="rounded text-blue-600 mt-1 cursor-pointer"
-                  />
-                )}
+            <li key={item.id} className={`proof-review-item ${!pending ? "is-resolved" : selectedIds.has(item.id) ? "is-selected" : ""}`}>
+              {pending && <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${data.title}`} />}
+              <div className="proof-review-content">
+                <div className="proof-review-title-row">
+                  <div className="proof-review-title-group">
+                    <h3>{data.title}</h3>
+                    <span className="proof-entry-type">{item.entryType.replaceAll("_", " ")}</span>
+                    {item.status !== "pending" && <span className={`proof-entry-status ${item.status}`}>{item.status}</span>}
+                  </div>
+                  <div className="proof-review-item-actions">
+                    <span className="proof-confidence">{Math.round(item.confidence * 100)}% match</span>
+                    {pending && !isEditing && <button type="button" className="proof-icon-button" onClick={() => { setSelectedIds((current) => new Set(current).add(item.id)); setEditingId(item.id); }} aria-label={`Edit ${data.title}`}><Pencil size={15} /></button>}
+                    {pending && <button type="button" className="proof-icon-button proof-reject-icon" onClick={() => void handleReject([item.id])} disabled={loading} aria-label={`Reject ${data.title}`}><X size={16} /></button>}
+                  </div>
+                </div>
 
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900 text-sm">
-                        {item.parsedDataJson.title}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-gray-100 text-gray-700">
-                        {item.entryType}
-                      </span>
-                      {item.status !== "pending" && (
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                            item.status === "accepted"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                      )}
+                {isEditing ? (
+                  <div className="proof-inline-editor">
+                    <label>Title<input value={data.title} onChange={(event) => updateDraft(item.id, { title: event.target.value })} /></label>
+                    <div className="proof-edit-grid">
+                      <label>Company or organization<input value={data.organization || ""} onChange={(event) => updateDraft(item.id, { organization: event.target.value })} /></label>
+                      <label>Location<input value={data.location || ""} onChange={(event) => updateDraft(item.id, { location: event.target.value })} /></label>
+                      <label>Start date<input value={data.startDate || ""} onChange={(event) => updateDraft(item.id, { startDate: event.target.value })} placeholder="2022" /></label>
+                      <label>End date<input value={data.isCurrent ? "" : data.endDate || ""} disabled={data.isCurrent} onChange={(event) => updateDraft(item.id, { endDate: event.target.value, isCurrent: false })} placeholder="2025" /></label>
                     </div>
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-400">
-                        Confidence: {(item.confidence * 100).toFixed(0)}%
-                      </span>
-                      {isPending && (
-                        <button
-                          onClick={() => handleRejectSingle(item.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded"
-                          title="Reject this item"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
+                    <label className="proof-current-role"><input type="checkbox" checked={Boolean(data.isCurrent)} onChange={(event) => updateDraft(item.id, { isCurrent: event.target.checked, endDate: event.target.checked ? null : data.endDate })} /> I still work here</label>
+                    <label>Details, one per line<textarea rows={4} value={(data.bullets || []).join("\n")} onChange={(event) => updateDraft(item.id, { bullets: event.target.value.split("\n").filter((line) => line.trim()) })} /></label>
+                    <div className="proof-inline-editor-actions">
+                      <button type="button" className="proof-secondary-button" onClick={() => { setEdits((current) => { const next = { ...current }; delete next[item.id]; return next; }); setEditingId(null); }}>Discard edits</button>
+                      <button type="button" className="proof-primary-button" onClick={() => setEditingId(null)}><Save size={15} /> Done editing</button>
                     </div>
                   </div>
-
-                  {item.parsedDataJson.organization && (
-                    <p className="text-xs text-gray-600 font-medium">
-                      {item.parsedDataJson.organization}
-                      {item.parsedDataJson.location && ` • ${item.parsedDataJson.location}`}
-                    </p>
-                  )}
-
-                  {/* Snippet / provenance */}
-                  {item.rawSnippet && (
-                    <p className="text-[11px] text-gray-400 italic font-mono bg-gray-50 p-1.5 rounded border border-gray-100">
-                      Provenance Snippet: {item.rawSnippet}
-                    </p>
-                  )}
-
-                  {/* Parsed Bullets Preview */}
-                  {item.parsedDataJson.bullets && item.parsedDataJson.bullets.length > 0 && (
-                    <ul className="list-disc pl-5 space-y-1 text-xs text-gray-700">
-                      {item.parsedDataJson.bullets.map((b, bIdx) => (
-                        <li key={bIdx}>{b}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                ) : (
+                  <>
+                    {(data.organization || data.location) && <p className="proof-review-meta">{[data.organization, data.location].filter(Boolean).join(" / ")}</p>}
+                    {(data.startDate || data.endDate || data.isCurrent) && <p className="proof-review-meta">{data.startDate || ""}{data.startDate && " — "}{data.isCurrent ? "Present" : data.endDate || ""}</p>}
+                    {data.bullets && data.bullets.length > 0 && <ul className="proof-review-bullets">{data.bullets.map((bullet, index) => <li key={`${item.id}-${index}`}>{bullet}</li>)}</ul>}
+                    {data.descriptionContext && !data.bullets?.length && <p className="proof-review-meta">{data.descriptionContext}</p>}
+                    {item.rawSnippet && <details className="proof-source-text"><summary>See text from your file</summary><p>{item.rawSnippet}</p></details>}
+                  </>
+                )}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </section>
   );
 }

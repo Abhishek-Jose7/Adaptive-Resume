@@ -17,10 +17,21 @@ export async function parsePdfBuffer(
     throw new Error(validation.errorMessage);
   }
 
-  const bytes = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
+  const bytes = buffer instanceof ArrayBuffer
+    ? new Uint8Array(buffer)
+    : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
   // Dynamically load pdfjs-dist
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  // PDF.js ships its worker separately. Bundle it with the app so the parser
+  // works in production builds as well as in local development.
+  if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/legacy/build/pdf.worker.mjs",
+      import.meta.url,
+    ).toString();
+  }
 
   const loadingTask = pdfjsLib.getDocument({
     data: bytes,

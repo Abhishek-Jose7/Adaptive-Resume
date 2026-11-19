@@ -31,6 +31,13 @@ export const users = pgTable(
     username: text("username").unique(),
     displayName: text("display_name"),
     email: text("email"),
+    contactEmail: text("contact_email"),
+    phone: text("phone"),
+    location: text("location"),
+    headline: text("headline"),
+    githubUrl: text("github_url"),
+    linkedinUrl: text("linkedin_url"),
+    portfolioUrl: text("portfolio_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -77,6 +84,9 @@ export const bankEntries = pgTable(
       .where(sql`deleted_at IS NULL`),
     index("bank_entries_search_vector_idx")
       .using("gin", table.searchVector)
+      .where(sql`deleted_at IS NULL`),
+    index("bank_entries_user_sort_idx")
+      .on(table.userId, table.sortOrder, table.id)
       .where(sql`deleted_at IS NULL`),
   ]
 );
@@ -311,6 +321,7 @@ export const resumeDocuments = pgTable(
     title: text("title").notNull(),
     baseResumeId: text("base_resume_id"),
     jobId: text("job_id").references(() => jobs.id, { onDelete: "set null" }),
+    rowVersion: integer("row_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -337,6 +348,7 @@ export const resumeVersions = pgTable(
     themeJson: jsonb("theme_json").notNull().default({}),
     pageSize: text("page_size").notNull().default("A4"),
     targetPages: integer("target_pages").notNull().default(1),
+    rowVersion: integer("row_version").notNull().default(1),
     createdBy: text("created_by").notNull().default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
@@ -666,6 +678,47 @@ export const userUsageQuotas = pgTable(
   },
   (table) => [
     uniqueIndex("user_usage_quotas_user_period_idx").on(table.userId, table.monthlyPeriod),
+  ]
+);
+
+// ==========================================
+// 22. User OCR Consents (Item 1: Persistent, Authenticated Policy Binding)
+// ==========================================
+export const userOcrConsents = pgTable(
+  "user_ocr_consents",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    policyVersion: text("policy_version").notNull(),
+    consentedAt: timestamp("consented_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("user_ocr_consents_user_idx").on(table.userId),
+    index("user_ocr_consents_user_policy_idx").on(table.userId, table.policyVersion),
+  ]
+);
+
+// ==========================================
+// 23. OCR Distributed Rate Limits (Item 1: Shared Serverless Enforcement)
+// ==========================================
+export const ocrRateLimits = pgTable(
+  "ocr_rate_limits",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    windowType: text("window_type").notNull(), // "minute" | "day"
+    windowKey: text("window_key").notNull(),   // e.g. "2026-11-19T03:10" or "2026-11-19"
+    requestCount: integer("request_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("ocr_rate_limits_user_window_idx").on(table.userId, table.windowType, table.windowKey),
+    index("ocr_rate_limits_expires_idx").on(table.expiresAt),
   ]
 );
 

@@ -1,11 +1,30 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { POST as ocrHandler } from "@/app/api/v1/ocr/route";
 import { NextRequest } from "next/server";
+import { db } from "@/lib/db/client";
+import { users } from "@/lib/db/schema";
+import { OcrConsentService } from "@/lib/security/ocrConsentService";
+import { resetOcrRateLimits } from "@/lib/security/ocrRateLimiter";
 
 describe("Document Intake Architecture & OCR.space Integration", () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     process.env.ENABLE_DEV_AUTH_BYPASS = "true";
     process.env.DEV_USER_ID = "usr_ocr_test_user";
+    process.env.OCR_SPACE_API_KEY = "test_ocr_space_api_key";
+
+    await db
+      .insert(users)
+      .values({
+        id: "usr_ocr_test_user",
+        clerkSubject: "clerk_usr_ocr_test_user",
+        email: "usr_ocr_test_user@test.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing();
+
+    await OcrConsentService.recordConsent("usr_ocr_test_user");
+    await resetOcrRateLimits("usr_ocr_test_user");
   });
   it("should classify selectable vs scanned PDF based on character count threshold", () => {
     const selectableText = "Senior Full Stack Engineer with 7 years of production experience in TypeScript and React.";
@@ -44,6 +63,7 @@ describe("Document Intake Architecture & OCR.space Integration", () => {
         },
         body: JSON.stringify({
           base64Image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          userConsent: true,
         }),
       });
 
@@ -80,6 +100,7 @@ describe("Document Intake Architecture & OCR.space Integration", () => {
         },
         body: JSON.stringify({
           base64Image: "invalid_data",
+          userConsent: true,
         }),
       });
 

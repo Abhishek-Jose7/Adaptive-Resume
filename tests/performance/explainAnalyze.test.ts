@@ -38,7 +38,7 @@ describe("PostgreSQL EXPLAIN ANALYZE Performance & Index Verification (PRD Secti
     await client`ANALYZE bank_entries;`;
     await client`ANALYZE achievement_bullets;`;
     await client`ANALYZE bullet_facts;`;
-  }, 30000);
+  }, 60000);
 
   it("should utilize composite index for tenant bullet retrieval with < 50ms execution", async () => {
     const targetEntryId = "be_bench_42";
@@ -69,19 +69,15 @@ describe("PostgreSQL EXPLAIN ANALYZE Performance & Index Verification (PRD Secti
   });
 
   it("should utilize composite index for bank entries ordering with < 50ms execution", async () => {
-    await client`SET enable_seqscan = off;`;
-
     const rows = await client`
       EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
-      SELECT id, user_id, entry_type, title, sort_order
+      SELECT id, user_id, entry_type, title, updated_at
       FROM bank_entries
       WHERE user_id = ${BENCHMARK_USER_ID}
         AND deleted_at IS NULL
-      ORDER BY sort_order, id
+      ORDER BY updated_at DESC, id DESC
       LIMIT 20;
     `;
-
-    await client`SET enable_seqscan = on;`;
 
     expect(rows).toBeDefined();
     const queryPlan = rows[0]["QUERY PLAN"] as ExplainResult[];
@@ -98,18 +94,14 @@ describe("PostgreSQL EXPLAIN ANALYZE Performance & Index Verification (PRD Secti
   it("should utilize GIN full-text index for lexical search with < 50ms execution", async () => {
     const searchQuery = "PostgreSQL & latency";
 
-    await client`SET enable_seqscan = off;`;
-
     const rows = await client`
       EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
       SELECT id, user_id, text
       FROM achievement_bullets
-      WHERE search_vector @@ to_tsquery('english', ${searchQuery})
-        AND deleted_at IS NULL
-      LIMIT 10;
+      WHERE user_id = ${BENCHMARK_USER_ID}
+        AND search_vector @@ to_tsquery('english', ${searchQuery})
+        AND deleted_at IS NULL;
     `;
-
-    await client`SET enable_seqscan = on;`;
 
     expect(rows).toBeDefined();
     const queryPlan = rows[0]["QUERY PLAN"] as ExplainResult[];

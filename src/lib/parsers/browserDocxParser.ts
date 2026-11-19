@@ -16,7 +16,9 @@ export async function parseDocxBuffer(
     throw new Error(validation.errorMessage);
   }
 
-  const nodeBuffer = Buffer.from(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
+  const nodeBuffer = buffer instanceof Uint8Array
+    ? Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+    : Buffer.from(new Uint8Array(buffer));
 
   // Extract raw text and HTML using mammoth
   const [textResult, htmlResult] = await Promise.all([

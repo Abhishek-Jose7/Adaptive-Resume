@@ -286,6 +286,149 @@ export class ResumeDocStore {
     this.pushState(newDoc);
   }
 
+  // Project Bullet Actions
+  addProjectBullet(projId: string, bullet: ResumeBullet) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      projects: (this.state.doc.projects || []).map((p) => {
+        if (p.id === projId) {
+          return {
+            ...p,
+            bullets: [...p.bullets, bullet],
+          };
+        }
+        return p;
+      }),
+    };
+    this.pushState(newDoc);
+  }
+
+  updateProjectBullet(projId: string, bulletId: string, newText: string) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      projects: (this.state.doc.projects || []).map((p) => {
+        if (p.id === projId) {
+          return {
+            ...p,
+            bullets: p.bullets.map((b) =>
+              b.id === bulletId ? { ...b, text: newText } : b
+            ),
+          };
+        }
+        return p;
+      }),
+    };
+    this.pushState(newDoc);
+  }
+
+  removeProjectBullet(projId: string, bulletId: string) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      projects: (this.state.doc.projects || []).map((p) => {
+        if (p.id === projId) {
+          return {
+            ...p,
+            bullets: p.bullets.filter((b) => b.id !== bulletId),
+          };
+        }
+        return p;
+      }),
+    };
+    this.pushState(newDoc);
+  }
+
+  // Pinning Helpers (PRD Section 10.4 & T9)
+  toggleBulletPin(bulletId: string) {
+    let updated = false;
+
+    // Check experiences
+    const newExp = (this.state.doc.experience || []).map((exp) => {
+      const bulletExists = exp.bullets.some((b) => b.id === bulletId);
+      if (!bulletExists) return exp;
+      updated = true;
+      return {
+        ...exp,
+        bullets: exp.bullets.map((b) =>
+          b.id === bulletId ? { ...b, pinned: !b.pinned } : b
+        ),
+      };
+    });
+
+    // Check projects
+    const newProj = (this.state.doc.projects || []).map((proj) => {
+      const bulletExists = proj.bullets.some((b) => b.id === bulletId);
+      if (!bulletExists) return proj;
+      updated = true;
+      return {
+        ...proj,
+        bullets: proj.bullets.map((b) =>
+          b.id === bulletId ? { ...b, pinned: !b.pinned } : b
+        ),
+      };
+    });
+
+    if (updated) {
+      this.pushState({
+        ...this.state.doc,
+        experience: newExp,
+        projects: newProj,
+      });
+    }
+  }
+
+  // Section Visibility & Ordering (PRD Section 10.6 & E4)
+  toggleSectionVisibility(sectionType: string) {
+    const sections = this.state.doc.sections || [];
+    const existingIndex = sections.findIndex((s) => s.type === sectionType);
+
+    let newSections = [...sections];
+    if (existingIndex >= 0) {
+      newSections[existingIndex] = {
+        ...newSections[existingIndex],
+        visible: !newSections[existingIndex].visible,
+      };
+    } else {
+      newSections.push({
+        id: `sec_${sectionType}`,
+        type: sectionType,
+        heading: sectionType.charAt(0).toUpperCase() + sectionType.slice(1),
+        visible: false,
+        items: [],
+      });
+    }
+
+    this.pushState({
+      ...this.state.doc,
+      sections: newSections,
+    });
+  }
+
+  reorderSections(sectionOrder: string[]) {
+    this.pushState({
+      ...this.state.doc,
+      template: {
+        ...this.state.doc.template,
+        theme: {
+          ...this.state.doc.template?.theme,
+          sectionOrder,
+        },
+      },
+    });
+  }
+
+  updateTemplateTheme(theme: Record<string, unknown>) {
+    this.pushState({
+      ...this.state.doc,
+      template: {
+        ...this.state.doc.template,
+        theme: {
+          ...this.state.doc.template?.theme,
+          ...theme,
+        },
+      },
+    });
+  }
+
   // Reordering helpers
   reorderExperience(startIndex: number, endIndex: number) {
     const result = Array.from(this.state.doc.experience || []);

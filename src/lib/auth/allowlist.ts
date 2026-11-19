@@ -4,15 +4,15 @@
  */
 
 export function isEmailAllowed(email: string | null | undefined): boolean {
-  const allowlist = process.env.SIGNUP_ALLOWLIST;
-
-  // If no allowlist is configured, permit registration (or default to owner email)
-  if (!allowlist || allowlist.trim() === "" || allowlist.trim() === "*") {
-    return true;
+  if (!email || typeof email !== "string" || email.trim() === "") {
+    return false;
   }
 
-  if (!email) {
-    return false;
+  const allowlist = process.env.SIGNUP_ALLOWLIST;
+
+  // If no allowlist is configured, permit registration for valid emails
+  if (!allowlist || allowlist.trim() === "" || allowlist.trim() === "*") {
+    return true;
   }
 
   const normalizedEmail = email.toLowerCase().trim();

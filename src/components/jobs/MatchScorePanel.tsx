@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Gauge, CheckCircle2, AlertCircle, XCircle, ChevronDown, ChevronRight, HelpCircle, Layers, ArrowUpRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { MatchScoreBreakdown } from "@/lib/scoring/matchScoreEngine";
 import { GapReport } from "@/lib/scoring/gapReportEngine";
 
@@ -13,7 +13,7 @@ export function MatchScorePanel({ jobId }: Props) {
   const [loading, setLoading] = useState(false);
   const [matchScore, setMatchScore] = useState<MatchScoreBreakdown | null>(null);
   const [gapReport, setGapReport] = useState<GapReport | null>(null);
-  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchScoreAndGaps = async () => {
@@ -49,21 +49,18 @@ export function MatchScorePanel({ jobId }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white border rounded-xl p-6 text-center text-gray-500 text-sm">
-        Calculating Resume–JD Match Score and evaluating skill gaps...
+      <div className="panel px-5 py-6 text-[13px] text-graphite">
+        Measuring the resume against the posting
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white border rounded-xl p-6">
-        <p className="text-sm text-red-600 mb-2">{error}</p>
-        <button
-          onClick={fetchScoreAndGaps}
-          className="text-xs text-indigo-600 font-semibold hover:underline"
-        >
-          Retry calculation
+      <div className="panel px-5 py-6">
+        <p className="text-[13px] text-alarm">{error}</p>
+        <button onClick={fetchScoreAndGaps} className="btn btn-sm mt-3">
+          Try again
         </button>
       </div>
     );
@@ -71,211 +68,176 @@ export function MatchScorePanel({ jobId }: Props) {
 
   if (!matchScore) return null;
 
-  const scoreColor =
+  const band =
     matchScore.totalScore >= 75
-      ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+      ? { color: "text-press", bar: "var(--press)", label: "strong match" }
       : matchScore.totalScore >= 50
-      ? "text-amber-600 bg-amber-50 border-amber-200"
-      : "text-rose-600 bg-rose-50 border-rose-200";
+        ? { color: "text-marker-dark", bar: "var(--marker)", label: "partial match" }
+        : { color: "text-alarm", bar: "var(--alarm)", label: "weak match" };
+
+  const rows = [
+    {
+      label: "Must-have keywords",
+      weight: 30,
+      score: matchScore.dimensions.mustHaveKeywords.score,
+      detail: `Covered: ${matchScore.dimensions.mustHaveKeywords.covered.join(", ") || "none"}`,
+    },
+    {
+      label: "Relevant achievements",
+      weight: 20,
+      score: matchScore.dimensions.relevantAchievements.score,
+      detail: matchScore.dimensions.relevantAchievements.details,
+    },
+    {
+      label: "Responsibility alignment",
+      weight: 15,
+      score: matchScore.dimensions.responsibilityAlignment.score,
+      detail: `${matchScore.dimensions.responsibilityAlignment.matchedCount} of ${matchScore.dimensions.responsibilityAlignment.totalCount} responsibilities aligned`,
+    },
+    {
+      label: "Nice-to-have keywords",
+      weight: 10,
+      score: matchScore.dimensions.niceToHaveKeywords.score,
+      detail: `Covered: ${matchScore.dimensions.niceToHaveKeywords.covered.join(", ") || "none"}`,
+    },
+    {
+      label: "Seniority alignment",
+      weight: 10,
+      score: matchScore.dimensions.experienceSeniority.score,
+      detail: `Candidate ${matchScore.dimensions.experienceSeniority.candidateSeniority}, required ${matchScore.dimensions.experienceSeniority.requiredSeniority}`,
+    },
+    {
+      label: "Parseability and formatting",
+      weight: 10,
+      score: matchScore.dimensions.parseabilityFormatting.score,
+      detail: matchScore.dimensions.parseabilityFormatting.passFlags.join(", "),
+    },
+  ];
+
+  const gapGroups = [
+    {
+      title: "In the bank, not on the resume",
+      note: "Evidence exists. Adding it is an edit, not a claim.",
+      items: gapReport?.inBankNotOnResume ?? [],
+      accent: "border-l-0 text-press",
+    },
+    {
+      title: "In the profile, unverified",
+      note: "Mentioned somewhere, but no bullet carries it.",
+      items: gapReport?.inProfileUnverified ?? [],
+      accent: "text-marker-dark",
+    },
+    {
+      title: "Not in the bank",
+      note: "Absent from your record. Add it only if it is true.",
+      items: gapReport?.missingFromBank ?? [],
+      accent: "text-alarm",
+    },
+  ];
 
   return (
-    <div className="bg-white border rounded-xl shadow-sm p-6 space-y-6">
-      {/* Header & Score Gauge */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
+    <section className="panel">
+      <div className="flex flex-col gap-3 border-b border-rule px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
         <div>
-          <div className="flex items-center gap-2">
-            <Gauge className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-bold text-gray-900">Resume–JD Match Score</h3>
-            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">
-              v{matchScore.scoringVersion}
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1 max-w-xl">
-            Internal compatibility estimate based on grounded evidence in your Data Bank. This is not an employer ATS prediction.
+          <h3 className="font-display text-[17px] font-semibold tracking-tight">Match score</h3>
+          <p className="mt-1 max-w-[52ch] text-[12px] leading-relaxed text-graphite">
+            An estimate against your own evidence, not a prediction of an employer&apos;s parser.
           </p>
         </div>
 
         {matchScore.isAvailable ? (
-          <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border ${scoreColor}`}>
-            <span className="text-3xl font-extrabold">{matchScore.totalScore}</span>
-            <span className="text-xs font-semibold uppercase tracking-wider">/ 100</span>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-display text-[42px] font-semibold leading-none tracking-tightest ${band.color}`}>
+              {matchScore.totalScore}
+            </span>
+            <span className="font-mono text-[11px] text-graphite">/ 100 · {band.label}</span>
           </div>
         ) : (
-          <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-800">
+          <p className="border border-marker/35 bg-marker-soft px-2.5 py-1 text-[11.5px] text-marker-dark">
             {matchScore.unavailableReason}
-          </div>
+          </p>
         )}
       </div>
 
-      {/* 7-Dimension Breakdown Accordion */}
       {matchScore.isAvailable && (
-        <div className="space-y-3">
+        <div>
           <button
             onClick={() => setShowBreakdown(!showBreakdown)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+            className="flex w-full items-center gap-1.5 border-b border-rule px-4 py-2 text-[12px] text-graphite hover:text-ink sm:px-5"
           >
-            {showBreakdown ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            {showBreakdown ? "Hide Score Breakdown" : "View 7-Dimension Score Breakdown"}
+            {showBreakdown ? (
+              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.8} />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.8} />
+            )}
+            {showBreakdown ? "Hide the seven dimensions" : "Show the seven dimensions"}
+            <span className="ml-auto font-mono text-[10.5px]">v{matchScore.scoringVersion}</span>
           </button>
 
           {showBreakdown && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Must-Have Keywords (Weight: 30)</span>
-                  <span className="font-bold">{matchScore.dimensions.mustHaveKeywords.score} / 30</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-indigo-600 h-1.5 rounded-full"
-                    style={{ width: `${(matchScore.dimensions.mustHaveKeywords.score / 30) * 100}%` }}
-                  />
-                </div>
-                <div className="text-[11px] text-gray-500">
-                  Covered: {matchScore.dimensions.mustHaveKeywords.covered.join(", ") || "None"}
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Nice-to-Have Keywords (Weight: 10)</span>
-                  <span className="font-bold">{matchScore.dimensions.niceToHaveKeywords.score} / 10</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-indigo-600 h-1.5 rounded-full"
-                    style={{ width: `${(matchScore.dimensions.niceToHaveKeywords.score / 10) * 100}%` }}
-                  />
-                </div>
-                <div className="text-[11px] text-gray-500">
-                  Covered: {matchScore.dimensions.niceToHaveKeywords.covered.join(", ") || "None"}
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Relevant Achievements (Weight: 20)</span>
-                  <span className="font-bold">{matchScore.dimensions.relevantAchievements.score} / 20</span>
-                </div>
-                <p className="text-[11px] text-gray-500">{matchScore.dimensions.relevantAchievements.details}</p>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Responsibility Alignment (Weight: 15)</span>
-                  <span className="font-bold">{matchScore.dimensions.responsibilityAlignment.score} / 15</span>
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  {matchScore.dimensions.responsibilityAlignment.matchedCount} of{" "}
-                  {matchScore.dimensions.responsibilityAlignment.totalCount} responsibilities aligned
-                </p>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Seniority Alignment (Weight: 10)</span>
-                  <span className="font-bold">{matchScore.dimensions.experienceSeniority.score} / 10</span>
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  Candidate: {matchScore.dimensions.experienceSeniority.candidateSeniority} • Required:{" "}
-                  {matchScore.dimensions.experienceSeniority.requiredSeniority}
-                </p>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50/50 space-y-1">
-                <div className="flex justify-between text-xs font-medium text-gray-700">
-                  <span>Parseability & Formatting (Weight: 10)</span>
-                  <span className="font-bold">{matchScore.dimensions.parseabilityFormatting.score} / 10</span>
-                </div>
-                <div className="text-[11px] text-gray-500">
-                  {matchScore.dimensions.parseabilityFormatting.passFlags.join(" • ")}
-                </div>
-              </div>
-            </div>
+            <table className="w-full text-[13px]">
+              <tbody className="divide-y divide-rule">
+                {rows.map((row) => (
+                  <tr key={row.label}>
+                    <td className="w-[38%] px-4 py-2.5 align-top sm:px-5">
+                      <div className="font-medium">{row.label}</div>
+                      <div className="mt-0.5 text-[11px] leading-relaxed text-graphite">{row.detail}</div>
+                    </td>
+                    <td className="w-[42%] px-2 py-3 align-middle">
+                      <div className="meter">
+                        <span
+                          style={{
+                            width: `${(row.score / row.weight) * 100}%`,
+                            backgroundColor: band.bar,
+                          }}
+                        />
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right align-top font-mono text-[11.5px] text-graphite sm:px-5">
+                      {row.score} / {row.weight}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
 
-      {/* Gap Analysis Panels */}
       {gapReport && (
-        <div className="space-y-4 pt-2">
-          <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-indigo-600" />
-            Requirement Gap Analysis ({gapReport.totalMissingCount} Uncovered Requirements)
-          </h4>
+        <div className="border-t border-rule px-4 py-4 sm:px-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h4 className="text-[13px] font-semibold">Requirement gaps</h4>
+            <span className="folio">{gapReport.totalMissingCount} uncovered</span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Category A: In Data Bank, Not on Resume */}
-            <div className="border rounded-lg p-4 bg-blue-50/30 border-blue-200 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-900">
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                In Data Bank (Not on current resume)
-              </div>
-              <p className="text-[11px] text-gray-600">
-                You have verified evidence for these in your Data Bank. Add them to your resume to increase your score.
-              </p>
-              <div className="space-y-1.5 pt-1">
-                {gapReport.inBankNotOnResume.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">None</p>
-                ) : (
-                  gapReport.inBankNotOnResume.map((item) => (
-                    <div key={item.keyword.canonical} className="bg-white p-2 rounded border border-blue-100 text-xs">
-                      <span className="font-semibold text-blue-800">{item.keyword.canonical}</span>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{item.recommendedAction}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+          <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-3">
+            {gapGroups.map((group) => (
+              <div key={group.title}>
+                <p className={`border-t border-ink pt-2 text-[12.5px] font-semibold ${group.accent}`}>
+                  {group.title}
+                </p>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-graphite">{group.note}</p>
 
-            {/* Category B: In Profile, Unverified */}
-            <div className="border rounded-lg p-4 bg-amber-50/30 border-amber-200 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                <AlertCircle className="w-4 h-4 text-amber-600" />
-                In Profile (Unverified)
+                <ul className="mt-2 space-y-2">
+                  {group.items.length === 0 ? (
+                    <li className="text-[12px] text-graphite">Nothing here</li>
+                  ) : (
+                    group.items.map((item) => (
+                      <li key={item.keyword.canonical} className="border-t border-rule pt-1.5">
+                        <span className="text-[12.5px] font-medium">{item.keyword.canonical}</span>
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-graphite">
+                          {item.recommendedAction}
+                        </p>
+                      </li>
+                    ))
+                  )}
+                </ul>
               </div>
-              <p className="text-[11px] text-gray-600">
-                Listed in your profile or contexts, but lacks quantified achievement bullets.
-              </p>
-              <div className="space-y-1.5 pt-1">
-                {gapReport.inProfileUnverified.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">None</p>
-                ) : (
-                  gapReport.inProfileUnverified.map((item) => (
-                    <div key={item.keyword.canonical} className="bg-white p-2 rounded border border-amber-100 text-xs">
-                      <span className="font-semibold text-amber-800">{item.keyword.canonical}</span>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{item.recommendedAction}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Category C: Missing from Bank */}
-            <div className="border rounded-lg p-4 bg-rose-50/30 border-rose-200 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
-                <XCircle className="w-4 h-4 text-rose-600" />
-                Not in your Data Bank — add only if true
-              </div>
-              <p className="text-[11px] text-gray-600">
-                Candidate lacks evidenced experience. The AI will never hallucinate or invent these.
-              </p>
-              <div className="space-y-1.5 pt-1">
-                {gapReport.missingFromBank.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">None</p>
-                ) : (
-                  gapReport.missingFromBank.map((item) => (
-                    <div key={item.keyword.canonical} className="bg-white p-2 rounded border border-rose-100 text-xs">
-                      <span className="font-semibold text-rose-800">{item.keyword.canonical}</span>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{item.recommendedAction}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

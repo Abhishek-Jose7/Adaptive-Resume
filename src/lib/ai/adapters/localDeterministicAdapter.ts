@@ -14,6 +14,17 @@ export class LocalDeterministicAdapter implements LlmProvider {
   ): Promise<{ data: T; model: string; usage?: TokenUsage }> {
     const payload = input.userPayload as any;
 
+    if (input.task === "parse_resume") {
+      const { ResumeStructuringService } = await import("../../parsers/resumeStructuringService");
+      const rawText = payload.rawText || payload.text || "";
+      const sections = ResumeStructuringService.structureResumeText(rawText);
+      return {
+        data: sections as unknown as T,
+        model: "deterministic-v1",
+        usage: { promptTokens: 120, completionTokens: 250, totalTokens: 370 },
+      };
+    }
+
     if (input.task === "analyze_jd") {
       const rawText = payload.rawText || "";
       const analysis = JDAnalysisService.analyzeDeterministic(rawText);

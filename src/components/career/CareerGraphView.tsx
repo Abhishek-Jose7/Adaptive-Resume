@@ -118,55 +118,55 @@ export function CareerGraphView() {
   const getNodeIcon = (type: string) => {
     switch (type) {
       case "skill":
-        return <Cpu className="w-4 h-4 text-amber-400" />;
+        return <Cpu className="w-4 h-4 text-marker-dark" />;
       case "project":
-        return <FolderGit2 className="w-4 h-4 text-purple-400" />;
+        return <FolderGit2 className="w-4 h-4 text-stamp" />;
       case "experience":
-        return <Briefcase className="w-4 h-4 text-blue-400" />;
+        return <Briefcase className="w-4 h-4 text-stamp" />;
       case "bullet":
-        return <Award className="w-4 h-4 text-emerald-400" />;
+        return <Award className="w-4 h-4 text-press" />;
       case "evidence":
-        return <FileCheck className="w-4 h-4 text-rose-400" />;
+        return <FileCheck className="w-4 h-4 text-alarm" />;
       default:
-        return <Network className="w-4 h-4 text-gray-400" />;
+        return <Network className="w-4 h-4 text-graphite" />;
     }
   };
 
   const getNodeBg = (type: string, isSelected: boolean) => {
-    if (isSelected) return "ring-2 ring-blue-500 bg-blue-950/80 border-blue-500";
+    if (isSelected) return "ring-2 ring-stamp bg-stamp-soft border-stamp";
     switch (type) {
       case "skill":
-        return "bg-amber-950/40 border-amber-800/60 hover:border-amber-500 text-amber-200";
+        return "bg-marker-soft border-marker/60 hover:border-marker text-marker-dark";
       case "project":
-        return "bg-purple-950/40 border-purple-800/60 hover:border-purple-500 text-purple-200";
+        return "bg-stamp-soft border-stamp/60 hover:border-stamp text-stamp";
       case "experience":
-        return "bg-blue-950/40 border-blue-800/60 hover:border-blue-500 text-blue-200";
+        return "bg-stamp-soft border-stamp/60 hover:border-stamp text-stamp";
       case "bullet":
-        return "bg-emerald-950/40 border-emerald-800/60 hover:border-emerald-500 text-emerald-200";
+        return "bg-press-soft border-press/60 hover:border-press text-press";
       case "evidence":
-        return "bg-rose-950/40 border-rose-800/60 hover:border-rose-500 text-rose-200";
+        return "bg-alarm-soft border-alarm/60 hover:border-alarm text-alarm";
       default:
-        return "bg-gray-900 border-gray-800 hover:border-gray-700 text-gray-200";
+        return "bg-sheet border-rule hover:border-rule text-ink";
     }
   };
 
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-xl overflow-hidden shadow-2xl text-white">
+    <div className="bg-paper border border-rule rounded-lg overflow-hidden shadow-plate text-ink">
       {/* Header Bar */}
-      <div className="p-4 bg-gray-900/90 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 bg-sheet/90 border-b border-rule flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-500/20 border border-blue-500/40 rounded-lg text-blue-400">
+            <div className="p-1.5 bg-stamp-soft border border-stamp/40 rounded-lg text-stamp">
               <Network className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-base font-bold text-ink tracking-tight flex items-center gap-2">
                 Career Knowledge Graph
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full">
+                <span className="text-[10px] normal-case font-semibold px-2 py-0.5 bg-stamp-soft text-stamp border border-stamp/30 rounded-full">
                   PRD 18.3
                 </span>
               </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-graphite">
                 Explicit relationships between skills, projects, work experiences, and achievements.
               </p>
             </div>
@@ -176,14 +176,14 @@ export function CareerGraphView() {
         <div className="flex items-center gap-2">
           <button
             onClick={fetchGraph}
-            className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 border border-gray-800 transition-colors"
+            className="p-2 text-graphite hover:text-ink rounded-lg hover:bg-paper-deep border border-rule transition-colors"
             title="Refresh Graph"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={() => setIsAddEdgeOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stamp hover:bg-stamp-dark text-white rounded-lg text-xs font-semibold shadow-none transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             Connect Items
@@ -192,9 +192,9 @@ export function CareerGraphView() {
       </div>
 
       {/* Control bar */}
-      <div className="p-3 bg-gray-900/50 border-b border-gray-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="p-3 bg-sheet/50 border-b border-rule/80 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-gray-500 text-[11px] font-medium mr-1 flex items-center gap-1">
+          <span className="text-graphite text-[11px] font-medium mr-1 flex items-center gap-1">
             <Filter className="w-3 h-3" /> Filters:
           </span>
           {[
@@ -209,8 +209,8 @@ export function CareerGraphView() {
               onClick={() => setFilterType(tab.id)}
               className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
                 filterType === tab.id
-                  ? "bg-gray-800 text-white border border-gray-700"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
+                  ? "bg-paper-deep text-ink border border-rule"
+                  : "text-graphite hover:text-ink hover:bg-paper-deep/50"
               }`}
             >
               {tab.label}
@@ -219,13 +219,13 @@ export function CareerGraphView() {
         </div>
 
         <div className="relative w-48 sm:w-60">
-          <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2" />
+          <Search className="w-3.5 h-3.5 text-graphite absolute left-2.5 top-2" />
           <input
             type="text"
             placeholder="Search nodes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-8 pr-3 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full bg-sheet border border-rule rounded-lg pl-8 pr-3 py-1 text-xs text-ink placeholder-graphite focus:outline-none focus:border-stamp"
           />
         </div>
       </div>
@@ -233,23 +233,23 @@ export function CareerGraphView() {
       {/* Main Layout: Graph Nodes Grid & Detail Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[460px]">
         {/* Node Explorer & Visual Connections */}
-        <div className="lg:col-span-2 p-4 border-r border-gray-800 overflow-y-auto max-h-[580px]">
+        <div className="lg:col-span-2 p-4 border-r border-rule overflow-y-auto max-h-[580px]">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500 space-y-2">
-              <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+            <div className="flex flex-col items-center justify-center py-20 text-graphite space-y-2">
+              <RefreshCw className="w-6 h-6 animate-spin text-stamp" />
               <p className="text-xs">Building career topology from Data Bank...</p>
             </div>
           ) : filteredNodes.length === 0 ? (
-            <div className="text-center py-20 text-gray-500">
-              <Network className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+            <div className="text-center py-20 text-graphite">
+              <Network className="w-8 h-8 mx-auto mb-2 text-graphite" />
               <p className="text-xs">No career graph nodes found matching your query.</p>
-              <p className="text-[11px] text-gray-600 mt-1">
+              <p className="text-[11px] text-graphite mt-1">
                 Add skills, projects, and experiences in your Data Bank to populate the graph automatically.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-[11px] text-gray-400 px-1">
+              <div className="flex items-center justify-between text-[11px] text-graphite px-1">
                 <span>Select a node to inspect verified evidence & connections:</span>
                 <span>{edges.length} explicit links established</span>
               </div>
@@ -274,15 +274,15 @@ export function CareerGraphView() {
                         <div className="flex items-start gap-2 overflow-hidden">
                           <div className="mt-0.5">{getNodeIcon(node.type)}</div>
                           <div className="truncate">
-                            <p className="text-xs font-semibold truncate text-white">
+                            <p className="text-xs font-semibold truncate text-ink">
                               {node.label}
                             </p>
-                            <p className="text-[10px] text-gray-400 capitalize">
+                            <p className="text-[10px] text-graphite capitalize">
                               {node.type}
                             </p>
                           </div>
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-900/80 border border-gray-800 text-gray-400 font-mono">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-sheet/80 border border-rule text-graphite font-mono">
                           {edgeCount} {edgeCount === 1 ? "link" : "links"}
                         </span>
                       </div>
@@ -295,37 +295,37 @@ export function CareerGraphView() {
         </div>
 
         {/* Selected Node Inspector Sidebar */}
-        <div className="p-4 bg-gray-950/60 flex flex-col justify-between max-h-[580px] overflow-y-auto">
+        <div className="p-4 bg-paper/60 flex flex-col justify-between max-h-[580px] overflow-y-auto">
           {selectedNode ? (
             <div className="space-y-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   {getNodeIcon(selectedNode.type)}
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-gray-400">
+                  <span className="text-[11px] font-mono normal-case tracking-normal text-graphite">
                     {selectedNode.type} Node
                   </span>
                 </div>
-                <h3 className="text-sm font-bold text-white break-words">
+                <h3 className="text-sm font-bold text-ink break-words">
                   {selectedNode.label}
                 </h3>
                 {selectedNode.metadata?.description && (
-                  <p className="text-xs text-gray-400 mt-2 p-2 bg-gray-900 border border-gray-800 rounded">
+                  <p className="text-xs text-graphite mt-2 p-2 bg-sheet border border-rule rounded">
                     {selectedNode.metadata.description}
                   </p>
                 )}
               </div>
 
               {/* Connected Relationships */}
-              <div className="space-y-2 border-t border-gray-800 pt-3">
-                <h4 className="text-xs font-semibold text-gray-300 flex items-center justify-between">
+              <div className="space-y-2 border-t border-rule pt-3">
+                <h4 className="text-xs font-semibold text-ink flex items-center justify-between">
                   <span>Linked Connections</span>
-                  <span className="text-[10px] text-gray-500 font-mono">
+                  <span className="text-[10px] text-graphite font-mono">
                     {activeNodeEdges.length} total
                   </span>
                 </h4>
 
                 {activeNodeEdges.length === 0 ? (
-                  <p className="text-[11px] text-gray-500 italic p-2 bg-gray-900/40 rounded border border-gray-800/60">
+                  <p className="text-[11px] text-graphite italic p-2 bg-sheet/40 rounded border border-rule/60">
                     No explicit connections established yet. Click &ldquo;Connect Items&rdquo; to associate this {selectedNode.type} with supporting evidence or projects.
                   </p>
                 ) : (
@@ -338,23 +338,23 @@ export function CareerGraphView() {
                       return (
                         <div
                           key={edge.id}
-                          className="p-2 bg-gray-900/80 border border-gray-800 rounded-lg flex items-center justify-between text-xs"
+                          className="p-2 bg-sheet/80 border border-rule rounded-lg flex items-center justify-between text-xs"
                         >
                           <div className="overflow-hidden">
                             <div className="flex items-center gap-1.5">
                               {otherNode && getNodeIcon(otherNode.type)}
-                              <span className="font-medium text-white truncate text-[11px]">
+                              <span className="font-medium text-ink truncate text-[11px]">
                                 {otherNode?.label || otherNodeId}
                               </span>
                             </div>
-                            <span className="text-[10px] text-blue-400 font-mono">
+                            <span className="text-[10px] text-stamp font-mono">
                               {(edge.relationshipType || (edge as any).relationType || "").replace(/_/g, " ")}
                             </span>
                           </div>
 
                           <button
                             onClick={() => handleDeleteEdge(edge.id)}
-                            className="p-1 text-gray-500 hover:text-rose-400 rounded transition-colors"
+                            className="p-1 text-graphite hover:text-alarm rounded transition-colors"
                             title="Remove relation"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -367,19 +367,19 @@ export function CareerGraphView() {
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 p-4">
-              <Network className="w-10 h-10 text-gray-700 mb-2" />
-              <p className="text-xs font-semibold text-gray-400">No Node Selected</p>
-              <p className="text-[11px] text-gray-600 mt-1">
+            <div className="h-full flex flex-col items-center justify-center text-center text-graphite p-4">
+              <Network className="w-10 h-10 text-ink mb-2" />
+              <p className="text-xs font-semibold text-graphite">No Node Selected</p>
+              <p className="text-[11px] text-graphite mt-1">
                 Click any node on the left to inspect its facts, verified skills, and explicit provenance links.
               </p>
             </div>
           )}
 
           {/* Bottom stats summary */}
-          <div className="pt-4 border-t border-gray-800/80 mt-4 text-[10px] text-gray-500 flex justify-between items-center">
+          <div className="pt-4 border-t border-rule/80 mt-4 text-[10px] text-graphite flex justify-between items-center">
             <span>Career Graph v1.2</span>
-            <span className="text-emerald-500 flex items-center gap-1">
+            <span className="text-press flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" /> Truth Grounded
             </span>
           </div>
@@ -389,15 +389,15 @@ export function CareerGraphView() {
       {/* Add Connection Modal */}
       {isAddEdgeOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-800">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-blue-400" />
+          <div className="bg-sheet border border-rule rounded-lg max-w-md w-full p-5 space-y-4 shadow-plate">
+            <div className="flex items-center justify-between pb-2 border-b border-rule">
+              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Plus className="w-4 h-4 text-stamp" />
                 Connect Career Graph Items
               </h3>
               <button
                 onClick={() => setIsAddEdgeOpen(false)}
-                className="text-gray-400 hover:text-white text-xs font-bold"
+                className="text-graphite hover:text-ink text-xs font-bold"
               >
                 ✕
               </button>
@@ -405,11 +405,11 @@ export function CareerGraphView() {
 
             <form onSubmit={handleCreateEdge} className="space-y-3 text-xs">
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Source Node</label>
+                <label className="block text-graphite mb-1 font-medium">Source Node</label>
                 <select
                   value={sourceId}
                   onChange={(e) => setSourceId(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs focus:outline-none focus:border-stamp"
                   required
                 >
                   <option value="">Select source item...</option>
@@ -422,11 +422,11 @@ export function CareerGraphView() {
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Relationship Type</label>
+                <label className="block text-graphite mb-1 font-medium">Relationship Type</label>
                 <select
                   value={relationType}
                   onChange={(e) => setRelationType(e.target.value as CareerGraphRelationType)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs focus:outline-none focus:border-stamp"
                 >
                   <option value="skill_used_in_project">Skill used in Project</option>
                   <option value="skill_used_in_experience">Skill used in Experience</option>
@@ -438,11 +438,11 @@ export function CareerGraphView() {
               </div>
 
               <div>
-                <label className="block text-gray-400 mb-1 font-medium">Target Node</label>
+                <label className="block text-graphite mb-1 font-medium">Target Node</label>
                 <select
                   value={targetId}
                   onChange={(e) => setTargetId(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full bg-paper border border-rule rounded-lg p-2 text-ink text-xs focus:outline-none focus:border-stamp"
                   required
                 >
                   <option value="">Select target item...</option>
@@ -460,14 +460,14 @@ export function CareerGraphView() {
                 <button
                   type="button"
                   onClick={() => setIsAddEdgeOpen(false)}
-                  className="px-3 py-1.5 bg-gray-800 text-gray-300 hover:bg-gray-700 rounded-lg text-xs"
+                  className="px-3 py-1.5 bg-paper-deep text-ink hover:bg-paper-deep rounded-lg text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingEdge || !sourceId || !targetId}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow"
+                  className="px-3.5 py-1.5 bg-stamp hover:bg-stamp-dark disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow"
                 >
                   {submittingEdge ? "Linking..." : "Establish Link"}
                 </button>

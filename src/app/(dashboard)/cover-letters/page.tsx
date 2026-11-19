@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, Plus, Clock, Building2, Sparkles, Trash2, ArrowRight } from "lucide-react";
+import { Mail, Plus, Trash2, ArrowRight, Clock, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CoverLetterTone } from "@/lib/services/coverLetterService";
@@ -92,114 +92,101 @@ export default function CoverLettersPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-5">
+    <div>
+      <header className="mb-6 flex flex-col gap-4 border-b border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <Mail className="w-6 h-6 text-indigo-600" />
-            Cover Letters
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Generate and edit tailored, truth-bound cover letters grounded in your verified achievements.
+          <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+            Cover letters
+          </h2>
+          <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+            Write a letter for a job using details from your saved experience.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowGenerateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm shadow-sm"
-        >
-          <Sparkles className="w-4 h-4" /> Generate Cover Letter
+        <button onClick={() => setShowGenerateModal(true)} className="btn btn-primary self-start sm:self-auto">
+          <Sparkles className="h-4 w-4" strokeWidth={1.8} />
+          Write a letter
         </button>
-      </div>
+      </header>
 
-      {/* Grid */}
       {loading ? (
-        <div className="text-center py-12 text-sm text-gray-500">Loading cover letters...</div>
+        <div className="py-20 text-center text-[13px] text-graphite">Reading your letters</div>
       ) : letters.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-dashed rounded-xl space-y-3">
-          <Mail className="w-10 h-10 text-gray-400 mx-auto" />
-          <h3 className="text-sm font-bold text-gray-800">No cover letters generated yet</h3>
-          <p className="text-xs text-gray-500 max-w-sm mx-auto">
-            Target a job posting to generate an executive cover letter backed strictly by your Data Bank.
+        <div className="panel px-6 py-14 text-center">
+          <Mail className="mx-auto h-6 w-6 text-rule-strong" strokeWidth={1.4} />
+          <h3 className="mt-3 font-display text-[18px] font-semibold">Nothing written yet</h3>
+          <p className="mx-auto mt-2 max-w-[44ch] text-[13px] leading-relaxed text-graphite">
+            Choose a posting and a tone. The letter is assembled from your strongest grounded achievements,
+            not from adjectives.
           </p>
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Generate Cover Letter
+          <button onClick={() => setShowGenerateModal(true)} className="btn btn-primary mt-5">
+            Write your first letter
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {letters.map((letter) => (
-            <div
-              key={letter.id}
-              className="bg-white border rounded-xl p-5 shadow-xs hover:border-indigo-300 transition-all space-y-3 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{letter.title}</h3>
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded capitalize">
-                    {letter.tone}
+        <div className="panel">
+          <div className="plate-caption">
+            <span>{letters.length} letters</span>
+            <span>tone in brackets</span>
+          </div>
+          <ul className="divide-y divide-rule">
+            {letters.map((letter) => (
+              <li key={letter.id} className="group px-4 py-3.5 hover:bg-paper-alt sm:px-5">
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-[14.5px] font-semibold tracking-tight">{letter.title}</h3>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] text-graphite">
+                      <span className="truncate">{letter.jobCompany || "Target organisation"}</span>
+                      <span className="font-mono text-[10.5px]">[{letter.tone}]</span>
+                    </p>
+                  </div>
+
+                  <span className="hidden items-center gap-1 pt-0.5 text-[11.5px] text-graphite sm:flex">
+                    <Clock className="h-3 w-3" strokeWidth={1.7} />
+                    {new Date(letter.updatedAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "2-digit",
+                    })}
                   </span>
+
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      onClick={() => handleDelete(letter.id)}
+                      className="btn btn-icon hover:text-alarm"
+                      title="Delete letter"
+                      aria-label="Delete letter"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                    </button>
+                    <Link href={`/cover-letters/${letter.id}`} className="btn btn-sm btn-quiet">
+                      Open
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </div>
                 </div>
-
-                <div className="text-xs text-gray-600 flex items-center gap-1 mt-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                  <span>{letter.jobCompany || "Target Organization"}</span>
-                </div>
-
-                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-2">
-                  <Clock className="w-3 h-3" />
-                  <span>Updated {new Date(letter.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t flex items-center justify-between">
-                <Link
-                  href={`/cover-letters/${letter.id}`}
-                  className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  Edit Letter <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-
-                <button
-                  onClick={() => handleDelete(letter.id)}
-                  className="text-gray-300 hover:text-red-600 p-1"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {/* Generate Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" /> Generate Truth-Bound Cover Letter
-            </h2>
-            <p className="text-xs text-gray-500">
-              Select an analyzed job posting. The generator will align your genuine Data Bank achievements without inventing skills.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+          <div className="w-full max-w-md border border-rule bg-sheet">
+            <div className="border-b border-rule px-5 py-3.5">
+              <h2 className="font-display text-[17px] font-semibold tracking-tight">Write a letter</h2>
+            </div>
 
-            <form onSubmit={handleGenerate} className="space-y-4">
+            <form onSubmit={handleGenerate} className="space-y-4 px-5 py-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Target Job Record
-                </label>
+                <label className="field-label">Posting</label>
                 <select
                   required
                   value={selectedJobId}
                   onChange={(e) => setSelectedJobId(e.target.value)}
-                  className="w-full text-xs border rounded-lg p-2.5 bg-white font-medium"
+                  className="select"
                 >
-                  <option value="">-- Choose Job Description --</option>
+                  <option value="">Choose a posting</option>
                   {availableJobs.map((j) => (
                     <option key={j.id} value={j.id}>
                       {j.title} at {j.company || "Company"}
@@ -209,34 +196,33 @@ export default function CoverLettersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Tone of Voice</label>
+                <label className="field-label">Tone</label>
                 <select
                   value={selectedTone}
                   onChange={(e) => setSelectedTone(e.target.value as CoverLetterTone)}
-                  className="w-full text-xs border rounded-lg p-2.5 bg-white font-medium"
+                  className="select"
                 >
-                  <option value="professional">Professional & Direct</option>
-                  <option value="concise">Concise & Metric-Dense</option>
-                  <option value="formal">Formal & Executive</option>
-                  <option value="conversational">Conversational & Engaging</option>
+                  <option value="professional">Professional and direct</option>
+                  <option value="concise">Concise, metric-dense</option>
+                  <option value="formal">Formal and executive</option>
+                  <option value="conversational">Conversational</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 border-t border-rule pt-4">
                 <button
                   type="button"
                   onClick={() => setShowGenerateModal(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="btn btn-quiet"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={generating || !selectedJobId}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                  className="btn btn-primary"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {generating ? "Generating..." : "Generate Letter"}
+                  {generating ? "Writing" : "Write letter"}
                 </button>
               </div>
             </form>

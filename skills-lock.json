@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "avoid-ai-design": {
+      "source": "funboy322/avoid-ai-design",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "ff16778bb0dd3d724390cdf83dee2a45b254563f373fd65e0872cddf45e903f0"
+    }
+  }
+}

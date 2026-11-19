@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "../db/client";
 import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { isEmailAllowed } from "./allowlist";
 
 export interface AuthenticatedUser {
@@ -26,23 +26,50 @@ export class AuthError extends Error {
  * Guarantees that an app-local `users` record exists for the Clerk subject.
  */
 export async function getAuthenticatedUser(request?: Request): Promise<AuthenticatedUser> {
-  // Check for Dev Auth Bypass (local tests & headless CI)
-  if (process.env.ENABLE_DEV_AUTH_BYPASS === "true") {
-    // Optional request header override for multi-tenant tests: X-Test-User-Id
-    const testUserId = request?.headers.get("x-test-user-id") || process.env.DEV_USER_ID || "usr_dev_personal_test_id";
-    const testEmail = request?.headers.get("x-test-user-email") || process.env.DEV_USER_EMAIL || "abhishekjose780@gmail.com";
+  const isProduction = process.env.NODE_ENV === "production";
+  const isTest = process.env.NODE_ENV === "test";
+
+  // Hard-fail if development auth bypass is enabled in production
+  if (isProduction && process.env.ENABLE_DEV_AUTH_BYPASS === "true") {
+    throw new AuthError(
+      "CRITICAL SECURITY VIOLATION: ENABLE_DEV_AUTH_BYPASS is prohibited in production.",
+      "FORBIDDEN"
+    );
+  }
+
+  // Dev Auth Bypass: Strictly permitted only in non-production environments
+  if (!isProduction && process.env.ENABLE_DEV_AUTH_BYPASS === "true") {
+    // Only automated test runners (NODE_ENV === "test") may specify tenant IDs via headers
+    let testUserId = process.env.DEV_USER_ID || "usr_dev_personal_test_id";
+    let testEmail = process.env.DEV_USER_EMAIL || "abhishekjose780@gmail.com";
+
+    if (isTest && request?.headers) {
+      const headerUserId = request.headers.get("x-test-user-id");
+      const headerEmail = request.headers.get("x-test-user-email");
+      if (headerUserId) testUserId = headerUserId;
+      if (headerEmail) testEmail = headerEmail;
+    }
+
     const testSubject = `clerk_sub_${testUserId}`;
 
     // Upsert app-local user record
-    const [existing] = await db.select().from(users).where(eq(users.clerkSubject, testSubject)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.id, testUserId), eq(users.clerkSubject, testSubject)))
+      .limit(1);
+
     if (!existing) {
-      await db.insert(users).values({
-        id: testUserId,
-        clerkSubject: testSubject,
-        username: testUserId.replace(/[^a-z0-9-]/gi, "").toLowerCase(),
-        displayName: "Developer User",
-        email: testEmail,
-      });
+      await db
+        .insert(users)
+        .values({
+          id: testUserId,
+          clerkSubject: testSubject,
+          username: testUserId.replace(/[^a-z0-9-]/gi, "").toLowerCase(),
+          displayName: "Developer User",
+          email: testEmail,
+        })
+        .onConflictDoNothing();
     }
 
     return {
@@ -66,7 +93,11 @@ export async function getAuthenticatedUser(request?: Request): Promise<Authentic
   }
 
   const clerkUser = await currentUser();
-  const primaryEmail = clerkUser?.emailAddresses?.[0]?.emailAddress || null;
+  const primaryEmailObj =
+    clerkUser?.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId) ||
+    clerkUser?.emailAddresses?.find((e) => e.verification?.status === "verified") ||
+    clerkUser?.emailAddresses?.[0];
+  const primaryEmail = primaryEmailObj?.emailAddress || null;
 
   // Enforce Signup Allowlist for personal MVP
   if (!isEmailAllowed(primaryEmail)) {
