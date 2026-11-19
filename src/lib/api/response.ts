@@ -106,9 +106,16 @@ export function handleApiError(err: unknown) {
     cause = "cause" in cause ? (cause as { cause?: unknown }).cause : undefined;
   }
 
+  const message =
+    process.env.NODE_ENV === "production"
+      ? (err instanceof Error && !err.message.includes("database") && !err.message.includes("relation") && !err.message.includes("password")
+          ? err.message
+          : "We couldn’t complete that request. Please try again.")
+      : (err instanceof Error ? err.message : "An unexpected internal error occurred.");
+
   return apiError(
     "INTERNAL_ERROR",
-    "We couldn’t complete that request. Please try again.",
+    message,
     500,
     undefined,
     true,

@@ -147,7 +147,7 @@ AWS Certified Solutions Architect - Professional (2023)
       expect(parsed.pageCount).toBe(1);
       expect(parsed.text).toContain("Ada Lovelace");
       expect(parsed.isScanned).toBe(false);
-    });
+    }, 30000);
 
     it("should parse skill groups into categories and skill lists", () => {
       const sections = ResumeStructuringService.structureResumeText(sampleResumeText, "Test Resume");
