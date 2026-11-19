@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server
 const isPublicRoute = createRouteMatcher([
   "/",
   "/privacy",
-  "/loml(.*)",
+  "/lracs(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/s/(.*)",

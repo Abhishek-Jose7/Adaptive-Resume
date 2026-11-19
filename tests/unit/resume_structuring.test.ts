@@ -312,5 +312,32 @@ AWS Certified Solutions Architect - Professional (2023)
       const updatedSec = store.getState().doc.sections.find((s) => s.type === "skills");
       expect(updatedSec!.visible).toBe(true);
     });
+
+    it("should successfully structure continuous/unstructured resume with inline headings and embedded projects", () => {
+      const messyResumeText = `Professional Summary
+profile
+95% match
+SUMMARY I am a third - year Computer Engineering student who likes building things that actually get used . I ’ ve worked across full - stack development , AI / ML , GenAI , and backend systems , from building products independently to developing technology for college events and hackathons . I enjoy figuring out problems from scratch , picking up new tools quickly , and turning ideas into working products . TECHNICAL SKILLS Cloud & Deployment Cloudflare Workers | Cloudflare D1 | Vercel | Firebase | Wrangler Databases & Tools PostgreSQL | SQLite | Git | GitHub | Playwright | Selenium Languages Python | JavaScript | TypeScript | C | Dart | SQL | HTML / CSS AI & GenAI Generative AI | LLMs | RAG | AI Agents | Embeddings | Prompt Engineering | NLP | OCR | AI Automation ML & Computer Vision TensorFlow | Scikit - learn | Pandas | NumPy | OpenCV | MediaPipe | Object Detection Web & Backend React | Next . js | Flask | Django | Tailwind CSS | REST APIs | Prisma ORM Technical Associate , GDSC CRCE June 2025 - May 2026 Organised Bit n Build , coordinating teams , college outreach , judging panels , and 1000 + participants across multiple colleges . O rganised Unplug , a 3 - day residential startup launchpad , handling logistics and event operations for the club . Built event infrastructure using Next . js + Prisma , including the council website , hackathon platform , and startup launchpad portal . PROFESSIONAL EXPERIENCE Technical Lead , GDG CRCE May 2026 - Present Serving as a core council member , managing technical initiatives and event execution across GDG activities . Coordinating registration , team management , communication , and event operations for Bit n Build across colleges , supporting 1 , 500 + participants and 680 + teams Building and maintaining the GDG CRCE council website and Bit n Build hackathon website , including development and deployment . D eveloping technical infrastructure for events , including QR - based verification , registration workflows , leaderboards , and participant management tools . Technical Intern , FRCRCE Bandra Engineered an edge - native curriculum management platform for authoring , reviewing , versioning , and automated PDF generation . Built a serverless platform using Next . js , Cloudflare Workers , D1 , R2 , Queues , and headless Chromium . July 2026 - Present ABHISHEK JOSE 7738969557 | abhishekjose780 @ gmail . com | github . com / Abhishek - Jose7 | https : // www . linkedin . com / in / abhishek - jose - 906398339 PROJECTS Hangout — Group Itinerary Planner Next . js | Cloudfare D1 | Groq | Python • Built a collaborative itinerary planner that uses group preferences , budgets , locations , and travel constraints to generate personalized outings . • Implemented itinerary optimization and constraint - based recommendation logic to generate feasible multi - location plans while respecting user budgets and travel constraints , with resource - efficient architecture optimized to operate reliably within free - tier infrastructure limits . Languages : English , Hindi , Malayalam , Marathi . Certifications : Supervised ML : Regression & Classification , Advanced LearningAlgorithms / Coursera Awards / Activities : 2x Hackathon Winner [ PKP Hacks ] | [ Pixels Sies ] ADDITIONAL INFORMATION Nyaaya AI — Legal Awareness Platform Next . js | Groq | RAG | Embeddin gs | NLP | Supabase • Built an AI - powered platform that converts complex legal information into plain - language guidance through scenario - based interactions . • Implemented LLM - powered retrieval and NLP workflows to provide contextual answers and make legal information easier to understand . Sponzy — Sponsorship Marketplace Flask | PostgreSQL | JavaScript • Co - built an sponsorship marketplace connecting event organisers with relevant potential sponsors through intelligent matching . • Developed real - time chat , event management , and analytics features end - to - end ; the product attracted investor interest during its early development . KrishiMitra AI — Farmer Decision Support System Flutter | Railway | PostgreSQL | Python | ML • Built a full - stack AI platform for farmers with a Flutter mobile app , Flask API , and ML pipeline supporting yield estimation , price forecasting , pest identification , and loan - risk simulation . • Developed ranking and advisory modules that transform model outputs into actionable recommendations , with fallback mechanisms for unreliable or unavailable inputs . EDUCATION Fr . Conceicao Rodrigues College of Engineering , Mumbai B . E . in Computer Engineering | Expected May 2028`;
+
+      const sections = ResumeStructuringService.structureResumeText(messyResumeText, "Messy Paste");
+      expect(sections.length).toBeGreaterThanOrEqual(8);
+
+      const profile = sections.find((s) => s.entryType === "profile");
+      expect(profile).toBeDefined();
+      expect(profile!.bullets[0]).toContain("Computer Engineering student");
+
+      const skillGroups = sections.filter((s) => s.entryType === "skill_group");
+      expect(skillGroups.length).toBeGreaterThanOrEqual(4);
+      expect(skillGroups.some((g) => g.title === "Cloud & Deployment")).toBe(true);
+      expect(skillGroups.some((g) => g.title === "Databases & Tools")).toBe(true);
+
+      const projects = sections.filter((s) => s.entryType === "project");
+      expect(projects.length).toBeGreaterThanOrEqual(2);
+      expect(projects.some((p) => p.title.includes("Hangout"))).toBe(true);
+
+      const education = sections.find((s) => s.entryType === "education");
+      expect(education).toBeDefined();
+      expect(education!.organization).toContain("Fr. Conceicao Rodrigues");
+    });
   });
 });
