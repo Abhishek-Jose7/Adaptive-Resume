@@ -1,6 +1,7 @@
-import { JDAnalysis } from "@/types/job";
+import { JDAnalysis, CanaryTrapAlert } from "@/types/job";
 import { BankEntry, AchievementBullet, BulletFact } from "@/types/bank";
 import { EvaluatedRequirement, EvidenceMatchStatus } from "@/types/job";
+import { CanaryDetector } from "../intelligence/canaryDetector";
 
 export interface EnhancedJdIntelligenceReport {
   jobId: string;
@@ -9,12 +10,15 @@ export interface EnhancedJdIntelligenceReport {
   technicalCompetencies: EvaluatedRequirement[];
   responsibilities: EvaluatedRequirement[];
   impliedExpectations: EvaluatedRequirement[];
+  canaryTraps?: CanaryTrapAlert[];
+  quarantinedKeywords?: string[];
   summary: {
     confirmedMatchesCount: number;
     partialMatchesCount: number;
     missingEvidenceCount: number;
     genuineGapsCount: number;
     matchReadinessPercent: number;
+    canaryTrapsCount?: number;
   };
 }
 
@@ -26,7 +30,8 @@ export class JdIntelligenceService {
     jdAnalysis: JDAnalysis,
     bankEntries: BankEntry[],
     bullets: AchievementBullet[],
-    facts: BulletFact[]
+    facts: BulletFact[],
+    rawJdText?: string
   ): EnhancedJdIntelligenceReport {
     // 1. Gather candidate vocabulary and facts
     const verifiedSkillsMap = new Map<string, string[]>(); // canonical skill -> bullet texts
@@ -212,6 +217,17 @@ export class JdIntelligenceService {
     const missingEvidenceCount = allEvaluated.filter((e) => e.status === "missing_evidence").length;
     const genuineGapsCount = allEvaluated.filter((e) => e.status === "genuine_gap").length;
 
+    // Detect Recruiter Canary Traps
+    const textToScan =
+      rawJdText ||
+      [
+        ...(jdAnalysis.keywords || []).map((k) => k.canonical),
+        ...(jdAnalysis.responsibilities || []).map((r) => r.text),
+        ...(jdAnalysis.constraints || []),
+      ].join(". ");
+
+    const canaryScan = CanaryDetector.detectCanaryTraps(textToScan);
+
     const matchReadinessPercent =
       allEvaluated.length > 0
         ? Math.round(
@@ -226,12 +242,15 @@ export class JdIntelligenceService {
       technicalCompetencies,
       responsibilities,
       impliedExpectations,
+      canaryTraps: canaryScan.canaryTraps,
+      quarantinedKeywords: canaryScan.quarantinedKeywords,
       summary: {
         confirmedMatchesCount,
         partialMatchesCount,
         missingEvidenceCount,
         genuineGapsCount,
         matchReadinessPercent,
+        canaryTrapsCount: canaryScan.canaryTraps.length,
       },
     };
   }

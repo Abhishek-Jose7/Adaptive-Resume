@@ -1,137 +1,153 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Database,
-  BriefcaseBusiness,
-  FileText,
-  KanbanSquare,
-  Mail,
-  UserRound,
-  Upload,
-  ShieldCheck,
-  Gauge,
-  SlidersHorizontal,
-  ChevronDown,
-  FilePlus2,
-} from "lucide-react";
-import { UserButton, Show, SignInButton } from "@clerk/nextjs";
-import { DropdownMenu } from "radix-ui";
+import { useUser, UserButton } from "@clerk/nextjs";
+import { FigmaIcon, FigmaIconName, FigmaLogo } from "@/components/ui/FigmaIcon";
 
-const allNavItems = [
-  { label: "Data Bank", href: "/bank", icon: Database },
-  { label: "Add experience", href: "/bank/intake", icon: Upload },
-  { label: "Tailor a resume", href: "/jobs", icon: BriefcaseBusiness },
-  { label: "My resumes", href: "/resumes", icon: FileText },
-  { label: "Applications", href: "/applications", icon: KanbanSquare },
-  { label: "Cover letters", href: "/cover-letters", icon: Mail },
-  { label: "AI settings", href: "/settings/providers", icon: SlidersHorizontal },
-  { label: "Profile", href: "/profile", icon: UserRound },
+const navItems: Array<{
+  label: string;
+  href: string;
+  icon: FigmaIconName;
+  badge?: boolean;
+}> = [
+  { label: "Overview", href: "/", icon: "grid" },
+  { label: "Career Vault", href: "/bank", icon: "bank", badge: true },
+  { label: "Add experience", href: "/bank/intake", icon: "plus" },
+  { label: "Target a job", href: "/jobs", icon: "target" },
+  { label: "My resumes", href: "/resumes", icon: "file" },
+  { label: "Applications", href: "/applications", icon: "briefcase" },
+  { label: "Cover letters", href: "/cover-letters", icon: "file" },
+  { label: "AI settings", href: "/settings/providers", icon: "spark" },
+  { label: "Profile", href: "/profile", icon: "user" },
 ];
 
-const mobilePrimary = [
-  { label: "Data Bank", short: "Bank", href: "/bank", icon: Database },
-  { label: "Tailor", short: "Tailor", href: "/jobs", icon: BriefcaseBusiness },
-  { label: "Resumes", short: "Resumes", href: "/resumes", icon: FileText },
-  { label: "Applications", short: "Apps", href: "/applications", icon: KanbanSquare },
-];
-
-const mobileMore = [
-  { label: "Add experience", href: "/bank/intake", icon: Upload },
-  { label: "Cover letters", href: "/cover-letters", icon: Mail },
-  { label: "Profile", href: "/profile", icon: UserRound },
-  { label: "Usage", href: "/settings/usage", icon: Gauge },
-  { label: "AI settings", href: "/settings/providers", icon: SlidersHorizontal },
-  { label: "Privacy & data", href: "/settings/privacy", icon: ShieldCheck },
-];
-
-function isActive(pathname: string | null, href: string) {
+function isRouteActive(pathname: string | null, href: string) {
   if (!pathname) return false;
-  if (href === "/bank") return pathname === href;
+  if (href === "/") return pathname === "/";
+  if (href === "/bank") return pathname === "/bank";
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function MobileMoreMenu({ pathname }: { pathname: string | null }) {
-  const active = mobileMore.some((item) => isActive(pathname, item.href));
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger className={`proof-more-trigger ${active ? "is-active" : ""}`} aria-label="More sections">
-        More <ChevronDown aria-hidden="true" size={14} />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="proof-more-menu" sideOffset={8} align="end">
-        {mobileMore.map(({ label, href, icon: Icon }) => (
-          <DropdownMenu.Item key={href} asChild>
-            <Link href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
-              <Icon size={16} strokeWidth={1.8} />
-              <span>{label}</span>
-            </Link>
-          </DropdownMenu.Item>
-        ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useUser();
+  const [factCount, setFactCount] = useState<number>(14);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    fetch("/api/v1/bank/entries?limit=100")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.items) {
+          const total = data.items.reduce(
+            (acc: number, entry: { bullets?: Array<unknown> }) =>
+              acc + (entry.bullets?.length || 1),
+            0,
+          );
+          if (total > 0) setFactCount(total);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const now = new Date();
+  const dateStr = mounted
+    ? now
+        .toLocaleDateString("en-US", {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+        })
+        .toUpperCase()
+    : "TODAY";
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = user?.firstName || "there";
 
   return (
-    <div className="proof-shell min-h-screen">
-      <header className="proof-header">
-        <div className="proof-header-main">
-          <Link href="/" className="proof-brand" aria-label="Adaptive Resume home">
-            <span className="proof-brand-mark" aria-hidden="true"><span /></span>
-            <span>Adaptive <strong>Resume</strong></span>
-          </Link>
+    <div className="dashboard">
+      {/* Figma Sidebar */}
+      <aside className="sidebar">
+        <FigmaLogo inverse onClick={() => {}} />
 
-          {/* Desktop Navigation: All links displayed directly with white text, no More dropdown */}
-          <nav className="proof-nav proof-nav-desktop flex items-center gap-1.5 flex-wrap" aria-label="Main navigation">
-            {allNavItems.map(({ label, href }) => (
+        <nav aria-label="Sidebar navigation">
+          {navItems.map(({ label, href, icon, badge }) => {
+            const active = isRouteActive(pathname, href);
+            return (
               <Link
                 key={href}
                 href={href}
-                aria-current={isActive(pathname, href) ? "page" : undefined}
-                className={`text-white font-bold hover:text-white hover:bg-white/15 px-2.5 py-1.5 rounded-lg transition-colors text-xs xl:text-sm ${
-                  isActive(pathname, href) ? "bg-white/20 text-white shadow-sm" : ""
-                }`}
+                className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
               >
-                {label}
+                <FigmaIcon name={icon} size={18} />
+                <span>{label}</span>
+                {badge && <small>{factCount}</small>}
               </Link>
-            ))}
-          </nav>
-
-          <div className="proof-header-actions">
-            <Link href="/jobs" className="proof-new-resume"><FilePlus2 size={15} /> New resume</Link>
-            <Show when="signed-in">
-              <UserButton appearance={{ elements: { avatarBox: "h-9 w-9 rounded-full ring-1 ring-white/35" } }} />
-            </Show>
-            <Show when="signed-out">
-              <SignInButton mode="modal"><button className="proof-sign-in">Sign in</button></SignInButton>
-            </Show>
-          </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        <nav className="proof-nav proof-nav-mobile" aria-label="Mobile navigation">
-          {mobilePrimary.map(({ short, href, icon: Icon }) => (
-            <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
-              <Icon size={16} strokeWidth={1.8} /><span>{short}</span>
-            </Link>
-          ))}
-          <MobileMoreMenu pathname={pathname} />
+            );
+          })}
         </nav>
-      </header>
 
-      <main className="proof-main">{children}</main>
+        <div className="side-bottom">
+          <div className="vault-health">
+            <div>
+              <span>VAULT HEALTH</span>
+              <b>82%</b>
+            </div>
+            <i>
+              <em style={{ width: "82%" }} />
+            </i>
+            <p>Add 2 project metrics to improve your matches.</p>
+          </div>
 
-      <footer className="proof-footer">
-        <span>Built around the work you’ve actually done.</span>
-        <Link href="/privacy">Privacy policy</Link>
-      </footer>
+          <Link href="/">
+            <FigmaIcon name="chevron" size={17} />
+            <span>View landing page</span>
+          </Link>
+          <Link href="/profile">
+            <FigmaIcon name="user" size={17} />
+            <span>Settings</span>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Workspace Column */}
+      <div className="dash-main">
+        {/* Top Header */}
+        <header className="dash-top">
+          <div>
+            <span>{dateStr}</span>
+            <h1>
+              {greeting}, {firstName}.
+            </h1>
+          </div>
+          <div className="dash-actions">
+            <button
+              type="button"
+              aria-label="Search"
+              onClick={() => {
+                const el = document.getElementById("job-input");
+                el?.focus();
+              }}
+            >
+              <FigmaIcon name="search" size={18} />
+            </button>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-[39px] h-[39px] rounded-full border border-[rgba(16,36,28,0.17)]",
+                },
+              }}
+            />
+          </div>
+        </header>
+
+        {/* Content View */}
+        <main className="dash-inner-content">{children}</main>
+      </div>
     </div>
   );
 }

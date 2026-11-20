@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getAuthUserId } from "@/lib/auth/clerk";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { db } from "@/lib/db/client";
-import { jdAnalyses, bankEntries, achievementBullets, bulletFacts } from "@/lib/db/schema";
+import { jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { JdIntelligenceService } from "@/lib/services/jdIntelligenceService";
 import { JDAnalysis } from "@/types/job";
@@ -27,6 +27,12 @@ export async function GET(
       return errorResponse("NOT_FOUND", "Job analysis not found. Please analyze the JD first.", 404);
     }
 
+    const [jobRecord] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, jobId), eq(jobs.userId, userId)))
+      .limit(1);
+
     const entries = await db
       .select()
       .from(bankEntries)
@@ -46,7 +52,8 @@ export async function GET(
       jd.analysisJson as unknown as JDAnalysis,
       entries as unknown as BankEntry[],
       bullets as unknown as AchievementBullet[],
-      facts as unknown as BulletFact[]
+      facts as unknown as BulletFact[],
+      jobRecord?.rawText || undefined
     );
 
     return successResponse(report);

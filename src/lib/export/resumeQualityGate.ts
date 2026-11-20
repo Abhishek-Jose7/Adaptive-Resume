@@ -1,10 +1,17 @@
 import { ResumeDoc, QualityGateAuditResult } from "@/types/resume";
+import { CanaryDetector } from "../intelligence/canaryDetector";
+
+export interface QualityGateAuditOptions {
+  jdText?: string;
+  targetJobKeywords?: string[];
+  quarantinedKeywords?: string[];
+}
 
 export class ResumeQualityGateService {
   /**
    * Performs an exhaustive multi-point audit before allowing export of PDF or DOCX documents.
    */
-  static auditResume(doc: ResumeDoc): QualityGateAuditResult {
+  static auditResume(doc: ResumeDoc, options?: QualityGateAuditOptions): QualityGateAuditResult {
     const criticalErrors: Array<{ rule: string; message: string; section?: string; bulletId?: string }> = [];
     const warnings: Array<{ rule: string; message: string; section?: string; bulletId?: string }> = [];
     const passedChecks: string[] = [];
@@ -214,6 +221,71 @@ export class ResumeQualityGateService {
       passedChecks.push(`Content fits cleanly within target ${targetPages}-page budget`);
     }
 
+    // 8. Recruiter Canary / Honey-Pot Trap Audit
+    const quarantinedSet = new Set<string>();
+    if (options?.quarantinedKeywords) {
+      options.quarantinedKeywords.forEach((k) => quarantinedSet.add(k.toLowerCase()));
+    }
+    if (options?.jdText) {
+      const scan = CanaryDetector.detectCanaryTraps(options.jdText);
+      scan.quarantinedKeywords.forEach((k) => quarantinedSet.add(k.toLowerCase()));
+    }
+    // Also include common decoy traps by default
+    ["cribbage", "monopoly", "flanagandb", "bananascript", "hyperionmesh"].forEach((k) =>
+      quarantinedSet.add(k)
+    );
+
+    let canaryViolations = 0;
+    // Check all bullets
+    for (const b of allBullets) {
+      for (const qWord of quarantinedSet) {
+        const regex = new RegExp(`\\b${qWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (regex.test(b.text)) {
+          criticalErrors.push({
+            rule: "CANARY_KEYWORD_DETECTED",
+            message: `Recruiter Honey-Pot Trap Detected: Your resume bullet contains "${qWord}", which was flagged as a recruiter canary trap. Submitting this will trigger automatic ATS rejection.`,
+            section: b.section,
+            bulletId: b.id,
+          });
+          canaryViolations++;
+        }
+      }
+    }
+
+    // Check skills section
+    for (const skill of doc.skills || []) {
+      const skillName = typeof skill === "string" ? skill : (skill as any).name || (skill as any).skill || "";
+      for (const qWord of quarantinedSet) {
+        const regex = new RegExp(`\\b${qWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (regex.test(skillName)) {
+          criticalErrors.push({
+            rule: "CANARY_KEYWORD_DETECTED",
+            message: `Recruiter Honey-Pot Trap Detected: Skills section includes "${qWord}", which is an intentional ATS trap.`,
+            section: "Skills",
+          });
+          canaryViolations++;
+        }
+      }
+    }
+
+    // Check profile summary
+    const summaryText = profile.summary || "";
+    for (const qWord of quarantinedSet) {
+      const regex = new RegExp(`\\b${qWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      if (regex.test(summaryText)) {
+        criticalErrors.push({
+          rule: "CANARY_KEYWORD_DETECTED",
+          message: `Recruiter Honey-Pot Trap Detected: Profile summary includes "${qWord}".`,
+          section: "Profile",
+        });
+        canaryViolations++;
+      }
+    }
+
+    if (canaryViolations === 0) {
+      passedChecks.push("Canary Trap Shield: Clean. No recruiter honey-pot traps or decoy keywords detected on resume");
+    }
+
     // Calculate score
     const penalty = criticalErrors.length * 25 + warnings.length * 5;
     const score = Math.max(0, 100 - penalty);
@@ -230,5 +302,62 @@ export class ResumeQualityGateService {
       pdfBinaryValid: true,
       docxBinaryValid: true,
     } as any;
+  }
+
+  /**
+   * Sanitizes a resume by stripping quarantined canary keywords from bullets, skills, and summary.
+   */
+  static sanitizeCanaryKeywords(doc: ResumeDoc, quarantinedKeywords: string[]): ResumeDoc {
+    if (!quarantinedKeywords || quarantinedKeywords.length === 0) return doc;
+    const cloned = JSON.parse(JSON.stringify(doc)) as ResumeDoc;
+
+    const stripRegexes = quarantinedKeywords.map(
+      (q) => new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi")
+    );
+
+    const cleanText = (txt: string) => {
+      let res = txt;
+      for (const r of stripRegexes) {
+        res = res.replace(r, "").replace(/\s{2,}/g, " ").trim();
+      }
+      return res;
+    };
+
+    if (cloned.profile?.summary) {
+      cloned.profile.summary = cleanText(cloned.profile.summary);
+    }
+
+    if (cloned.experience) {
+      for (const exp of cloned.experience) {
+        if (exp.bullets) {
+          exp.bullets = exp.bullets.map((b: any) => {
+            if (typeof b === "string") return cleanText(b);
+            return { ...b, text: cleanText(b.text) };
+          });
+        }
+      }
+    }
+
+    if (cloned.projects) {
+      for (const proj of cloned.projects) {
+        if (proj.bullets) {
+          proj.bullets = proj.bullets.map((b: any) => {
+            if (typeof b === "string") return cleanText(b);
+            return { ...b, text: cleanText(b.text) };
+          });
+        }
+      }
+    }
+
+    if (cloned.skills) {
+      cloned.skills = cloned.skills.filter((s: any) => {
+        const name = typeof s === "string" ? s : s.name || s.skill || "";
+        return !quarantinedKeywords.some((q) =>
+          new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(name)
+        );
+      });
+    }
+
+    return cloned;
   }
 }

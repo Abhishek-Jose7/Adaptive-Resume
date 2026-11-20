@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import "@fontsource-variable/bricolage-grotesque";
-import "@fontsource-variable/ibm-plex-sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Adaptive Resume — A Resume Grounded In Your Work",
+  title: "Adaptive Resume — One honest career. Every right version.",
   description:
-    "Shape a resume around the job you want, using the experience and skills you already have.",
+    "Turn your real projects, internships and skills into a resume that speaks directly to every job—without inventing a single thing.",
 };
 
 export default function RootLayout({
@@ -21,28 +19,30 @@ export default function RootLayout({
       afterSignOutUrl="/"
       appearance={{
         variables: {
-          colorPrimary: "#000052",
-          colorBackground: "#FFFFFF",
-          borderRadius: "0.5rem",
-          fontFamily: "IBM Plex Sans, sans-serif",
+          colorPrimary: "#10241c",
+          colorBackground: "#faf8f2",
+          borderRadius: "0.25rem",
+          fontFamily: "'Instrument Sans', sans-serif",
         },
         elements: {
-          card: "border-2 border-[#B2BEB5] shadow-2xl rounded-2xl bg-white",
-          headerTitle: "text-[#000052] font-extrabold text-2xl tracking-tight",
-          headerSubtitle: "text-[#3B4740] font-medium text-sm",
+          card: "border border-[rgba(16,36,28,0.17)] shadow-2xl rounded-lg bg-[#faf8f2]",
+          headerTitle: "text-[#10241c] font-bold text-2xl tracking-tight",
+          headerSubtitle: "text-[#425048] font-medium text-sm",
           formButtonPrimary:
-            "bg-[#000052] hover:bg-[#0A0A66] text-white font-bold py-2.5 px-4 rounded-lg transition-colors shadow-md",
+            "bg-[#10241c] hover:bg-[#1f382e] text-[#eee9df] font-bold py-2.5 px-4 rounded transition-all shadow-sm hover:shadow-[4px_4px_0_#d8c49b]",
           formFieldInput:
-            "border border-[#B2BEB5] focus:border-[#000052] focus:ring-2 focus:ring-[#000052]/20 text-[#000052]",
-          footerActionLink: "text-[#000052] hover:underline font-bold",
-          identityPreviewText: "text-[#000052] font-semibold",
+            "border border-[rgba(16,36,28,0.17)] focus:border-[#a98452] focus:ring-2 focus:ring-[#a98452]/20 text-[#10241c] bg-white",
+          footerActionLink: "text-[#a98452] hover:underline font-bold",
+          identityPreviewText: "text-[#10241c] font-semibold",
           socialButtonsBlockButton:
-            "border border-[#B2BEB5] text-[#000052] hover:bg-[#B2BEB5]/15 font-semibold",
+            "border border-[rgba(16,36,28,0.17)] text-[#10241c] hover:bg-[#eee9df]/50 font-semibold",
         },
       }}
     >
       <html lang="en">
-        <body className="min-h-screen antialiased bg-[#B2BEB5] text-[#000052]">{children}</body>
+        <body className="min-h-screen antialiased bg-[var(--cream)] text-[var(--ink)]">
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );

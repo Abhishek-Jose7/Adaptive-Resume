@@ -1,5 +1,6 @@
 import { AchievementBullet, BankEntry, StructuredFact } from "@/types/bank";
 import { RewrittenBullet, RewrittenBulletClaim } from "@/types/job";
+import { CanaryDetector } from "../intelligence/canaryDetector";
 
 export interface ValidationFailure {
   rule:
@@ -10,7 +11,9 @@ export interface ValidationFailure {
     | "VERB_PROMOTION"
     | "MISSING_CLAIM_COVERAGE"
     | "ENTAILMENT_FAILURE"
-    | "CROSS_EXPERIENCE_CONTAMINATION";
+    | "CROSS_EXPERIENCE_CONTAMINATION"
+    | "CANARY_TRAP_TRIGGERED"
+    | "UNGROUNDED_JD_KEYWORD_INJECTION";
   message: string;
   offendingToken?: string;
 }
@@ -69,7 +72,11 @@ export class TruthBoundValidator {
     candidateBullets: AchievementBullet[],
     candidateFacts: StructuredFact[],
     candidateEntries: BankEntry[] = [],
-    targetEntryId?: string
+    targetEntryId?: string,
+    options?: {
+      quarantinedKeywords?: string[];
+      targetKeywords?: string[];
+    }
   ): ValidationResult {
     const failures: ValidationFailure[] = [];
 
@@ -255,13 +262,57 @@ export class TruthBoundValidator {
       }
     }
 
-    // 6. Entity / Tool Grounding Check
+    // 6. Recruiter Honey-Pot & Canary Trap Check
+    const quarantined = options?.quarantinedKeywords || [];
+    for (const qWord of quarantined) {
+      if (!qWord || qWord.length < 2) continue;
+      const escaped = qWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b${escaped}\\b`, "i");
+      if (regex.test(rewritten.text)) {
+        failures.push({
+          rule: "CANARY_TRAP_TRIGGERED",
+          message: `Recruiter Honey-Pot Trap Prevented: Term "${qWord}" in rewritten bullet was detected as an intentional recruiter trap from the job description. Blocked to protect candidate from ATS auto-elimination.`,
+          offendingToken: qWord,
+        });
+      }
+    }
+
+    // 7. Ungrounded JD Keyword Injection Check
+    if (options?.targetKeywords && options.targetKeywords.length > 0) {
+      for (const kw of options.targetKeywords) {
+        if (!kw || kw.length < 2) continue;
+        const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\b${escaped}\\b`, "i");
+        if (regex.test(rewritten.text)) {
+          // Check if this keyword is anywhere in source text, candidate entries, or facts
+          const isEvidenced =
+            combinedSourceText.includes(kw.toLowerCase()) ||
+            scopedEntries.some(
+              (e) =>
+                (e.descriptionContext || "").toLowerCase().includes(kw.toLowerCase()) ||
+                e.title.toLowerCase().includes(kw.toLowerCase())
+            ) ||
+            candidateFacts.some((f) => f.valueText.toLowerCase().includes(kw.toLowerCase()));
+
+          if (!isEvidenced) {
+            failures.push({
+              rule: "UNGROUNDED_JD_KEYWORD_INJECTION",
+              message: `Job description keyword "${kw}" was injected into rewritten bullet without verified evidence in candidate's Data Bank.`,
+              offendingToken: kw,
+            });
+          }
+        }
+      }
+    }
+
+    // 8. Entity / Tool Grounding Check
     // Detect technology/entity terms in rewritten text not present in source
     const ungroundedEntities = this.detectUngroundedEntities(
       rewritten.text,
       combinedSourceText,
       scopedEntries,
-      candidateFacts
+      candidateFacts,
+      options?.quarantinedKeywords
     );
     for (const ent of ungroundedEntities) {
       failures.push({
@@ -323,7 +374,8 @@ export class TruthBoundValidator {
     rewrittenText: string,
     sourceText: string,
     candidateEntries: BankEntry[],
-    candidateFacts: StructuredFact[]
+    candidateFacts: StructuredFact[],
+    extraQuarantinedKeywords?: string[]
   ): string[] {
     // Gather all known skills, tools, and organization names from candidate's bank entries
     const bankVocabulary = new Set<string>();
@@ -374,6 +426,13 @@ export class TruthBoundValidator {
       "spark",
       "airflow",
       "ci/cd",
+      // Known decoy/canary terms commonly planted by recruiters
+      "cribbage",
+      "monopoly",
+      "flanagandb",
+      "bananascript",
+      "hyperionmesh",
+      ...(extraQuarantinedKeywords || []).map((k) => k.toLowerCase()),
     ];
 
     const ungrounded: string[] = [];

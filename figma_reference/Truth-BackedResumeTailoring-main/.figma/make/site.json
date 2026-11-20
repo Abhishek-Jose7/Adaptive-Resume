@@ -1,0 +1,10 @@
+{
+  "description": "Build evidence-backed, ATS-ready resumes tailored to each job with verified skills and experience. Designed for graduates, interns, and job seekers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

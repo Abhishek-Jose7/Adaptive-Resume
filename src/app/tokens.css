@@ -30,45 +30,46 @@
   --tracking-display: -0.035em;
   --display-weight: 700;
 
-  /* Strict User Palette: Ash Gray (#B2BEB5) & Navy Blue (#000052) */
-  --color-ash-gray: #B2BEB5;
-  --color-ash-gray-light: #D5DED8;
-  --color-ash-gray-surface: #E8ECE9;
-  --color-ash-gray-dark: #8F9D93;
-  --color-navy-blue: #000052;
-  --color-navy-blue-light: #0A0A66;
-  --color-navy-blue-deep: #00003D;
-  --color-navy-blue-soft: #14147A;
+  /* Figma Design Tokens */
+  --ink: #10241c;
+  --cream: #eee9df;
+  --paper: #faf8f2;
+  --orange: #a98452;
+  --mint: #becbbf;
+  --acid: #d8c49b;
+  --lilac: #aebbb2;
+  --success: #315849;
+  --line: rgba(16, 36, 28, 0.17);
 
-  /* Semantic mappings using strict Ash Gray and Navy Blue */
-  --color-paper: #B2BEB5;
-  --color-paper-2: #A3AFA6;
-  --color-paper-3: #929E95;
-  --color-sheet: #FFFFFF;
-  --color-ink: #000052;
-  --color-ink-2: #0A0A66;
-  --color-muted: #0A0A66;
-  --color-rule: rgba(0, 0, 82, 0.2);
-  --color-rule-2: #000052;
-  --color-accent: #000052;
-  --color-accent-hover: #0A0A66;
-  --color-accent-ink: #FFFFFF;
-  --color-focus: #000052;
-  --color-positive: #000052;
-  --color-positive-soft: #D5DED8;
-  --color-warning: #7A4B00;
-  --color-warning-soft: #EFE4D2;
-  --color-danger: #991B1B;
-  --color-danger-soft: #FDE8E8;
-  --color-blue-soft: #D5DED8;
-  --color-proof: #000052;
-  --color-seaglass: #D5DED8;
-  --color-chalk: #FFFFFF;
-  --color-blackberry: #000052;
-  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-outlier: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --radius-control: 8px;
-  --radius-panel: 16px;
+  /* Semantic mappings using Figma design tokens */
+  --color-paper: var(--cream);
+  --color-paper-2: #e2dcd2;
+  --color-paper-3: #d5cdc1;
+  --color-sheet: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-2: #1e3a2f;
+  --color-muted: #536259;
+  --color-rule: var(--line);
+  --color-rule-2: var(--ink);
+  --color-accent: var(--orange);
+  --color-accent-hover: #8f6e40;
+  --color-accent-ink: #ffffff;
+  --color-focus: var(--orange);
+  --color-positive: var(--success);
+  --color-positive-soft: #dce5df;
+  --color-warning: #7a4b00;
+  --color-warning-soft: #efe4d2;
+  --color-danger: #991b1b;
+  --color-danger-soft: #fde8e8;
+  --color-blue-soft: #d5ded8;
+  --color-proof: var(--ink);
+  --color-seaglass: var(--mint);
+  --color-chalk: #ffffff;
+  --color-blackberry: var(--ink);
+  --font-display: "Instrument Sans", sans-serif;
+  --font-body: "Instrument Sans", sans-serif;
+  --font-outlier: "DM Mono", monospace;
+  --radius-control: 3px;
+  --radius-panel: 4px;
   --radius-pill: 999px;
 }

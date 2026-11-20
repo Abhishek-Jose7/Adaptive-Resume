@@ -204,3 +204,28 @@ export interface SkillsRoadmapItem {
   practicalProjectIdeas: string[];
 }
 
+// Recruiter Honey-Pot & Canary Trap Detection
+export type CanaryTrapType =
+  | "fake_programming_language"
+  | "fake_tool_or_framework"
+  | "absurd_requirement"
+  | "suspicious_honeypot"
+  | "prompt_injection_directive";
+
+export interface CanaryTrapAlert {
+  id: string;
+  keyword: string;
+  contextSentence: string;
+  trapType: CanaryTrapType;
+  severity: "critical" | "warning";
+  explanation: string;
+  recommendation: string;
+}
+
+export interface CanaryDetectionResult {
+  hasCanaryTrap: boolean;
+  canaryTraps: CanaryTrapAlert[];
+  quarantinedKeywords: string[];
+  summaryMessage: string;
+}
+

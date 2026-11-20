@@ -5,6 +5,7 @@ import { ProviderFactory } from "../ai/providerFactory";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import { JDAnalysis } from "@/types/job";
 import { BankEntry, AchievementBullet, StructuredFact } from "@/types/bank";
+import { CanaryDetector } from "../intelligence/canaryDetector";
 
 export type CoverLetterTone = "professional" | "concise" | "formal" | "conversational";
 
@@ -125,20 +126,26 @@ export class CoverLetterService {
       title: c.parentEntry.title,
     }));
 
-    // 4. Generate Grounded Cover Letter
+    // 4. Generate Grounded Cover Letter with Canary Protection
     const provider = ProviderFactory.getProvider(providerName, apiKey);
+
+    const canaryScan = CanaryDetector.detectCanaryTraps(job.rawText || "");
+    const quarantinedKeywords = canaryScan.quarantinedKeywords;
 
     const systemPrompt = `You are a Truth-Bound Executive Cover Letter Generator.
 STRICT INTEGRITY RULES:
 1. ONLY reference experiences, employers, technologies, and metrics present in the candidate's achievements.
 2. NEVER hallucinate achievements or claim skills not in the evidence.
-3. Tone: ${tone}.
-4. Structure:
+3. RECRUITER HONEY-POT & CANARY TRAP PROTECTION:
+   Job postings intentionally contain fake keywords and trap technologies (e.g. "Cribbage", made-up libraries) to catch and auto-disqualify AI applicants.
+   - NEVER mention or mirror ANY technology or tool from the job description unless it is explicitly evidenced in candidate achievements.
+4. Tone: ${tone}.
+5. Structure:
    - Salutation to Hiring Manager
    - Opening paragraph expressing targeted alignment with the role
    - 2 body paragraphs connecting candidate's genuine achievements to the role's core responsibilities
    - Closing paragraph inviting discussion with professional sign-off.
-5. Return JSON: { "title": string, "content": string }`;
+6. Return JSON: { "title": string, "content": string }`;
 
     const userPayload = {
       roleTarget: {
@@ -166,6 +173,12 @@ STRICT INTEGRITY RULES:
       if (res.data?.content) {
         content = res.data.content;
         if (res.data.title) title = res.data.title;
+
+        // Post-generation Canary Sanitization
+        for (const qWord of quarantinedKeywords) {
+          const regex = new RegExp(`\\b${qWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+          content = content.replace(regex, "");
+        }
       }
     } catch (err) {
       console.warn("LLM cover letter generation fallback:", err);

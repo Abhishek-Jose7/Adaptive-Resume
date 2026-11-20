@@ -11,6 +11,7 @@ import { BankEntry, AchievementBullet, StructuredFact } from "@/types/bank";
 import { diffWords } from "diff";
 
 import { XyzRewriterService } from "../ai/services/xyzRewriterService";
+import { CanaryDetector } from "../intelligence/canaryDetector";
 
 export interface DiffChunk {
   value: string;
@@ -194,6 +195,11 @@ export class TailoringService {
     let totalTokensOut = 0;
     const tailoredResults: TailoredBulletResult[] = [];
 
+    // Run Canary Trap Detection on target job raw text
+    const canaryScan = CanaryDetector.detectCanaryTraps(jobList[0].rawText || "");
+    const quarantinedKeywords = canaryScan.quarantinedKeywords;
+    const allJdKeywords = (jdAnalysis.keywords || []).map((k) => k.canonical);
+
     // System prompt enforcing Section 10.4 truth-grounded rules & Google XYZ methodology
     const systemPrompt = `You are a Truth-Bound Resume Tailoring Assistant implementing Google's XYZ Achievement-Writing Methodology:
 "Accomplished [X], as measured by [Y], by doing [Z]"
@@ -206,7 +212,11 @@ CRITICAL INTEGRITY AND WRITING RULES:
    - Produce the strongest honest, concise bullet without any fabricated numbers.
    - You may suggest a metric question in "suggestedMetricQuestion" for user confirmation, NOT as bullet content.
 5. Do NOT promote scope (e.g. do not turn "assisted" or "contributed" into "led", "architected", or "owned").
-6. Return a structured JSON object matching RewrittenBullet:
+6. RECRUITER HONEY-POT & CANARY TRAP PROTECTION:
+   Recruiters intentionally plant fake skills and trap technologies (e.g. "Cribbage programming language", made-up frameworks/databases) to catch and auto-reject AI resumes.
+   - NEVER adopt, mirror, or insert ANY technology, language, library, or tool from the job description unless that exact tool is explicitly evidenced in the candidate's provided source bullet or verified facts.
+   - If the job description requires a tool the candidate has not used, completely omit it. Never claim familiarity.
+7. Return a structured JSON object matching RewrittenBullet:
    - text: string (concise, active achievement bullet)
    - sourceBulletIds: string[]
    - sourceFactIds: string[]
@@ -288,13 +298,17 @@ CRITICAL INTEGRITY AND WRITING RULES:
         );
         const targetEntries = fullEntries.filter((e) => e.id === item.parentEntry.id);
 
-        // Run Deterministic Truth-Bound Validation scoped strictly to target entry
+        // Run Deterministic Truth-Bound Validation scoped strictly to target entry with Canary Shield
         const validation = TruthBoundValidator.validate(
           candidateRewrite,
           targetEntryBullets,
           targetEntryFacts,
           targetEntries,
-          item.parentEntry.id
+          item.parentEntry.id,
+          {
+            quarantinedKeywords,
+            targetKeywords: relevantKeywords.length > 0 ? relevantKeywords : allJdKeywords,
+          }
         );
 
         // Run Experience Isolation Audit (Section 18.2)
