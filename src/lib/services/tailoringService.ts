@@ -10,6 +10,8 @@ import { JDAnalysis, RewrittenBullet } from "@/types/job";
 import { BankEntry, AchievementBullet, StructuredFact } from "@/types/bank";
 import { diffWords } from "diff";
 
+import { XyzRewriterService } from "../ai/services/xyzRewriterService";
+
 export interface DiffChunk {
   value: string;
   added?: boolean;
@@ -38,6 +40,12 @@ export interface TailoredBulletResult {
   status: "pending" | "accepted" | "rejected";
   diffHtml?: string;
   diffChunks?: DiffChunk[];
+  suggestedMetricQuestion?: string | null;
+  xyzStructure?: {
+    accomplishedX: string;
+    measuredByY: string | null;
+    byDoingZ: string;
+  } | null;
 }
 
 export interface AiRunDetails {
@@ -181,22 +189,30 @@ export class TailoringService {
       candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
     }
 
-    const provider = ProviderFactory.getProvider(providerName, apiKey);
+    const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning");
     let totalTokensIn = 0;
     let totalTokensOut = 0;
     const tailoredResults: TailoredBulletResult[] = [];
 
-    // System prompt enforcing Section 10.4 truth-grounded rules
-    const systemPrompt = `You are a Truth-Bound Resume Tailoring Assistant.
-CRITICAL INTEGRITY RULES:
+    // System prompt enforcing Section 10.4 truth-grounded rules & Google XYZ methodology
+    const systemPrompt = `You are a Truth-Bound Resume Tailoring Assistant implementing Google's XYZ Achievement-Writing Methodology:
+"Accomplished [X], as measured by [Y], by doing [Z]"
+
+CRITICAL INTEGRITY AND WRITING RULES:
 1. Every factual claim MUST be explicitly entailed by the provided source bullet and structured facts.
-2. NEVER invent or hallucinate metrics, percentages, tools, employers, or outcomes.
-3. Do NOT promote scope (e.g. do not turn "assisted" or "contributed" into "led", "architected", or "owned").
-4. Return a structured JSON object matching RewrittenBullet:
+2. NEVER invent, extrapolate, or hallucinate metrics, percentages, tools, employers, or outcomes.
+3. If verified metrics exist in the source bullet or facts, format with measurable evidence [Y].
+4. If metric [Y] is unavailable in source evidence:
+   - Produce the strongest honest, concise bullet without any fabricated numbers.
+   - You may suggest a metric question in "suggestedMetricQuestion" for user confirmation, NOT as bullet content.
+5. Do NOT promote scope (e.g. do not turn "assisted" or "contributed" into "led", "architected", or "owned").
+6. Return a structured JSON object matching RewrittenBullet:
    - text: string (concise, active achievement bullet)
    - sourceBulletIds: string[]
    - sourceFactIds: string[]
-   - claimMap: Array<{ claim: string; evidenceIds: string[]; claimType: "action" | "tool" | "metric" | "scope" | "outcome" | "date" | "other" }>`;
+   - claimMap: Array<{ claim: string; evidenceIds: string[]; claimType: "action" | "tool" | "metric" | "scope" | "outcome" | "date" | "other" }>
+   - suggestedMetricQuestion?: string | null
+   - xyzStructure?: { accomplishedX: string; measuredByY: string | null; byDoingZ: string } | null`;
 
     const allCandidateBullets = candidates.map((c) => c.bullet);
     const allCandidateFacts = userFacts as unknown as StructuredFact[];
@@ -329,6 +345,16 @@ CRITICAL INTEGRITY RULES:
             status: "pending",
             diffHtml,
             diffChunks,
+            suggestedMetricQuestion:
+              candidateRewrite.suggestedMetricQuestion ||
+              (sourceBullet.facts && sourceBullet.facts.length > 0
+                ? null
+                : XyzRewriterService.generateMetricQuestion(sourceBullet.text)),
+            xyzStructure: candidateRewrite.xyzStructure || {
+              accomplishedX: candidateRewrite.text,
+              measuredByY: null,
+              byDoingZ: "Targeted implementation",
+            },
           };
           break;
         } else {
@@ -359,6 +385,8 @@ CRITICAL INTEGRITY RULES:
               status: "pending",
               diffHtml: escapeHtml(sourceBullet.text),
               diffChunks: [{ value: sourceBullet.text }],
+              suggestedMetricQuestion: XyzRewriterService.generateMetricQuestion(sourceBullet.text),
+              xyzStructure: null,
             };
           }
         }

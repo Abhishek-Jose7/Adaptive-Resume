@@ -25,6 +25,10 @@ export interface StructuredLlmInput<T> {
   maxOutputTokens: number;
   temperature: number;
   idempotencyKey?: string;
+  images?: Array<{
+    mimeType: string;
+    base64Data: string;
+  }>;
 }
 
 export interface LlmProvider {

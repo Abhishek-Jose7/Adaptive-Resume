@@ -1,5 +1,5 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --space-3xs: 2px;
   --space-2xs: 4px;
   --space-xs: 8px;
@@ -23,38 +23,48 @@
   --container: 1480px;
   --gutter: 56px;
   --gap-columns: 28px;
-  --text-display: clamp(3rem, 5.7vw, 5.4rem);
-  --text-section: clamp(2.3rem, 4.3vw, 3.6rem);
+  --text-display: clamp(2.8rem, 5.2vw, 5rem);
+  --text-section: clamp(2.2rem, 4vw, 3.4rem);
   --text-title: 1.5rem;
   --text-lead: 1.2rem;
   --tracking-display: -0.035em;
-  --display-weight: 600;
+  --display-weight: 700;
 
-  /* Luxury Ashy Gray & Navy Blue Theme: deep dark slate, rich navy blue accents, crisp typography */
-  --color-paper: #0B0F17;
-  --color-paper-2: #0F172A;
-  --color-paper-3: #1E293B;
-  --color-sheet: #F8FAFC;
-  --color-ink: #0F172A;
-  --color-ink-2: #1E293B;
-  --color-muted: #94A3B8;
-  --color-rule: #1E293B;
-  --color-rule-2: #334155;
-  --color-accent: #2563EB;
-  --color-accent-hover: #1D4ED8;
+  /* Strict User Palette: Ash Gray (#B2BEB5) & Navy Blue (#000052) */
+  --color-ash-gray: #B2BEB5;
+  --color-ash-gray-light: #D5DED8;
+  --color-ash-gray-surface: #E8ECE9;
+  --color-ash-gray-dark: #8F9D93;
+  --color-navy-blue: #000052;
+  --color-navy-blue-light: #0A0A66;
+  --color-navy-blue-deep: #00003D;
+  --color-navy-blue-soft: #14147A;
+
+  /* Semantic mappings using strict Ash Gray and Navy Blue */
+  --color-paper: #B2BEB5;
+  --color-paper-2: #A3AFA6;
+  --color-paper-3: #929E95;
+  --color-sheet: #FFFFFF;
+  --color-ink: #000052;
+  --color-ink-2: #0A0A66;
+  --color-muted: #3B4740;
+  --color-rule: #8F9D93;
+  --color-rule-2: #000052;
+  --color-accent: #000052;
+  --color-accent-hover: #0A0A66;
   --color-accent-ink: #FFFFFF;
-  --color-focus: #3B82F6;
-  --color-positive: #10B981;
-  --color-positive-soft: #D1FAE5;
-  --color-warning: #F59E0B;
-  --color-warning-soft: #FEF3C7;
-  --color-danger: #EF4444;
-  --color-danger-soft: #FEE2E2;
-  --color-blue-soft: #DBEAFE;
-  --color-proof: #3B82F6;
-  --color-seaglass: #E2E8F0;
-  --color-chalk: #F8FAFC;
-  --color-blackberry: #0B0F17;
+  --color-focus: #000052;
+  --color-positive: #000052;
+  --color-positive-soft: #D5DED8;
+  --color-warning: #7A4B00;
+  --color-warning-soft: #EFE4D2;
+  --color-danger: #991B1B;
+  --color-danger-soft: #FDE8E8;
+  --color-blue-soft: #DFE3F0;
+  --color-proof: #000052;
+  --color-seaglass: #D5DED8;
+  --color-chalk: #FFFFFF;
+  --color-blackberry: #000052;
   --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-outlier: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

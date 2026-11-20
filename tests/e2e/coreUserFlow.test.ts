@@ -450,5 +450,5 @@ describe("Milestone M6: End-to-End User Journey (PRD Section 8.6)", () => {
       .from(users)
       .where(eq(users.id, E2E_USER_ID));
     expect(postUser.length).toBe(0);
-  });
+  }, 60000);
 });

@@ -3,37 +3,110 @@ import { SignInButton, SignUpButton, Show } from "@clerk/nextjs";
 import { AdaptiveResumeWorkspace } from "@/components/workspace/AdaptiveResumeWorkspace";
 import DashboardLayout from "@/app/(dashboard)/layout";
 import { RevealSection } from "@/components/marketing/RevealSection";
-import { ArrowDown, MoveRight, CircleCheck, FileText, Fingerprint } from "lucide-react";
+import { TransformationCarousel } from "@/components/marketing/TransformationCarousel";
+import {
+  ArrowDown,
+  MoveRight,
+  CheckCircle2,
+  FileText,
+  Fingerprint,
+  Sparkles,
+  ShieldCheck,
+  Upload,
+  Layers,
+  Search,
+  Eye,
+} from "lucide-react";
 
-function ResumeWorkbenchExample() {
+function HeroWorkbenchPreview() {
   return (
-    <div className="proof-workbench" aria-label="Illustrative job description and tailored resume preview">
-      <div className="proof-workbench-topline"><span>Example workspace</span><span>Senior Product Designer / Northstar</span></div>
-      <div className="proof-workbench-columns">
-        <section className="proof-job-card" aria-label="Example job description">
-          <div className="proof-document-label"><span className="proof-small-dot" /> Job description</div>
-          <h2>Senior Product Designer</h2>
-          <p className="proof-job-company">Northstar / Remote</p>
-          <div className="proof-rule" />
-          <p>We’re looking for a designer who can make complex workflows feel clear. Work closely with research, product, and engineering.</p>
-          <div className="proof-skill-line"><span>Product thinking</span><span>Research</span><span>Prototyping</span></div>
-          <span className="proof-job-source">Illustrative example</span>
-        </section>
-        <section className="proof-resume-card" aria-label="Example resume draft">
-          <div className="proof-document-label"><FileText size={15} /> Resume draft <span className="proof-draft-tag">Review</span></div>
-          <h2>Maya Patel</h2>
-          <p className="proof-resume-contact">Product designer / Chicago, IL</p>
-          <div className="proof-rule" />
-          <p className="proof-resume-section">Selected experience</p>
-          <strong>Product Designer <span>2022—2025</span></strong>
-          <p className="proof-resume-copy">Redesigned onboarding with product and engineering, making setup easier to follow for new customers.</p>
-          <div className="proof-evidence-link"><span aria-hidden="true" /> From “Redesigned setup flow” in your Data Bank</div>
-          <strong className="proof-earlier-title">Earlier experience <span>2019—2022</span></strong>
-          <div className="proof-resume-line" /><div className="proof-resume-line short" />
-          <div className="proof-preview-action">Review this line <MoveRight size={14} /></div>
-        </section>
+    <div
+      className="w-full rounded-2xl border-2 border-[#000052]/20 bg-white shadow-2xl overflow-hidden"
+      aria-label="Interactive workspace preview"
+    >
+      {/* Top Window Chrome */}
+      <div className="bg-[#000052] px-4 py-3 flex items-center justify-between text-xs text-white">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#B2BEB5]/40 inline-block" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#B2BEB5]/40 inline-block" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#B2BEB5]/40 inline-block" />
+          <span className="ml-2 font-bold tracking-wide text-[#B2BEB5]">WORKSPACE PREVIEW</span>
+        </div>
+        <div className="text-[#B2BEB5] font-semibold text-[11px] truncate max-w-[200px]">
+          Staff Systems Architect / Acme Corp
+        </div>
       </div>
-      <div className="proof-workbench-footer"><CircleCheck size={14} /> You can edit every suggestion before it reaches your resume.</div>
+
+      {/* Dual Column Workbench */}
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#000052]/10 bg-white p-4 sm:p-6 gap-6">
+        {/* Left: Job Description Pane */}
+        <div className="flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#000052]/70 mb-2">
+              <Search className="w-3.5 h-3.5 text-[#000052]" />
+              <span>Target Role Spec</span>
+            </div>
+            <h3 className="text-xl font-extrabold text-[#000052] tracking-tight">Staff Systems Architect</h3>
+            <p className="text-xs font-bold text-[#000052]/60 mt-0.5">Distributed Cloud Infrastructure • Full-Time</p>
+
+            <div className="mt-4 p-3.5 rounded-xl bg-[#B2BEB5]/20 border border-[#000052]/10 text-xs text-[#000052] leading-relaxed">
+              "Seeking an architect with deep hands-on expertise building fault-tolerant, high-throughput distributed systems. Must have proven track record with Kubernetes, Redis clustering, and sub-second p99 latency optimization."
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[11px] font-bold uppercase text-[#000052]/60 block mb-2">Detected Key Qualifications</span>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="px-2 py-0.5 rounded bg-[#000052] text-white text-[11px] font-bold">Distributed Systems</span>
+              <span className="px-2 py-0.5 rounded bg-[#000052] text-white text-[11px] font-bold">Redis Clustering</span>
+              <span className="px-2 py-0.5 rounded bg-[#000052] text-white text-[11px] font-bold">p99 Latency</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Tailored Resume Draft Pane */}
+        <div className="flex flex-col justify-between space-y-4 md:pl-6">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#000052]/70">
+                <FileText className="w-3.5 h-3.5 text-[#000052]" />
+                <span>Tailored Resume Draft</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-[#000052] text-white text-[10px] font-extrabold tracking-wide">
+                98% Fit
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#F7F9F8] border border-[#000052]/15">
+              <div className="text-xs font-bold text-[#000052] flex justify-between">
+                <span>Selected Experience</span>
+                <span className="text-[#000052]/60">2021 — 2025</span>
+              </div>
+              <p className="text-xs text-[#000052] font-semibold mt-1.5 leading-relaxed">
+                • Engineered distributed consensus pipeline handling 250,000 requests/sec with 99.999% uptime, lowering p99 database latency by 45% via Redis read-through clustering.
+              </p>
+              <div className="mt-2.5 pt-2 border-t border-[#000052]/10 flex items-center gap-1.5 text-[10px] font-bold text-[#000052]">
+                <CheckCircle2 className="w-3 h-3 text-[#000052]" />
+                <span>Anchored to Data Bank: "Distributed Consensus Engine"</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center justify-between text-xs">
+            <span className="text-[11px] font-semibold text-[#000052]/70">You approve every line before export.</span>
+            <div className="inline-flex items-center gap-1 font-extrabold text-[#000052] hover:underline cursor-pointer">
+              <span>Inspect proof</span>
+              <MoveRight className="w-3 h-3" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="bg-[#B2BEB5]/25 px-5 py-2.5 border-t border-[#000052]/10 flex items-center gap-2 text-xs text-[#000052] font-bold">
+        <ShieldCheck className="w-4 h-4 text-[#000052]" />
+        <span>100% verified against your career facts. Zero AI hallucinations.</span>
+      </div>
     </div>
   );
 }
@@ -42,102 +115,314 @@ export default function LandingPage() {
   return (
     <>
       <Show when="signed-in">
-        <DashboardLayout><AdaptiveResumeWorkspace /></DashboardLayout>
+        <DashboardLayout>
+          <AdaptiveResumeWorkspace />
+        </DashboardLayout>
       </Show>
+
       <Show when="signed-out">
-        <div className="proof-landing">
-          <header className="proof-public-header">
-            <Link href="/" className="proof-brand"><span className="proof-brand-mark" aria-hidden="true"><span /></span><span>Adaptive <strong>Resume</strong></span></Link>
-            <nav aria-label="Public navigation">
-              <Link href="#how-it-works">How it works</Link>
-              <Link href="/privacy">Privacy</Link>
-              <SignInButton mode="modal"><button className="proof-sign-in">Sign in</button></SignInButton>
-              <SignUpButton mode="modal"><button className="proof-new-resume">Make a resume <MoveRight size={15} /></button></SignUpButton>
-            </nav>
+        <div className="min-h-screen bg-[#B2BEB5] text-[#000052] font-sans antialiased overflow-x-hidden">
+          {/* Top Navigation */}
+          <header className="sticky top-0 z-50 bg-[#B2BEB5]/90 backdrop-blur-md border-b-2 border-[#000052]/15 px-4 sm:px-8 py-3.5">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-[#000052]">
+                <span className="w-7 h-7 rounded-lg bg-[#000052] text-white flex items-center justify-center font-black text-sm shadow-md">
+                  A
+                </span>
+                <span>
+                  Adaptive <strong className="font-black">Resume</strong>
+                </span>
+              </Link>
+
+              <nav className="flex items-center gap-4 sm:gap-6" aria-label="Main Navigation">
+                <Link
+                  href="#how-it-works"
+                  className="hidden md:inline-block text-sm font-bold text-[#000052] hover:underline underline-offset-4"
+                >
+                  How it works
+                </Link>
+                <Link
+                  href="#transformation-showcase"
+                  className="hidden md:inline-block text-sm font-bold text-[#000052] hover:underline underline-offset-4"
+                >
+                  Showcase
+                </Link>
+                <Link
+                  href="/privacy"
+                  className="text-xs sm:text-sm font-bold text-[#000052] hover:underline underline-offset-4"
+                >
+                  Privacy
+                </Link>
+                <SignInButton mode="modal">
+                  <button className="text-xs sm:text-sm font-bold text-[#000052] hover:underline underline-offset-4 cursor-pointer">
+                    Sign in
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#000052] text-white text-xs sm:text-sm font-extrabold shadow-md hover:bg-[#0A0A66] transition-all duration-150 cursor-pointer">
+                    <span>Make a resume</span>
+                    <MoveRight className="w-3.5 h-3.5" />
+                  </button>
+                </SignUpButton>
+              </nav>
+            </div>
           </header>
 
           <main>
-            <section className="proof-hero">
-              <div className="proof-hero-copy">
-                <h1>Your next role,<br /><em>grounded in your work.</em></h1>
-                <p>Paste a job description. See a resume draft shaped from your experience, with every line ready for your review.</p>
-                <div className="proof-hero-actions">
-                  <SignUpButton mode="modal"><button className="proof-primary-button">Paste a job description <MoveRight size={17} /></button></SignUpButton>
-                  <Link href="#how-it-works" className="proof-scroll-link">See how it works <ArrowDown size={15} /></Link>
+            {/* Redesigned Hero Section */}
+            <section className="relative px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-16 sm:pb-24 max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-14 items-center">
+                {/* Hero Left Copy */}
+                <div className="lg:col-span-5 space-y-6 text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#000052] text-[#B2BEB5] text-xs font-black tracking-wider uppercase shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-[#B2BEB5]" />
+                    <span>Real Experience • Zero Hallucination</span>
+                  </div>
+
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-[#000052] tracking-tight leading-[1.05]">
+                    Your next role,
+                    <br />
+                    <span className="italic font-normal underline decoration-[#000052]/30">grounded in your work.</span>
+                  </h1>
+
+                  <p className="text-base sm:text-lg text-[#000052]/85 font-medium leading-relaxed max-w-xl">
+                    Paste a job description. See a tailored resume draft shaped strictly from your authentic career history, with every line verified against your private Data Bank and ready for your review.
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                    <SignUpButton mode="modal">
+                      <button className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#000052] text-white text-sm sm:text-base font-extrabold shadow-lg hover:bg-[#0A0A66] hover:scale-[1.02] transition-all duration-150 cursor-pointer">
+                        <span>Paste a job description</span>
+                        <MoveRight className="w-4 h-4" />
+                      </button>
+                    </SignUpButton>
+                    <Link
+                      href="#transformation-showcase"
+                      className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white/70 border-2 border-[#000052] text-[#000052] text-sm sm:text-base font-extrabold hover:bg-white transition-all duration-150 shadow-sm"
+                    >
+                      <span>Explore showcase</span>
+                      <ArrowDown className="w-4 h-4" />
+                    </Link>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-4 text-xs font-bold text-[#000052]/75">
+                    <Fingerprint className="w-4 h-4 text-[#000052]" />
+                    <span>Your experience stays yours. You approve every suggestion.</span>
+                  </div>
                 </div>
-                <p className="proof-hero-promise"><Fingerprint size={17} /> Your experience stays yours. You approve every line.</p>
+
+                {/* Hero Right Visual Preview */}
+                <div className="lg:col-span-7 w-full min-w-0">
+                  <HeroWorkbenchPreview />
+                </div>
               </div>
-              <ResumeWorkbenchExample />
             </section>
 
-            <div className="proof-format-strip" role="region" tabIndex={0} aria-label="Ways to get started. Focus or hover to pause the moving text.">
-              <p className="sr-only">Upload your resume. Paste your work history. Review every detail. Start with the job you want.</p>
-              <div className="proof-format-track" aria-hidden="true">
-                {[0, 1].map((copy) => (
-                  <div className="proof-format-group" key={copy} aria-hidden={copy === 1 ? "true" : undefined}>
-                    <strong>Upload your resume</strong>
-                    <strong>Paste your work history</strong>
-                    <strong>Review every detail</strong>
-                    <strong>Start with the job you want</strong>
+            {/* Large Bold Editorial Feature Callouts (Replacing Old Marquee Strip) */}
+            <section
+              className="w-full bg-[#000052] text-white py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-y-4 border-[#B2BEB5]"
+              aria-label="Core Workflow Principles"
+            >
+              <div className="max-w-6xl mx-auto space-y-12">
+                {/* 4 Step Statements */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">01</div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Upload your resume
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
+                      Intake any PDF, DOCX, or text file. Our deterministic parser automatically parses your authentic history into discrete, verified units.
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <RevealSection className="proof-how" id="how-it-works">
-              <div className="proof-how-heading">
-                <h2>Your work, shaped for this role.</h2>
-                <p>Keep the details once. Bring the right ones forward when a new opportunity comes along.</p>
-              </div>
-              <div className="proof-how-steps">
-                <article><span className="proof-step-mark proof-step-paper" aria-hidden="true"><FileText size={18} /></span><h3>Keep your experience</h3><p>Add your work, projects, education, and skills to your private Data Bank. Upload a resume to get started faster.</p><Link href="/sign-up">Build your Data Bank <MoveRight size={15} /></Link></article>
-                <article><span className="proof-step-mark proof-step-match" aria-hidden="true"><CircleCheck size={19} /></span><h3>Paste the job</h3><p>Share the job description. Adaptive Resume finds relevant details from your own saved experience.</p><Link href="/sign-up">Tailor a resume <MoveRight size={15} /></Link></article>
-                <article><span className="proof-step-mark proof-step-edit" aria-hidden="true"><FileText size={18} /></span><h3>Review and make it yours</h3><p>Edit, keep, or skip every suggestion. Then export a resume that reflects the work you’ve really done.</p><Link href="/privacy">See how your data is handled <MoveRight size={15} /></Link></article>
-              </div>
-            </RevealSection>
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">02</div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Paste your work history
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
+                      Add projects, certifications, metrics, and achievements into your permanent, private Data Bank.
+                    </p>
+                  </div>
 
-            <RevealSection className="proof-use-cases" id="your-work">
-              <div className="proof-use-intro">
-                <h2>Show how your work<br /><em>travels with you.</em></h2>
-                <p>A support specialist applying for a customer success role can bring forward relevant experience without changing the facts.</p>
-              </div>
-              <div className="proof-use-list" aria-label="Example: customer support specialist applying for customer success manager">
-                <div className="proof-scenario-heading"><span>Illustrative example</span><strong>Customer support → Customer success</strong></div>
-                <div className="proof-scenario-grid">
-                  <article className="proof-scenario-role">
-                    <span>What the role asks for</span>
-                    <h3>Customer Success Manager</h3>
-                    <p>Guide new accounts through setup, resolve recurring blockers, and bring customer feedback to the product team.</p>
-                  </article>
-                  <article className="proof-scenario-record">
-                    <span>Already in your Data Bank</span>
-                    <ul><li>Wrote a setup guide for new customers</li><li>Passed recurring onboarding issues to product</li></ul>
-                  </article>
-                  <article className="proof-scenario-draft">
-                    <span>Suggested resume line</span>
-                    <blockquote>Created onboarding resources and brought recurring customer setup issues to the product team.</blockquote>
-                    <small>Linked to two saved career records. Review or edit before saving.</small>
-                  </article>
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">03</div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Review every detail
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
+                      Inspect every suggested line, check evidence links to your saved bullets, and edit with zero AI override.
+                    </p>
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">04</div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Start with the job you want
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
+                      Paste any role description. Adaptive Resume dynamically maps the best verified bullets from your bank to the employer's needs.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Central Manifesto Banner */}
+                <div className="text-center pt-8 border-t border-white/15 max-w-4xl mx-auto space-y-3">
+                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                    Your work, shaped for this role.
+                  </h2>
+                  <p className="text-base sm:text-xl text-[#B2BEB5] font-semibold leading-relaxed">
+                    Keep the details once. Bring the right ones forward when a new opportunity comes along.
+                  </p>
                 </div>
               </div>
+            </section>
+
+            {/* Scroll-Triggered Carousel & Gallery */}
+            <div id="transformation-showcase">
+              <TransformationCarousel />
+            </div>
+
+            {/* How It Works 3-Step Section */}
+            <RevealSection className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24" id="how-it-works">
+              <div className="border-b-2 border-[#000052]/20 pb-8 mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-[#000052]/60">System Architecture</span>
+                  <h2 className="text-3xl sm:text-4xl font-extrabold text-[#000052] tracking-tight mt-1">
+                    Three steps to your targeted resume.
+                  </h2>
+                </div>
+                <p className="text-sm sm:text-base text-[#000052]/80 max-w-md font-medium">
+                  Designed for candidates who value precision, accuracy, and total control over their professional narrative.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <article className="bg-white p-7 rounded-2xl border-2 border-[#000052]/15 shadow-md flex flex-col justify-between">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-[#000052] text-white flex items-center justify-center font-bold mb-4 shadow-sm">
+                      <Upload className="w-5 h-5 text-[#B2BEB5]" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#000052] mb-2">1. Build your Data Bank</h3>
+                    <p className="text-sm text-[#000052]/80 leading-relaxed font-normal">
+                      Store your genuine work experience, education, publications, and projects in one organized vault. Import existing files in seconds.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-[#000052]/10">
+                    <SignUpButton mode="modal">
+                      <button className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#000052] hover:underline cursor-pointer">
+                        <span>Build your Data Bank</span>
+                        <MoveRight className="w-3.5 h-3.5" />
+                      </button>
+                    </SignUpButton>
+                  </div>
+                </article>
+
+                <article className="bg-white p-7 rounded-2xl border-2 border-[#000052]/15 shadow-md flex flex-col justify-between">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-[#000052] text-white flex items-center justify-center font-bold mb-4 shadow-sm">
+                      <Layers className="w-5 h-5 text-[#B2BEB5]" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#000052] mb-2">2. Match to the target role</h3>
+                    <p className="text-sm text-[#000052]/80 leading-relaxed font-normal">
+                      Paste the employer's job description. Our matching engine selects the most impactful career achievements that directly answer the job requirements.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-[#000052]/10">
+                    <SignUpButton mode="modal">
+                      <button className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#000052] hover:underline cursor-pointer">
+                        <span>Tailor a resume</span>
+                        <MoveRight className="w-3.5 h-3.5" />
+                      </button>
+                    </SignUpButton>
+                  </div>
+                </article>
+
+                <article className="bg-white p-7 rounded-2xl border-2 border-[#000052]/15 shadow-md flex flex-col justify-between">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-[#000052] text-white flex items-center justify-center font-bold mb-4 shadow-sm">
+                      <Eye className="w-5 h-5 text-[#B2BEB5]" />
+                    </div>
+                    <h3 className="text-xl font-bold text-[#000052] mb-2">3. Review and export</h3>
+                    <p className="text-sm text-[#000052]/80 leading-relaxed font-normal">
+                      Every generated bullet links back to an authentic entry in your Data Bank. Approve, tweak, or reject every suggestion before exporting clean ATS-ready PDF or text.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-[#000052]/10">
+                    <Link href="/privacy" className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#000052] hover:underline">
+                      <span>How data is safeguarded</span>
+                      <MoveRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </article>
+              </div>
             </RevealSection>
 
-            <RevealSection className="proof-privacy-band">
-              <div><h2>Your work is personal.<br />Your resume should be, too.</h2><p>Imported details wait for your review. Contact information stays private unless you choose to share a resume.</p></div>
-              <Link href="/privacy" className="proof-outline-link">Read the privacy policy <MoveRight size={16} /></Link>
+            {/* Privacy & Trust Band */}
+            <RevealSection className="w-full bg-[#000052] text-white py-14 px-4 sm:px-6 lg:px-8 border-y-2 border-[#000052]">
+              <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="space-y-2 text-left">
+                  <div className="inline-flex items-center gap-2 text-xs font-bold text-[#B2BEB5] uppercase tracking-wider">
+                    <ShieldCheck className="w-4 h-4 text-[#B2BEB5]" />
+                    <span>Privacy First Architecture</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                    Your career is personal. Your data stays yours.
+                  </h2>
+                  <p className="text-sm text-[#B2BEB5] max-w-xl font-normal">
+                    We never sell career data or train public models on your private documents. Contact details remain strictly private unless you export and send your resume.
+                  </p>
+                </div>
+                <Link
+                  href="/privacy"
+                  className="px-5 py-3 rounded-xl bg-white text-[#000052] hover:bg-[#B2BEB5] text-xs sm:text-sm font-extrabold transition-all duration-150 shadow-md whitespace-nowrap"
+                >
+                  Read privacy architecture →
+                </Link>
+              </div>
             </RevealSection>
 
-            <RevealSection className="proof-final-cta">
-              <h2>Ready to make your next resume?</h2>
-              <p>Start with a job description. Add your experience as you go.</p>
-              <SignUpButton mode="modal"><button className="proof-primary-button">Make a resume for this job <MoveRight size={17} /></button></SignUpButton>
+            {/* Final CTA Section */}
+            <RevealSection className="py-20 sm:py-28 px-4 text-center max-w-4xl mx-auto space-y-6">
+              <h2 className="text-3xl sm:text-5xl font-black text-[#000052] tracking-tight">
+                Ready to craft your next resume?
+              </h2>
+              <p className="text-base sm:text-lg text-[#000052]/80 font-semibold max-w-xl mx-auto">
+                Start with a target job description. Bring forward the work you have already accomplished.
+              </p>
+              <div className="pt-2">
+                <SignUpButton mode="modal">
+                  <button className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#000052] text-white text-base font-extrabold shadow-xl hover:bg-[#0A0A66] hover:scale-105 transition-all duration-150 cursor-pointer">
+                    <span>Make a resume for this job</span>
+                    <MoveRight className="w-5 h-5" />
+                  </button>
+                </SignUpButton>
+              </div>
             </RevealSection>
           </main>
 
-          <footer className="proof-public-footer">
-            <Link href="/" className="proof-brand"><span className="proof-brand-mark" aria-hidden="true"><span /></span><span>Adaptive <strong>Resume</strong></span></Link>
-            <span>Built around the work you’ve actually done.</span>
-            <Link href="/privacy">Privacy policy</Link>
+          {/* Footer */}
+          <footer className="border-t-2 border-[#000052]/20 py-8 px-4 sm:px-8 bg-[#B2BEB5] text-xs font-bold text-[#000052]">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded bg-[#000052] text-white flex items-center justify-center font-bold text-[10px]">
+                  A
+                </span>
+                <span>Adaptive Resume — Grounded in the work you have actually done.</span>
+              </div>
+              <div className="flex items-center gap-6">
+                <Link href="#how-it-works" className="hover:underline">
+                  How it works
+                </Link>
+                <Link href="/privacy" className="hover:underline">
+                  Privacy Policy
+                </Link>
+                <Link href="/lracs" className="hover:underline">
+                  Special
+                </Link>
+              </div>
+            </div>
           </footer>
         </div>
       </Show>

@@ -20,10 +20,14 @@ export async function POST(req: NextRequest) {
     const userId = await getAuthUserId(req);
 
     const apiKey = process.env.OCR_SPACE_API_KEY;
-    if (!apiKey) {
+    const hasOpenRouterParser = Boolean(
+      process.env.OPENROUTER_API_KEY_PARSER || process.env.OPENROUTER_API_KEY
+    );
+
+    if (!apiKey && !hasOpenRouterParser) {
       return apiError(
         "PROVIDER_UNAVAILABLE",
-        "OCR service is not configured. Please configure OCR_SPACE_API_KEY in environment variables.",
+        "Document parsing service is not configured. Please configure OPENROUTER_API_KEY_PARSER or OCR_SPACE_API_KEY in environment variables.",
         503
       );
     }
@@ -82,10 +86,56 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // If file is an image and OpenRouter vision model is available, attempt vision inference
+      if (file.type && file.type.startsWith("image/") && hasOpenRouterParser) {
+        try {
+          const { AiResumeParserService } = await import("@/lib/ai/services/aiResumeParserService");
+          const arrayBuffer = await file.arrayBuffer();
+          const base64Data = Buffer.from(arrayBuffer).toString("base64");
+          const visionResult = await AiResumeParserService.parseFromVisionImage(
+            base64Data,
+            file.type,
+            file.name
+          );
+
+          await db
+            .insert(auditEvents)
+            .values({
+              id: `audit_${crypto.randomUUID()}`,
+              userId,
+              action: "vision_resume_parsed",
+              resourceType: "resume_image",
+              metadataJson: {
+                itemCount: visionResult.stagedItems.length,
+                fileSize: processedFileSize,
+                userConsentGranted: true,
+                engine: visionResult.parserModel,
+                isVision: true,
+              },
+            })
+            .catch((err) => console.warn("Failed to record Vision audit event:", err));
+
+          return apiSuccess({
+            text: visionResult.structuredSections.map((s) => s.bullets.join("\n")).join("\n\n"),
+            lineCount: visionResult.structuredSections.length,
+            items: visionResult.stagedItems,
+            normalized: visionResult.normalized,
+            engine: visionResult.parserModel,
+            isVision: true,
+            thirdPartyNotice: "Processed securely via OpenRouter multimodal vision model. No Data Bank entries were automatically committed.",
+          });
+        } catch (visionErr: any) {
+          console.warn("Vision parsing failed, attempting OCR.space fallback:", visionErr.message);
+          if (!apiKey) {
+            throw visionErr;
+          }
+        }
+      }
+
       // Forward to OCR.space
       const ocrFormData = new FormData();
       ocrFormData.append("file", file, file.name);
-      ocrFormData.append("apikey", apiKey);
+      ocrFormData.append("apikey", apiKey || "");
       ocrFormData.append("language", "eng");
       ocrFormData.append("isOverlayRequired", "false");
       ocrFormData.append("detectOrientation", "true");
@@ -138,8 +188,35 @@ export async function POST(req: NextRequest) {
 
       processedFileSize = base64Image.length;
 
+      // Attempt OpenRouter vision parsing first if available
+      if (hasOpenRouterParser) {
+        try {
+          const { AiResumeParserService } = await import("@/lib/ai/services/aiResumeParserService");
+          const visionResult = await AiResumeParserService.parseFromVisionImage(
+            base64Image,
+            "image/png",
+            "Scanned Resume"
+          );
+
+          return apiSuccess({
+            text: visionResult.structuredSections.map((s) => s.bullets.join("\n")).join("\n\n"),
+            lineCount: visionResult.structuredSections.length,
+            items: visionResult.stagedItems,
+            normalized: visionResult.normalized,
+            engine: visionResult.parserModel,
+            isVision: true,
+            thirdPartyNotice: "Processed securely via OpenRouter multimodal vision model. No Data Bank entries were automatically committed.",
+          });
+        } catch (visionErr: any) {
+          console.warn("Vision parsing on base64 image failed, attempting OCR.space fallback:", visionErr.message);
+          if (!apiKey) {
+            throw visionErr;
+          }
+        }
+      }
+
       const ocrFormData = new FormData();
-      ocrFormData.append("apikey", apiKey);
+      ocrFormData.append("apikey", apiKey || "");
       ocrFormData.append("language", "eng");
       ocrFormData.append("isOverlayRequired", "false");
       ocrFormData.append("detectOrientation", "true");

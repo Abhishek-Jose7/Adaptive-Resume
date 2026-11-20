@@ -98,6 +98,12 @@ export interface RewrittenBullet {
   claimMap: RewrittenBulletClaim[];
   validatorStatus: "passed" | "rejected" | "not_applicable";
   validationNotes?: string[];
+  suggestedMetricQuestion?: string | null;
+  xyzStructure?: {
+    accomplishedX: string;
+    measuredByY: string | null;
+    byDoingZ: string;
+  } | null;
 }
 
 export interface MatchScoreDimension {

@@ -326,14 +326,23 @@ SUMMARY I am a third - year Computer Engineering student who likes building thin
       expect(profile).toBeDefined();
       expect(profile!.bullets[0]).toContain("Computer Engineering student");
 
+      const experiences = sections.filter((s) => s.entryType === "experience");
+      expect(experiences.length).toBeGreaterThanOrEqual(1);
+      // Ensure Cloud & Deployment was not swallowed into an experience role
+      expect(experiences.some((e) => e.title.includes("Cloud & Deployment"))).toBe(false);
+      expect(experiences.some((e) => e.title.includes("Technical Associate"))).toBe(true);
+
       const skillGroups = sections.filter((s) => s.entryType === "skill_group");
       expect(skillGroups.length).toBeGreaterThanOrEqual(4);
       expect(skillGroups.some((g) => g.title === "Cloud & Deployment")).toBe(true);
       expect(skillGroups.some((g) => g.title === "Databases & Tools")).toBe(true);
 
       const projects = sections.filter((s) => s.entryType === "project");
-      expect(projects.length).toBeGreaterThanOrEqual(2);
+      expect(projects.length).toBeGreaterThanOrEqual(3);
       expect(projects.some((p) => p.title.includes("Hangout"))).toBe(true);
+      expect(projects.some((p) => p.title.includes("Nyaaya AI"))).toBe(true);
+      expect(projects.some((p) => p.title.includes("Sponzy"))).toBe(true);
+      expect(projects.some((p) => p.title.includes("KrishiMitra AI"))).toBe(true);
 
       const education = sections.find((s) => s.entryType === "education");
       expect(education).toBeDefined();

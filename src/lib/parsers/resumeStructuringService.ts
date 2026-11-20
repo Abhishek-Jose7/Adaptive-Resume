@@ -102,15 +102,18 @@ export class ResumeStructuringService {
         structuredResults.push(...projEntries);
       } else if (/SKILL/i.test(heading)) {
         const datePattern = /(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(\b\d{4}\b)\s*(?:-|–|—|to)\s*(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(\b\d{4}\b|present|current)/i;
-        const hasDates = secLines.some((l) => datePattern.test(l));
-        if (hasDates) {
-          const expInSkills = this.parseExperienceBlocks(secLines);
-          if (expInSkills.length > 0) {
-            structuredResults.push(...expInSkills);
-          }
+        const dateLineIdx = secLines.findIndex((l) => datePattern.test(l));
+        if (dateLineIdx >= 0) {
+          const skillLines = secLines.slice(0, dateLineIdx);
+          const expLines = secLines.slice(dateLineIdx);
+          const skillEntries = this.parseSkillBlocks(skillLines);
+          structuredResults.push(...skillEntries);
+          const expInSkills = this.parseExperienceBlocks(expLines);
+          structuredResults.push(...expInSkills);
+        } else {
+          const skillEntries = this.parseSkillBlocks(secLines);
+          structuredResults.push(...skillEntries);
         }
-        const skillEntries = this.parseSkillBlocks(secLines);
-        structuredResults.push(...skillEntries);
       } else if (/CERTIF/i.test(heading)) {
         const certEntries = this.parseCertificationBlocks(secLines);
         structuredResults.push(...certEntries);
@@ -254,6 +257,14 @@ export class ResumeStructuringService {
       `(?:^|[\\.\\n\\r;|\\]\\[]|^|\\s{2,}|(?<=[a-z0-9]))\\s*\\b(${escapedSections.join("|")})\\b\\s*(?:[:—–-]|(?=[A-Z0-9]))`,
       "gi"
     );
+
+    // Decouple embedded roles with explicit dates (e.g. "Technical Associate , GDSC CRCE June 2025 - May 2026")
+    const roleWithDatePattern = /(?<=\s)(?:[A-Za-z0-9\s&+/.-]{0,25}?\s+)?\b(Technical\s+Associate|Technical\s+Lead|Technical\s+Intern|Software\s+Engineer|Frontend\s+Engineer|Backend\s+Engineer|Full\s*Stack\s+Engineer|Associate|Lead|Intern|Developer|Engineer|Manager|Architect|Consultant|Analyst|Director|Coordinator|President|Officer)\s*,\s*([A-Za-z0-9\s&.-]+?)\s+((?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?\b\d{4}\b\s*(?:-|–|—|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:\b\d{4}\b|present|current))\s*/gi;
+    cleaned = cleaned.replace(roleWithDatePattern, (match, role, org, dates) => {
+      return `\n\n===SECTION: PROFESSIONAL EXPERIENCE===\n${role.trim()} at ${org.trim()}\n${dates.trim()}\n`;
+    });
+
+    cleaned = cleaned.replace(/(?<=\.|\b\d{4}\b|\bpresent\b)\s+(?=(?:Organised|Built|Developed|Engineered|Coordinated|Led|Designed|Created|Implemented|Serving|Coordinating|Building)\b)/gi, "\n• ");
 
     cleaned = cleaned.replace(sectionRegex, (match, p1) => {
       return `\n\n===SECTION: ${p1.toUpperCase().trim()}===\n`;
@@ -503,22 +514,30 @@ export class ResumeStructuringService {
   private static parseProjectBlocks(lines: string[]): StructuredResumeSection[] {
     const results: StructuredResumeSection[] = [];
     const fullText = lines.join("\n");
-    // Split projects on title patterns: "Project Name — Subtitle" or "Project Name - Subtitle"
-    const projSegments = fullText.split(/\n(?=[A-Za-z0-9\s]{2,40}\s*(?:—|-)\s*[A-Za-z0-9\s]{2,40})/);
+    // Split projects on title patterns: "Project Name — Subtitle" or "Project Name - Subtitle", handling newline or sentence boundaries
+    const projSegments = fullText.split(/(?:^|\n|(?<=\.)\s+)(?=[A-Z][A-Za-z0-9\s]{2,40}\s*(?:—|-)\s*[A-Za-z0-9\s]{2,50})/);
 
     if (projSegments.length > 1 || (projSegments.length === 1 && (projSegments[0].includes("—") || projSegments[0].includes(" | ")))) {
       for (const segment of projSegments) {
         const segLines = segment.split("\n").map((l) => l.trim()).filter(Boolean);
         if (segLines.length === 0) continue;
 
-        let firstLine = segLines[0];
+        let firstLine = segLines[0].replace(/^(?:ADDITIONAL INFORMATION|PROJECTS|KEY PROJECTS)\s+/i, "");
         let title = firstLine;
         let techLine = "";
 
-        const pipeMatch = firstLine.match(/^(.+?)\s+((?:[A-Za-z0-9.]+\s*\|\s*)+[A-Za-z0-9.]+)$/);
-        if (pipeMatch) {
-          title = pipeMatch[1].trim();
-          techLine = pipeMatch[2].trim();
+        const pipeIdx = firstLine.indexOf("|");
+        if (pipeIdx > 0) {
+          const beforePipe = firstLine.substring(0, pipeIdx);
+          const afterPipe = firstLine.substring(pipeIdx);
+          const lastSpaceIdx = beforePipe.trimEnd().lastIndexOf(" ");
+          if (lastSpaceIdx > 0) {
+            title = beforePipe.substring(0, lastSpaceIdx).trim();
+            techLine = beforePipe.substring(lastSpaceIdx).trim() + " " + afterPipe.trim();
+          } else {
+            title = beforePipe.trim();
+            techLine = afterPipe.trim();
+          }
         }
 
         const bullets: string[] = [];
