@@ -511,10 +511,10 @@ body { caret-color: var(--color-accent); }
 .proof-brand-mark span { width: 9px; height: 9px; border: 0; border-radius: 2px; background: #B2BEB5; }
 .proof-nav { display: flex; align-items: center; gap: clamp(12px,1.9vw,28px); }
 .proof-nav-desktop { flex: 1; min-width: 0; }
-.proof-nav > a,.proof-more > summary { display: inline-flex; align-items: center; gap: 6px; padding: 10px 0; color: #B2BEB5; border: 0; background: transparent; font: 700 13px/1.2 var(--font-body); text-decoration: none; white-space: nowrap; cursor: pointer; transition: color .18s ease; }
-.proof-nav > a:hover,.proof-more > summary:hover { color: #FFFFFF; }
-.proof-nav > a[aria-current="page"],.proof-more.is-active > summary { color: #FFFFFF; }
-.proof-nav > a[aria-current="page"]::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #B2BEB5; margin-left: 2px; }
+.proof-nav > a,.proof-more > summary { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; color: #FFFFFF !important; border: 0; background: transparent; font: 700 13px/1.2 var(--font-body); text-decoration: none; white-space: nowrap; cursor: pointer; border-radius: 7px; transition: background .15s ease, color .15s ease; }
+.proof-nav > a:hover,.proof-more > summary:hover { color: #FFFFFF !important; background: rgba(255, 255, 255, 0.15); }
+.proof-nav > a[aria-current="page"],.proof-more.is-active > summary { color: #FFFFFF !important; background: rgba(255, 255, 255, 0.22); }
+.proof-nav > a[aria-current="page"]::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF; margin-left: 2px; }
 .proof-more { position: relative; }
 .proof-more > summary { list-style: none; }
 .proof-more > summary::-webkit-details-marker { display: none; }
@@ -1431,3 +1431,50 @@ body { caret-color: var(--color-accent); }
 .proof-reveal-visible.proof-privacy-band > *:last-child { transition-delay: 120ms; }
 .proof-reveal-visible.proof-final-cta > *:nth-child(2) { transition-delay: 80ms; }
 .proof-reveal-visible.proof-final-cta > *:nth-child(3) { transition-delay: 160ms; }
+
+/* Clerk Auth Modal Luxury Polish in Ash Gray (#B2BEB5) & Navy Blue (#000052) */
+.cl-modalBackdrop {
+  background-color: rgba(0, 0, 82, 0.65) !important;
+  backdrop-filter: blur(6px) !important;
+}
+.cl-card {
+  border: 2px solid #000052 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 82, 0.35) !important;
+  background-color: #FFFFFF !important;
+}
+.cl-headerTitle {
+  color: #000052 !important;
+  font-weight: 800 !important;
+  font-family: var(--font-display) !important;
+}
+.cl-headerSubtitle {
+  color: #0A0A66 !important;
+  font-weight: 600 !important;
+}
+.cl-formButtonPrimary {
+  background-color: #000052 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  transition: all 150ms ease !important;
+}
+.cl-formButtonPrimary:hover {
+  background-color: #0A0A66 !important;
+  transform: translateY(-1px);
+}
+.cl-socialButtonsBlockButton {
+  border: 1.5px solid rgba(0, 0, 82, 0.25) !important;
+  color: #000052 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+.cl-socialButtonsBlockButton:hover {
+  background-color: #E8ECE9 !important;
+  border-color: #000052 !important;
+}
+.cl-footerActionLink {
+  color: #000052 !important;
+  font-weight: 800 !important;
+}
+

@@ -20,14 +20,25 @@ import {
 import { UserButton, Show, SignInButton } from "@clerk/nextjs";
 import { DropdownMenu } from "radix-ui";
 
-const primaryItems = [
-  { label: "Data Bank", short: "Bank", href: "/bank", icon: Database },
-  { label: "Tailor a resume", short: "Tailor", href: "/jobs", icon: BriefcaseBusiness },
-  { label: "My resumes", short: "Resumes", href: "/resumes", icon: FileText },
-  { label: "Applications", short: "Applications", href: "/applications", icon: KanbanSquare },
+const allNavItems = [
+  { label: "Data Bank", href: "/bank", icon: Database },
+  { label: "Add experience", href: "/bank/intake", icon: Upload },
+  { label: "Tailor a resume", href: "/jobs", icon: BriefcaseBusiness },
+  { label: "My resumes", href: "/resumes", icon: FileText },
+  { label: "Applications", href: "/applications", icon: KanbanSquare },
+  { label: "Cover letters", href: "/cover-letters", icon: Mail },
+  { label: "AI settings", href: "/settings/providers", icon: SlidersHorizontal },
+  { label: "Profile", href: "/profile", icon: UserRound },
 ];
 
-const moreItems = [
+const mobilePrimary = [
+  { label: "Data Bank", short: "Bank", href: "/bank", icon: Database },
+  { label: "Tailor", short: "Tailor", href: "/jobs", icon: BriefcaseBusiness },
+  { label: "Resumes", short: "Resumes", href: "/resumes", icon: FileText },
+  { label: "Applications", short: "Apps", href: "/applications", icon: KanbanSquare },
+];
+
+const mobileMore = [
   { label: "Add experience", href: "/bank/intake", icon: Upload },
   { label: "Cover letters", href: "/cover-letters", icon: Mail },
   { label: "Profile", href: "/profile", icon: UserRound },
@@ -42,8 +53,8 @@ function isActive(pathname: string | null, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function MoreMenu({ pathname }: { pathname: string | null }) {
-  const active = moreItems.some((item) => isActive(pathname, item.href));
+function MobileMoreMenu({ pathname }: { pathname: string | null }) {
+  const active = mobileMore.some((item) => isActive(pathname, item.href));
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger className={`proof-more-trigger ${active ? "is-active" : ""}`} aria-label="More sections">
@@ -51,7 +62,7 @@ function MoreMenu({ pathname }: { pathname: string | null }) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="proof-more-menu" sideOffset={8} align="end">
-        {moreItems.map(({ label, href, icon: Icon }) => (
+        {mobileMore.map(({ label, href, icon: Icon }) => (
           <DropdownMenu.Item key={href} asChild>
             <Link href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
               <Icon size={16} strokeWidth={1.8} />
@@ -77,13 +88,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span>Adaptive <strong>Resume</strong></span>
           </Link>
 
-          <nav className="proof-nav proof-nav-desktop" aria-label="Main navigation">
-            {primaryItems.map(({ label, href }) => (
-              <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+          {/* Desktop Navigation: All links displayed directly with white text, no More dropdown */}
+          <nav className="proof-nav proof-nav-desktop flex items-center gap-1.5 flex-wrap" aria-label="Main navigation">
+            {allNavItems.map(({ label, href }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive(pathname, href) ? "page" : undefined}
+                className={`text-white font-bold hover:text-white hover:bg-white/15 px-2.5 py-1.5 rounded-lg transition-colors text-xs xl:text-sm ${
+                  isActive(pathname, href) ? "bg-white/20 text-white shadow-sm" : ""
+                }`}
+              >
                 {label}
               </Link>
             ))}
-            <MoreMenu pathname={pathname} />
           </nav>
 
           <div className="proof-header-actions">
@@ -97,13 +115,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        <nav className="proof-nav proof-nav-mobile" aria-label="Main navigation">
-          {primaryItems.map(({ label, short, href, icon: Icon }) => (
+        {/* Mobile Navigation */}
+        <nav className="proof-nav proof-nav-mobile" aria-label="Mobile navigation">
+          {mobilePrimary.map(({ short, href, icon: Icon }) => (
             <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
               <Icon size={16} strokeWidth={1.8} /><span>{short}</span>
             </Link>
           ))}
-          <MoreMenu pathname={pathname} />
+          <MobileMoreMenu pathname={pathname} />
         </nav>
       </header>
 

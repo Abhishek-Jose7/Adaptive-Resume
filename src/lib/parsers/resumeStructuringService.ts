@@ -130,16 +130,33 @@ export class ResumeStructuringService {
             });
           }
         }
-      } else if (/LANGUAGES/i.test(heading)) {
-        const langItems = secLines.join(" ").split(/[,|•·;]/).map((s) => s.trim()).filter(Boolean);
+      } else if (/SPOKEN\s*LANGUAGES/i.test(heading)) {
+        const langItems = secLines.join(" ").split(/[,|•·;]/).map((s) => s.trim().replace(/^[:•\-\*]\s*/, "")).filter(Boolean);
         if (langItems.length > 0) {
           structuredResults.push({
             entryType: "skill_group",
-            title: "Languages",
+            title: "Languages (Spoken)",
             bullets: langItems,
             confidence: 0.95,
             rawSnippet: secLines.join(", "),
           });
+        }
+      } else if (/LANGUAGES/i.test(heading)) {
+        const secText = secLines.join(" ");
+        if (/AI|GenAI|ML|Cloud|Databases|Backend|Frontend|Frameworks|Tools|React|Python|PostgreSQL|TypeScript/i.test(secText) && /(?:&|\||\/)/.test(secText)) {
+          const skillEntries = this.parseSkillBlocks(secLines);
+          structuredResults.push(...skillEntries);
+        } else {
+          const langItems = secLines.join(" ").split(/[,|•·;]/).map((s) => s.trim().replace(/^[:•\-\*]\s*/, "")).filter(Boolean);
+          if (langItems.length > 0) {
+            structuredResults.push({
+              entryType: "skill_group",
+              title: /english|hindi|spanish|french|german|mandarin/i.test(secText) ? "Languages (Spoken)" : "Languages",
+              bullets: langItems,
+              confidence: 0.95,
+              rawSnippet: secLines.join(", "),
+            });
+          }
         }
       } else if (/ADDITIONAL/i.test(heading)) {
         const addnText = secLines.join("\n");
@@ -210,8 +227,12 @@ export class ResumeStructuringService {
       .replace(/\bB\s*\.\s*E\s*\.\b/gi, "B.E.")
       .replace(/\bFr\s*\.\s*/gi, "Fr. ")
       .replace(/\bEmbeddin\s+gs\b/gi, "Embeddings")
-      .replace(/\bO\s+rganised\b/g, "Organised")
-      .replace(/\bD\s+eveloping\b/g, "Developing")
+      .replace(/\bO\s+rganised\b/gi, "Organised")
+      .replace(/\bD\s+eveloping\b/gi, "Developing")
+      .replace(/\bC\s+oordinating\b/gi, "Coordinating")
+      .replace(/\bB\s+uilding\b/gi, "Building")
+      .replace(/\bE\s+ngineered\b/gi, "Engineered")
+      .replace(/\bS\s+erving\b/gi, "Serving")
       .replace(/\bScikit\s*-\s*learn\b/gi, "Scikit-learn")
       .replace(/\bREST\s*APIs\b/gi, "REST APIs")
       .replace(/\bPrisma\s*ORM\b/gi, "Prisma ORM")
@@ -220,10 +241,35 @@ export class ResumeStructuringService {
       .replace(/\s+([.,;:])/g, "$1")
       .replace(/\s+-\s+/g, " - ");
 
+    // Clean whitespace around symbols & and |
+    cleaned = cleaned
+      .replace(/\s*&\s*/g, " & ")
+      .replace(/\s*\|\s*/g, " | ");
+
     // Auto-balance unclosed brackets in awards/certifications/hackathons: e.g. "[ Pixels Sies |" -> "[ Pixels Sies ] |"
     cleaned = cleaned.replace(/\[([^\]\n|;]+)(?=\s*(?:\||;|\n|$))/g, (match, p1) => `[ ${p1.trim()} ]`);
 
     cleaned = cleaned.replace(/\s*([•·▪●])\s*/g, "\n• ");
+
+    // Decouple embedded roles with explicit dates (e.g. "Technical Associate , GDSC CRCE June 2025 - May 2026")
+    const roleWithDatePattern = /(?<=\s)(?:[A-Za-z0-9\s&+/.-]{0,25}?\s+)?\b(Technical\s+Associate|Technical\s+Lead|Technical\s+Intern|Software\s+Engineer|Frontend\s+Engineer|Backend\s+Engineer|Full\s*Stack\s+Engineer|Associate|Lead|Intern|Developer|Engineer|Manager|Architect|Consultant|Analyst|Director|Coordinator|President|Officer)\s*,\s*([A-Za-z0-9\s&.-]+?)\s+((?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?\b\d{4}\b\s*(?:-|–|—|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:\b\d{4}\b|present|current))\s*/gi;
+    cleaned = cleaned.replace(roleWithDatePattern, (match, role, org, dates) => {
+      return `\n\n===SECTION: PROFESSIONAL EXPERIENCE===\n===ROLE: ${role.trim()} at ${org.trim()}===\n${dates.trim()}\n`;
+    });
+
+    // Decouple embedded roles even when dates appear at end of bullet block (e.g. "Technical Intern , FRCRCE Bandra Engineered an edge...")
+    const embeddedRolePattern = /(?:^|\.|\n|\s{2,})\s*\b(Technical\s+Intern|Technical\s+Lead|Technical\s+Associate|Software\s+Engineer|Frontend\s+Engineer|Backend\s+Engineer|Full\s*Stack\s+Engineer|Data\s+Scientist|ML\s+Engineer|DevOps\s+Engineer|Intern|Lead|Developer)\s*,\s*([A-Za-z0-9\s&.-]+?)(?=\s+(?:Engineered|Built|Developed|Organised|Coordinated|Serving|Led|Designed|Created|Implemented|\d{4}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Present|\n|•))/gi;
+    cleaned = cleaned.replace(embeddedRolePattern, (match, role, org) => {
+      return `\n\n===ROLE: ${role.trim()} at ${org.trim()}===\n• `;
+    });
+
+    // Also split before action verbs if preceded by period, date, or metric words
+    cleaned = cleaned.replace(/(?<=\.|\b\d{4}\b|\bpresent\b|teams|portal|club|activities)\s+(?=(?:Organised|Built|Developed|Engineered|Coordinating|Building|Serving|Coordinated|Led|Designed|Created|Implemented)\b)/gi, "\n• ");
+
+    // Handle spoken languages inline (e.g. "Languages: English, Hindi, Malayalam, Marathi")
+    cleaned = cleaned.replace(/(?:^|\n|\s{2,})\s*Languages\s*:\s*([A-Za-z\s,.]+?)(?=\s*(?:===|Certifications|Awards|Projects|\n|$))/gi, (match, langs) => {
+      return `\n\n===SECTION: SPOKEN LANGUAGES===\n${langs.trim()}\n`;
+    });
 
     const majorSections = [
       "PROFESSIONAL EXPERIENCE",
@@ -266,14 +312,6 @@ export class ResumeStructuringService {
       "gi"
     );
 
-    // Decouple embedded roles with explicit dates (e.g. "Technical Associate , GDSC CRCE June 2025 - May 2026")
-    const roleWithDatePattern = /(?<=\s)(?:[A-Za-z0-9\s&+/.-]{0,25}?\s+)?\b(Technical\s+Associate|Technical\s+Lead|Technical\s+Intern|Software\s+Engineer|Frontend\s+Engineer|Backend\s+Engineer|Full\s*Stack\s+Engineer|Associate|Lead|Intern|Developer|Engineer|Manager|Architect|Consultant|Analyst|Director|Coordinator|President|Officer)\s*,\s*([A-Za-z0-9\s&.-]+?)\s+((?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+)?\b\d{4}\b\s*(?:-|–|—|to)\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:\b\d{4}\b|present|current))\s*/gi;
-    cleaned = cleaned.replace(roleWithDatePattern, (match, role, org, dates) => {
-      return `\n\n===SECTION: PROFESSIONAL EXPERIENCE===\n${role.trim()} at ${org.trim()}\n${dates.trim()}\n`;
-    });
-
-    cleaned = cleaned.replace(/(?<=\.|\b\d{4}\b|\bpresent\b)\s+(?=(?:Organised|Built|Developed|Engineered|Coordinated|Led|Designed|Created|Implemented|Serving|Coordinating|Building)\b)/gi, "\n• ");
-
     cleaned = cleaned.replace(sectionRegex, (match, p1) => {
       return `\n\n===SECTION: ${p1.toUpperCase().trim()}===\n`;
     });
@@ -303,6 +341,20 @@ export class ResumeStructuringService {
       const isBullet = /^[•\-\*]\s+/.test(line);
       const dateMatch = line.match(datePattern);
 
+      const roleMarkerMatch = line.match(/^===ROLE:\s*(.+?)\s+at\s+(.+)===$/i);
+      if (roleMarkerMatch) {
+        if (currentRole && (currentRole.bullets.length > 0 || currentRole.startDate || currentRole.organization)) {
+          results.push(this.formatExperienceRole(currentRole));
+        }
+        currentRole = {
+          title: roleMarkerMatch[1].trim(),
+          organization: roleMarkerMatch[2].trim(),
+          bullets: [],
+          rawLines: [line],
+        };
+        continue;
+      }
+
       if (!isBullet) {
         if (/@|github\.com|linkedin\.com|\b\d{10}\b/.test(line)) {
           continue;
@@ -327,7 +379,7 @@ export class ResumeStructuringService {
           title = line.replace(datePattern, "").replace(/[,|·•-]\s*$/, "").trim();
         }
 
-        const separatorMatch = title.match(/^(.+?)\s+(?:at|@|\||,|-)\s+(.+)$/i);
+        const separatorMatch = title.match(/^(.+?)\s+(?:at|@|\||,|—|–)\s+(.+)$/i);
         if (separatorMatch) {
           title = separatorMatch[1].trim();
           org = separatorMatch[2].trim();
@@ -374,6 +426,22 @@ export class ResumeStructuringService {
     rawLines: string[];
   }): StructuredResumeSection {
     let finalBullets = role.bullets;
+    const datePattern = /(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(\b\d{4}\b)\s*(?:-|–|—|to)\s*(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(\b\d{4}\b|present|current)/i;
+
+    // If role has no date yet, check if any of the bullets contains a trailing date range like "July 2026 - Present"
+    if (!role.startDate) {
+      for (let b = finalBullets.length - 1; b >= 0; b--) {
+        const bulletDateMatch = finalBullets[b].match(datePattern);
+        if (bulletDateMatch) {
+          role.startDate = bulletDateMatch[2];
+          role.endDate = bulletDateMatch[4]?.toLowerCase() === "present" ? undefined : bulletDateMatch[4];
+          role.isCurrent = /present|current/i.test(bulletDateMatch[4] || "");
+          finalBullets[b] = finalBullets[b].replace(datePattern, "").replace(/[,—–-]\s*$/, "").trim();
+          break;
+        }
+      }
+    }
+
     if (finalBullets.length === 0) {
       const allText = role.rawLines.join(" ");
       const sentences = allText
@@ -392,7 +460,9 @@ export class ResumeStructuringService {
       .map((b) => {
         let cleaned = b
           .replace(/\b[A-Z\s]{4,30}\s+(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b.*$/i, "")
-          .replace(/(?:\|\s*)?(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:linkedin|github)\.com\S*).*$/i, "")
+          .replace(/(?:\|\s*)?(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:linkedin|github)\.com\S*|https?:\/\/\S*).*$/i, "")
+          .replace(datePattern, "")
+          .replace(/[,—–-]\s*$/, "")
           .trim();
         return cleaned;
       })
@@ -684,9 +754,18 @@ export class ResumeStructuringService {
 
     categoryKeywords.sort((a, b) => b.length - a.length);
 
-    let fullText = lines.join("\n");
+    let fullText = lines.join("\n")
+      .replace(/\s*&\s*/g, " & ")
+      .replace(/\s*\/\s*/g, " / ")
+      .replace(/\s*\|\s*/g, " | ")
+      .replace(/[ \t]{2,}/g, " ");
+
     for (const cat of categoryKeywords) {
-      const escaped = cat.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const escaped = cat
+        .replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&")
+        .replace(/\s*\\&\s*/g, "\\s*&\\s*")
+        .replace(/\s+/g, "\\s+");
+
       fullText = fullText.replace(
         new RegExp(`(^|\\n|[|;])\\s*(${escaped})\\s*(?::|(?=[A-Za-z0-9]))`, "gi"),
         `\n===CAT:$2===\n`
@@ -705,9 +784,18 @@ export class ResumeStructuringService {
         const category = pieces[i].trim();
         const rawSkills = pieces[i + 1]?.trim() || "";
         const cleanRaw = rawSkills.replace(/^[:—–-]\s*/, "");
-        const skillList = cleanRaw
-          .split(/[,|•·;\n]\s*|\s{2,}/)
-          .map((s) => s.trim().replace(/^[:•\-\*]\s*/, ""))
+
+        let rawItems: string[] = [];
+        if (cleanRaw.includes("|")) {
+          rawItems = cleanRaw.split(/\|/);
+        } else if (cleanRaw.includes(",") && !cleanRaw.includes("\n•")) {
+          rawItems = cleanRaw.split(/,/);
+        } else {
+          rawItems = cleanRaw.split(/[,|•·;\n]\s*|\s{2,}/);
+        }
+
+        const skillList = rawItems
+          .map((s) => s.replace(/\s*\n\s*/g, " ").replace(/[ \t]{2,}/g, " ").trim().replace(/^[:•\-\*]\s*/, ""))
           .filter((s) => s.length > 0 && !categoryKeywords.some((ck) => ck.toLowerCase() === s.toLowerCase()));
 
         if (skillList.length > 0) {
