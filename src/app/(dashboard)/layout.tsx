@@ -132,7 +132,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {children}
+        <main className="dash-content">
+          {children}
+        </main>
       </div>
     </div>
   );

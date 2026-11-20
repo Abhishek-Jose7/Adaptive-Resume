@@ -122,7 +122,7 @@ export function FigmaDashboardView() {
   const displayFacts = bankEntries.slice(0, 2);
 
   return (
-    <div className="dash-content">
+    <>
       {/* Welcome Card */}
       <div className="welcome-card">
         <div>
@@ -342,6 +342,6 @@ export function FigmaDashboardView() {
           )}
         </div>
       </section>
-    </div>
+    </>
   );
 }

@@ -237,11 +237,13 @@ export function FigmaLanding() {
 
       {/* Ticker Strip */}
       <section className="ticker" aria-label="Key benefits">
-        <div>
-          NO FAKE CLAIMS <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span>{" "}
-          EVERY BULLET HAS PROOF <span>✦</span> YOUR DATA, NEVER SOLD <span>✦</span> NO FAKE CLAIMS{" "}
-          <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span> EVERY BULLET HAS
-          PROOF <span>✦</span> YOUR DATA, NEVER SOLD
+        <div className="ticker-track">
+          <div className="ticker-group">
+            NO FAKE CLAIMS <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span> EVERY BULLET HAS PROOF <span>✦</span> YOUR DATA, NEVER SOLD <span>✦</span> NO FAKE CLAIMS <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span> EVERY BULLET HAS PROOF <span>✦</span> YOUR DATA, NEVER SOLD <span>✦</span>
+          </div>
+          <div className="ticker-group" aria-hidden="true">
+            NO FAKE CLAIMS <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span> EVERY BULLET HAS PROOF <span>✦</span> YOUR DATA, NEVER SOLD <span>✦</span> NO FAKE CLAIMS <span>✦</span> ATS-READY <span>✦</span> MADE FOR FRESHERS <span>✦</span> EVERY BULLET HAS PROOF <span>✦</span> YOUR DATA, NEVER SOLD <span>✦</span>
+          </div>
         </div>
       </section>
 

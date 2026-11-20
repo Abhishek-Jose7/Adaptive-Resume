@@ -117,68 +117,76 @@ export default function ProvidersSettingsPage() {
 
   return (
     <div>
-      <header className="mb-6 border-b border-rule pb-5">
-        <h2 className="font-display text-[26px] font-semibold leading-tight tracking-tightest">
+      <div className="mb-8 border-b border-[rgba(16,36,28,0.17)] pb-5">
+        <span className="font-mono text-[9px] uppercase tracking-wider text-[#10241c] opacity-60">
+          CONFIGURATION &amp; MODELS
+        </span>
+        <h2 className="mt-1 text-[28px] font-serif font-bold tracking-tight text-[#10241c]">
           AI settings
         </h2>
-        <p className="mt-1.5 max-w-[64ch] text-[13px] leading-relaxed text-graphite">
+        <p className="mt-1.5 max-w-[64ch] text-[13.5px] leading-relaxed text-[#536259]">
           Choose how resume suggestions are prepared. You can add your own AI service key, or use the built-in option.
         </p>
-      </header>
+      </div>
 
       {statusMessage && (
         <div
-          className={`mb-5 flex items-start gap-2 border px-3 py-2 text-[12.5px] ${
+          className={`mb-6 flex items-start gap-2.5 rounded border p-3.5 text-[13px] ${
             statusMessage.type === "success"
-              ? "border-press/30 bg-press-soft text-press"
-              : "border-alarm/35 bg-alarm-soft text-alarm"
+              ? "border-[#315849]/40 bg-[#dce5df] text-[#315849]"
+              : "border-red-300 bg-red-50 text-red-800"
           }`}
         >
           {statusMessage.type === "success" ? (
-            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           ) : (
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           )}
-          <span>{statusMessage.text}</span>
+          <span className="font-medium">{statusMessage.text}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <section className="panel lg:col-span-3">
-          <div className="panel-head">
-            <h3 className="panel-title">Stored keys</h3>
-            <span className="folio">{credentials.length} on file</span>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <section className="target-panel lg:col-span-7">
+          <div className="panel-title">
+            <div>
+              <span>ENCRYPTED VAULT</span>
+              <h3>Stored keys</h3>
+            </div>
+            <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded border border-[rgba(16,36,28,0.15)] bg-white text-[#10241c]">
+              {credentials.length} on file
+            </span>
           </div>
 
           {loading ? (
-            <p className="px-5 py-6 text-[13px] text-graphite">Reading the vault</p>
+            <p className="py-8 text-center text-[13px] text-[#536259]">Reading the vault...</p>
           ) : credentials.length === 0 ? (
-            <div className="px-5 py-8">
-              <p className="text-[13.5px] font-medium">Running on the local engine</p>
-              <p className="mt-1.5 max-w-[48ch] text-[13px] leading-relaxed text-graphite">
-                No key has been added. Tailoring still works: it uses the deterministic writer that only
-                re-orders facts you already recorded.
+            <div className="py-8 text-left">
+              <p className="text-[15px] font-bold text-[#10241c]">Running on the local engine</p>
+              <p className="mt-2 max-w-[50ch] text-[13px] leading-relaxed text-[#536259]">
+                No external API key has been added. Tailoring still works seamlessly: it uses our
+                truth-bound deterministic writer that selects and re-orders verified facts from your Career Vault.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-rule">
+            <ul className="divide-y divide-[rgba(16,36,28,0.12)]">
               {credentials.map((cred) => (
-                <li key={cred.id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <li key={cred.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[13.5px] font-semibold capitalize">{cred.provider}</span>
+                        <span className="text-[14px] font-bold capitalize text-[#10241c]">{cred.provider}</span>
                         <span
-                          className={`border px-1.5 py-0.5 font-mono text-[10px] ${
+                          className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold ${
                             cred.isValid
-                              ? "border-press/30 bg-press-soft text-press"
-                              : "border-marker/40 bg-marker-soft text-marker-dark"
+                              ? "bg-[#dce5df] text-[#315849] border border-[#315849]/30"
+                              : "bg-[#e2dcd2] text-[#10241c] border border-[rgba(16,36,28,0.2)]"
                           }`}
                         >
                           {cred.isValid ? "verified" : "unverified"}
                         </span>
                       </div>
-                      <p className="mt-1 font-mono text-[11.5px] text-graphite">
+                      <p className="mt-1 font-mono text-[11.5px] text-[#536259]">
                         ••••{cred.last4}
                         {cred.lastTestedAt
                           ? ` · tested ${new Date(cred.lastTestedAt).toLocaleDateString()}`
@@ -186,24 +194,24 @@ export default function ProvidersSettingsPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleTestCredential(cred.id)}
                         disabled={testingId === cred.id}
-                        className="btn btn-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded border border-[rgba(16,36,28,0.2)] bg-white text-[#10241c] hover:bg-[#eee9df] transition-colors"
                       >
                         <RefreshCw
-                          className={`h-3.5 w-3.5 ${testingId === cred.id ? "animate-spin" : ""}`}
-                          strokeWidth={1.8}
+                          className={`h-3 w-3 ${testingId === cred.id ? "animate-spin" : ""}`}
+                          strokeWidth={2}
                         />
                         Test
                       </button>
                       <button
                         onClick={() => handleDeleteCredential(cred.id)}
-                        className="btn btn-icon hover:text-alarm"
+                        className="p-1.5 text-[#536259] hover:text-red-700 transition-colors"
                         aria-label="Delete key"
                       >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                        <Trash2 className="h-4 w-4" strokeWidth={1.8} />
                       </button>
                     </div>
                   </div>
@@ -213,21 +221,23 @@ export default function ProvidersSettingsPage() {
           )}
         </section>
 
-        <section className="panel lg:col-span-2">
-          <div className="panel-head">
-            <h3 className="panel-title flex items-center gap-2">
-              <Plus className="h-3.5 w-3.5 text-stamp" strokeWidth={1.9} />
-              Add a key
-            </h3>
+        <section className="vault-panel lg:col-span-5">
+          <div className="panel-title">
+            <div>
+              <span>ADD CREDENTIAL</span>
+              <h3>Add a key</h3>
+            </div>
           </div>
 
-          <form onSubmit={handleSaveCredential} className="space-y-3.5 px-5 py-4">
+          <form onSubmit={handleSaveCredential} className="space-y-4">
             <div>
-              <label className="field-label">Provider</label>
+              <label className="block text-[11.5px] font-bold text-[#10241c] uppercase tracking-wide mb-1.5">
+                Provider
+              </label>
               <select
                 value={selectedProvider}
                 onChange={(e) => setSelectedProvider(e.target.value)}
-                className="select"
+                className="w-full h-10 px-3 text-[13px] rounded border border-[rgba(16,36,28,0.2)] bg-white text-[#10241c] focus:outline-none focus:border-[#a98452]"
               >
                 <option value="gemini">Google Gemini</option>
                 <option value="groq">Groq</option>
@@ -236,29 +246,31 @@ export default function ProvidersSettingsPage() {
             </div>
 
             <div>
-              <label className="field-label">API key</label>
+              <label className="block text-[11.5px] font-bold text-[#10241c] uppercase tracking-wide mb-1.5">
+                API key
+              </label>
               <input
                 type="password"
                 placeholder="Paste the key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 required
-                className="input font-mono"
+                className="w-full h-10 px-3 text-[13px] font-mono rounded border border-[rgba(16,36,28,0.2)] bg-white text-[#10241c] focus:outline-none focus:border-[#a98452]"
               />
             </div>
 
-            <p className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-graphite">
-              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-press" strokeWidth={1.8} />
-              Encrypted at rest. Never logged, never sent anywhere except the provider you chose.
+            <p className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-[#536259]">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#315849]" strokeWidth={2} />
+              Encrypted at rest with AES-256-GCM. Never logged, never shared.
             </p>
 
             <button
               type="submit"
               disabled={submitting || !apiKey.trim()}
-              className="btn btn-primary w-full"
+              className="w-full h-11 inline-flex items-center justify-center gap-2 rounded bg-[#10241c] text-[#eee9df] text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm hover:shadow-[3px_3px_0_#d8c49b]"
             >
               <Key className="h-4 w-4" strokeWidth={1.8} />
-              {submitting ? "Encrypting and storing" : "Save key"}
+              {submitting ? "Encrypting and storing..." : "Save key"}
             </button>
           </form>
         </section>
