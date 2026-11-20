@@ -31,8 +31,8 @@ export function TechnicalScholarTemplate({
       {/* Technical Header */}
       <header
         onClick={() => handleClick("profile")}
-        className={`border-b-2 border-emerald-600 pb-3 cursor-pointer ${
-          !readOnly ? "hover:bg-emerald-50/40 rounded p-1" : ""
+        className={`border-b-2 border-[#000052] pb-3 cursor-pointer ${
+          !readOnly ? "hover:bg-[#B2BEB5]/20 rounded p-1" : ""
         }`}
       >
         <div className="flex flex-col sm:flex-row justify-between items-baseline">
@@ -40,7 +40,7 @@ export function TechnicalScholarTemplate({
             {doc.profile.fullName || "Candidate Name"}
           </h1>
           {doc.profile.headline && (
-            <span className="text-xs font-semibold text-emerald-700 font-sans">
+            <span className="text-xs font-semibold text-[#000052] font-sans">
               {"// "}{doc.profile.headline}
             </span>
           )}
@@ -58,7 +58,7 @@ export function TechnicalScholarTemplate({
                   href={link.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:underline text-emerald-700"
+                  className="hover:underline text-[#000052]"
                 >
                   {link.label || link.url}
                 </a>
@@ -72,9 +72,9 @@ export function TechnicalScholarTemplate({
         <section
           onClick={() => handleClick("skills")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-emerald-50/40 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/20 rounded p-1" : ""}`}
         >
-          <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-800 font-sans border-b border-gray-200 pb-0.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] font-sans border-b border-gray-200 pb-0.5">
             01. Technical Skills & Architecture
           </h2>
           <div className="mt-1 text-xs text-gray-800">
@@ -87,7 +87,7 @@ export function TechnicalScholarTemplate({
       {/* Engineering Experience */}
       {doc.experience && doc.experience.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-800 font-sans border-b border-gray-200 pb-0.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] font-sans border-b border-gray-200 pb-0.5">
             02. Engineering & Research Experience
           </h2>
           <div className="space-y-3 mt-2">
@@ -95,7 +95,7 @@ export function TechnicalScholarTemplate({
               <div
                 key={exp.id}
                 onClick={() => handleClick("experience", exp.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-emerald-50/40 rounded p-1" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/20 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs">
                   <div>
@@ -123,7 +123,7 @@ export function TechnicalScholarTemplate({
       {/* Projects & Systems */}
       {doc.projects && doc.projects.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-800 font-sans border-b border-gray-200 pb-0.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] font-sans border-b border-gray-200 pb-0.5">
             03. Systems & Open-Source Projects
           </h2>
           <div className="space-y-2 mt-2">
@@ -131,7 +131,7 @@ export function TechnicalScholarTemplate({
               <div
                 key={proj.id}
                 onClick={() => handleClick("projects", proj.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-emerald-50/40 rounded p-1" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/20 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-gray-900 font-sans">
                   <span>{proj.name}</span>
@@ -140,7 +140,7 @@ export function TechnicalScholarTemplate({
                       href={proj.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[11px] font-normal text-emerald-700 hover:underline font-mono"
+                      className="text-[11px] font-normal text-[#000052] hover:underline font-mono"
                     >
                       {proj.url}
                     </a>
@@ -163,7 +163,7 @@ export function TechnicalScholarTemplate({
       {/* Education */}
       {doc.education && doc.education.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-800 font-sans border-b border-gray-200 pb-0.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] font-sans border-b border-gray-200 pb-0.5">
             04. Education & Research Foundations
           </h2>
           <div className="space-y-1.5 mt-1.5 font-sans">
@@ -172,7 +172,7 @@ export function TechnicalScholarTemplate({
                 key={edu.id}
                 onClick={() => handleClick("education", edu.id)}
                 className={`flex justify-between items-baseline text-xs cursor-pointer ${
-                  !readOnly ? "hover:bg-emerald-50/40 rounded p-1" : ""
+                  !readOnly ? "hover:bg-[#B2BEB5]/20 rounded p-1" : ""
                 }`}
               >
                 <div>

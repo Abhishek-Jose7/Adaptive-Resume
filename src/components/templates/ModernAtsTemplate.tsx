@@ -31,8 +31,8 @@ export function ModernAtsTemplate({
       {/* Modern Header */}
       <header
         onClick={() => handleClick("profile")}
-        className={`border-b-2 border-indigo-600 pb-3 cursor-pointer ${
-          !readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""
+        className={`border-b-2 border-[#000052] pb-3 cursor-pointer ${
+          !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
@@ -40,7 +40,7 @@ export function ModernAtsTemplate({
             {doc.profile.fullName || "Your Full Name"}
           </h1>
           {doc.profile.headline && (
-            <span className="text-sm font-semibold text-indigo-700">{doc.profile.headline}</span>
+            <span className="text-sm font-semibold text-[#000052]">{doc.profile.headline}</span>
           )}
         </div>
 
@@ -56,7 +56,7 @@ export function ModernAtsTemplate({
                   href={link.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:underline text-indigo-600"
+                  className="hover:underline text-[#000052] font-semibold"
                 >
                   {link.label || link.url}
                 </a>
@@ -70,11 +70,11 @@ export function ModernAtsTemplate({
         <section
           onClick={() => handleClick("profile")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
         >
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Summary</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <p className="mt-1 text-xs text-gray-700 leading-relaxed">{doc.profile.summary}</p>
         </section>
@@ -83,21 +83,21 @@ export function ModernAtsTemplate({
       {/* Experience */}
       {doc.experience && doc.experience.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Experience</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <div className="space-y-3 mt-2">
             {doc.experience.map((exp) => (
               <div
                 key={exp.id}
                 onClick={() => handleClick("experience", exp.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs">
                   <div>
                     <span className="font-bold text-gray-900">{exp.position}</span>
-                    <span className="text-indigo-700 font-semibold"> • {exp.company}</span>
+                    <span className="text-[#000052] font-semibold"> • {exp.company}</span>
                   </div>
                   <span className="text-[11px] font-medium text-gray-500">
                     {exp.startDate} – {exp.isCurrent ? "Present" : exp.endDate || "Present"}
@@ -121,9 +121,9 @@ export function ModernAtsTemplate({
       {/* Education */}
       {doc.education && doc.education.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Education</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <div className="space-y-2 mt-2">
             {doc.education.map((edu) => (
@@ -131,7 +131,7 @@ export function ModernAtsTemplate({
                 key={edu.id}
                 onClick={() => handleClick("education", edu.id)}
                 className={`flex justify-between items-baseline text-xs cursor-pointer ${
-                  !readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""
+                  !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""
                 }`}
               >
                 <div>
@@ -151,16 +151,16 @@ export function ModernAtsTemplate({
       {/* Projects */}
       {doc.projects && doc.projects.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Key Projects</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <div className="space-y-2 mt-2">
             {doc.projects.map((proj) => (
               <div
                 key={proj.id}
                 onClick={() => handleClick("projects", proj.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-gray-900">
                   <span>
@@ -172,7 +172,7 @@ export function ModernAtsTemplate({
                       href={proj.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[11px] font-normal text-indigo-600 hover:underline"
+                      className="text-[11px] font-normal text-[#000052] hover:underline"
                     >
                       {proj.url}
                     </a>
@@ -197,17 +197,17 @@ export function ModernAtsTemplate({
         <section
           onClick={() => handleClick("skills")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
         >
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Core Competencies & Skills</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             {doc.skills.map((s, idx) => (
               <span
                 key={idx}
-                className="bg-gray-100 text-gray-800 text-[11px] font-medium px-2 py-0.5 rounded border border-gray-200"
+                className="bg-[#B2BEB5]/20 text-[#000052] text-[11px] font-semibold px-2 py-0.5 rounded border border-[#000052]/20"
               >
                 {s.name}
               </span>
@@ -221,11 +221,11 @@ export function ModernAtsTemplate({
         <section
           onClick={() => handleClick("certifications")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-indigo-50/40 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
         >
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#000052] flex items-center gap-2">
             <span>Certifications</span>
-            <span className="flex-1 border-b border-indigo-100" />
+            <span className="flex-1 border-b border-[#B2BEB5]" />
           </h2>
           <ul className="list-disc pl-4 mt-1 space-y-0.5 text-xs text-gray-700">
             {doc.certifications.map((c) => (

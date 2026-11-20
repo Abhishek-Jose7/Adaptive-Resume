@@ -218,64 +218,45 @@ export default function LandingPage() {
               </div>
             </section>
 
-            {/* Large Bold Editorial Feature Callouts (Replacing Old Marquee Strip) */}
+            {/* Large Bold Editorial Typography (Directly on Ash Gray, No Boxed Strip) */}
             <section
-              className="w-full bg-[#000052] text-white py-16 sm:py-20 px-4 sm:px-6 lg:px-8 border-y-4 border-[#B2BEB5]"
-              aria-label="Core Workflow Principles"
+              className="w-full py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto"
+              aria-label="Workflow Principles"
             >
-              <div className="max-w-6xl mx-auto space-y-12">
-                {/* 4 Step Statements */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">01</div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                      Upload your resume
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
-                      Intake any PDF, DOCX, or text file. Our deterministic parser automatically parses your authentic history into discrete, verified units.
-                    </p>
-                  </div>
-
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">02</div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <div className="space-y-10 sm:space-y-14">
+                {/* 4 sequential bold statements */}
+                <div className="space-y-4 sm:space-y-6">
+                  <RevealSection>
+                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#000052] tracking-tight leading-tight">
+                      Load your resume
+                    </h2>
+                  </RevealSection>
+                  <RevealSection>
+                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#000052] tracking-tight leading-tight">
                       Paste your work history
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
-                      Add projects, certifications, metrics, and achievements into your permanent, private Data Bank.
-                    </p>
-                  </div>
-
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">03</div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    </h2>
+                  </RevealSection>
+                  <RevealSection>
+                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#000052] tracking-tight leading-tight">
                       Review every detail
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
-                      Inspect every suggested line, check evidence links to your saved bullets, and edit with zero AI override.
-                    </p>
-                  </div>
-
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="text-3xl font-black text-[#B2BEB5] mb-2">04</div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    </h2>
+                  </RevealSection>
+                  <RevealSection>
+                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#000052] tracking-tight leading-tight">
                       Start with the job you want
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#B2BEB5] mt-2 font-medium">
-                      Paste any role description. Adaptive Resume dynamically maps the best verified bullets from your bank to the employer's needs.
-                    </p>
-                  </div>
+                    </h2>
+                  </RevealSection>
                 </div>
 
-                {/* Central Manifesto Banner */}
-                <div className="text-center pt-8 border-t border-white/15 max-w-4xl mx-auto space-y-3">
-                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                {/* Central Manifesto */}
+                <RevealSection className="pt-10 sm:pt-14 border-t-2 border-[#000052]/20 space-y-4">
+                  <h3 className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#000052] tracking-tight leading-[1.05]">
                     Your work, shaped for this role.
-                  </h2>
-                  <p className="text-base sm:text-xl text-[#B2BEB5] font-semibold leading-relaxed">
+                  </h3>
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#000052]/80 leading-relaxed max-w-4xl">
                     Keep the details once. Bring the right ones forward when a new opportunity comes along.
                   </p>
-                </div>
+                </RevealSection>
               </div>
             </section>
 

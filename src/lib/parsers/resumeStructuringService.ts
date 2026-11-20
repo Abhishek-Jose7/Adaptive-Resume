@@ -212,8 +212,16 @@ export class ResumeStructuringService {
       .replace(/\bEmbeddin\s+gs\b/gi, "Embeddings")
       .replace(/\bO\s+rganised\b/g, "Organised")
       .replace(/\bD\s+eveloping\b/g, "Developing")
+      .replace(/\bScikit\s*-\s*learn\b/gi, "Scikit-learn")
+      .replace(/\bREST\s*APIs\b/gi, "REST APIs")
+      .replace(/\bPrisma\s*ORM\b/gi, "Prisma ORM")
+      .replace(/\bHTML\s*\/\s*CSS\b/gi, "HTML / CSS")
+      .replace(/\bAI\s*\/\s*ML\b/gi, "AI / ML")
       .replace(/\s+([.,;:])/g, "$1")
       .replace(/\s+-\s+/g, " - ");
+
+    // Auto-balance unclosed brackets in awards/certifications/hackathons: e.g. "[ Pixels Sies |" -> "[ Pixels Sies ] |"
+    cleaned = cleaned.replace(/\[([^\]\n|;]+)(?=\s*(?:\||;|\n|$))/g, (match, p1) => `[ ${p1.trim()} ]`);
 
     cleaned = cleaned.replace(/\s*([•·▪●])\s*/g, "\n• ");
 
@@ -379,6 +387,22 @@ export class ResumeStructuringService {
       }
     }
 
+    // Clean trailing contact information leakage from bullets (e.g. repeated page headers: "ABHISHEK JOSE 7738969557 | abhishekjose780@gmail.com")
+    finalBullets = finalBullets
+      .map((b) => {
+        let cleaned = b
+          .replace(/\b[A-Z\s]{4,30}\s+(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b.*$/i, "")
+          .replace(/(?:\|\s*)?(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:linkedin|github)\.com\S*).*$/i, "")
+          .trim();
+        return cleaned;
+      })
+      .filter((b) => {
+        if (!b || b.length < 3) return false;
+        // Filter out if the entire bullet was purely contact details
+        if (/@|github\.com|linkedin\.com|\b\d{10}\b/.test(b) && b.length < 50) return false;
+        return true;
+      });
+
     return {
       entryType: "experience",
       title: role.title,
@@ -386,7 +410,7 @@ export class ResumeStructuringService {
       startDate: role.startDate || null,
       endDate: role.endDate || null,
       isCurrent: role.isCurrent || false,
-      bullets: finalBullets,
+      bullets: finalBullets.length > 0 ? finalBullets : [role.title],
       confidence: 0.9,
       rawSnippet: role.rawLines.join("\n").substring(0, 300),
     };
@@ -608,88 +632,124 @@ export class ResumeStructuringService {
    * Parses skills into groups
    */
   private static parseSkillBlocks(lines: string[]): StructuredResumeSection[] {
-    const hasColons = lines.some((l) => l.includes(":"));
-
-    if (hasColons) {
-      const results: StructuredResumeSection[] = [];
-      for (const line of lines) {
-        const parts = line.split(/:\s*/);
-        if (parts.length > 1) {
-          const category = parts[0].replace(/^[•\-\*]\s*/, "");
-          const skillList = parts[1].split(/[,|•·;]\s*/).map((s) => s.trim()).filter(Boolean);
-
-          results.push({
-            entryType: "skill_group",
-            title: category,
-            bullets: skillList,
-            confidence: 0.95,
-            rawSnippet: line,
-          });
-        } else {
-          const skillList = line.split(/[,|•·;]\s*/).map((s) => s.trim()).filter(Boolean);
-          results.push({
-            entryType: "skill_group",
-            title: "Technical Skills",
-            bullets: skillList,
-            confidence: 0.88,
-            rawSnippet: line,
-          });
-        }
-      }
-      return results;
-    }
-
-    // Continuous inline categories without colons
-    const fullText = lines.join("\n");
     const categoryKeywords = [
       "Cloud & Deployment",
+      "Cloud & Infrastructure",
+      "Cloud Infrastructure",
+      "Cloud Computing",
+      "Cloud Platforms",
       "Databases & Tools",
+      "Databases & Technologies",
+      "Databases & Storage",
+      "Databases",
+      "Database Systems",
+      "Programming Languages",
+      "Languages & Frameworks",
+      "Languages & Tools",
       "Languages",
       "AI & GenAI",
+      "AI / GenAI",
+      "AI & Machine Learning",
+      "AI & ML",
       "ML & Computer Vision",
+      "Machine Learning & CV",
+      "Machine Learning & Computer Vision",
       "Web & Backend",
+      "Web & Frontend",
+      "Web Technologies",
+      "Frontend & Backend",
+      "Full Stack Development",
+      "Web Development",
+      "Frontend Technologies",
+      "Backend Technologies",
       "Frontend",
       "Backend",
+      "DevOps & CI/CD",
+      "DevOps & Cloud",
       "DevOps",
       "Frameworks & Libraries",
+      "Frameworks & Tools",
       "Frameworks",
       "Libraries",
       "Tools & Technologies",
+      "Tools & Frameworks",
+      "Tools & Platforms",
+      "Developer Tools",
       "Tools",
       "Platforms",
-      "Core Competencies"
+      "Methodologies & Practices",
+      "Core Competencies",
+      "Soft Skills"
     ];
 
     categoryKeywords.sort((a, b) => b.length - a.length);
-    const catRegex = new RegExp(`\\b(${categoryKeywords.map((k) => k.replace(/&/g, "&")).join("|")})\\b`, "gi");
 
-    if (catRegex.test(fullText)) {
-      const marked = fullText.replace(catRegex, "\n===CAT: $1===\n");
-      const pieces = marked.split(/===CAT:\s*([^=]+)===/);
+    let fullText = lines.join("\n");
+    for (const cat of categoryKeywords) {
+      const escaped = cat.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
+      fullText = fullText.replace(
+        new RegExp(`(^|\\n|[|;])\\s*(${escaped})\\s*(?::|(?=[A-Za-z0-9]))`, "gi"),
+        `\n===CAT:$2===\n`
+      );
+      fullText = fullText.replace(
+        new RegExp(`(?<=[A-Za-z0-9+/.)\\]])\\s+(${escaped})\\s*(?::|(?=[A-Za-z0-9]))`, "gi"),
+        `\n===CAT:$1===\n`
+      );
+    }
 
-      const results: StructuredResumeSection[] = [];
+    const pieces = fullText.split(/===CAT:\s*([^=]+)===/);
+    const results: StructuredResumeSection[] = [];
+
+    if (pieces.length > 1) {
       for (let i = 1; i < pieces.length; i += 2) {
         const category = pieces[i].trim();
         const rawSkills = pieces[i + 1]?.trim() || "";
-        const skills = rawSkills
-          .split(/[|,\n•·;]/)
-          .map((s) => s.trim())
+        const cleanRaw = rawSkills.replace(/^[:—–-]\s*/, "");
+        const skillList = cleanRaw
+          .split(/[,|•·;\n]\s*|\s{2,}/)
+          .map((s) => s.trim().replace(/^[:•\-\*]\s*/, ""))
           .filter((s) => s.length > 0 && !categoryKeywords.some((ck) => ck.toLowerCase() === s.toLowerCase()));
 
-        if (skills.length > 0) {
+        if (skillList.length > 0) {
           results.push({
             entryType: "skill_group",
             title: category,
-            bullets: skills,
+            bullets: skillList,
             confidence: 0.95,
-            rawSnippet: `${category}: ${skills.join(", ")}`,
+            rawSnippet: `${category}: ${skillList.join(", ")}`,
           });
         }
       }
       if (results.length > 0) return results;
     }
 
-    return [{
+    for (const line of lines) {
+      const parts = line.split(/:\s*/);
+      if (parts.length > 1) {
+        const cat = parts[0].replace(/^[•\-\*]\s*/, "").trim();
+        const skills = parts[1].split(/[,|•·;]\s*/).map((s) => s.trim()).filter(Boolean);
+        results.push({
+          entryType: "skill_group",
+          title: cat || "Technical Skills",
+          bullets: skills,
+          confidence: 0.9,
+          rawSnippet: line,
+        });
+      } else {
+        const skills = line.split(/[,|•·;]\s*/).map((s) => s.trim()).filter(Boolean);
+        if (skills.length > 0) {
+          results.push({
+            entryType: "skill_group",
+            title: "Technical Skills",
+            bullets: skills,
+            confidence: 0.85,
+            rawSnippet: line,
+          });
+        }
+      }
+    }
+
+    return results.length > 0 ? results : [{
       entryType: "skill_group",
       title: "Technical Skills",
       bullets: lines.join(" ").split(/[,|•·;]\s*/).map((s) => s.trim()).filter(Boolean),
@@ -744,3 +804,58 @@ export class ResumeStructuringService {
     }));
   }
 }
+
+export interface SkillCategoryMapping {
+  category: string;
+  skills: string[];
+}
+
+/**
+ * Classifies a flat list of skills into coherent, canonical skill categories
+ * for clean UI presentation, filtering, and ATS optimization.
+ */
+export function classifySkills(skills: string[]): SkillCategoryMapping[] {
+  const categories: Record<string, string[]> = {
+    "Languages": [],
+    "AI & GenAI": [],
+    "Machine Learning & CV": [],
+    "Web & Backend": [],
+    "Databases & Tools": [],
+    "Cloud & DevOps": [],
+    "Other Skills": [],
+  };
+
+  const rules: { regex: RegExp; category: string }[] = [
+    { regex: /^(?:python|javascript|typescript|c|c\+\+|c#|java|dart|sql|go|golang|rust|ruby|php|swift|kotlin|html|css|html5|css3|bash|shell|r|matlab|scala|perl|elixir)$/i, category: "Languages" },
+    { regex: /^(?:generative\s+ai|genai|llm[s]?|rag|ai\s+agents|embeddings?|prompt\s+engineering|nlp|ocr|langchain|llamaindex|openai|anthropic|claude|gemini|fine[- ]tuning|vector\s*db|pinecone|chromadb|weaviate|faiss|ai\s+automation)$/i, category: "AI & GenAI" },
+    { regex: /^(?:tensorflow|pytorch|scikit[- ]learn|pandas|numpy|opencv|mediapipe|object\s+detection|keras|matplotlib|seaborn|deep\s+learning|computer\s+vision|machine\s+learning|xgboost|lightgbm)$/i, category: "Machine Learning & CV" },
+    { regex: /^(?:react|react\.js|next\.js|node\.js|express|express\.js|flask|django|fastapi|spring\s+boot|asp\.net|graphql|rest\s+api[s]?|tailwind\s+css|prisma(?:\s+orm)?|hibernate|vue|angular|redux|zustand)$/i, category: "Web & Backend" },
+    { regex: /^(?:postgresql|postgres|sqlite|mysql|mongodb|redis|git|github|gitlab|playwright|selenium|postman|jira|supabase|firebase|vite|webpack)$/i, category: "Databases & Tools" },
+    { regex: /^(?:cloudflare\s+workers|cloudflare\s+d1|cloudflare|vercel|wrangler|aws|azure|gcp|google\s+cloud|docker|kubernetes|k8s|ci\/cd|terraform|linux|nginx)$/i, category: "Cloud & DevOps" },
+  ];
+
+  for (const s of skills) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+    let matched = false;
+    for (const rule of rules) {
+      if (rule.regex.test(trimmed)) {
+        if (!categories[rule.category].includes(trimmed)) {
+          categories[rule.category].push(trimmed);
+        }
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      if (!categories["Other Skills"].includes(trimmed)) {
+        categories["Other Skills"].push(trimmed);
+      }
+    }
+  }
+
+  return Object.entries(categories)
+    .filter(([_, list]) => list.length > 0)
+    .map(([category, list]) => ({ category, skills: list }));
+}
+

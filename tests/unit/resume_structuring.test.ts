@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
+import { ResumeStructuringService, classifySkills } from "@/lib/parsers/resumeStructuringService";
 import { LocalDeterministicAdapter } from "@/lib/ai/adapters/localDeterministicAdapter";
 import { GitHubImportService } from "@/lib/services/githubImportService";
 import { ResumeDocStore } from "@/lib/editor/resumeDocStore";
@@ -65,7 +65,6 @@ AWS Certified Solutions Architect - Professional (2023)
     it("should parse experience roles, dates, and atomic bullets", () => {
       const sections = ResumeStructuringService.structureResumeText(sampleResumeText, "Test Resume");
       const experiences = sections.filter((s) => s.entryType === "experience");
-
       expect(experiences.length).toBe(2);
       expect(experiences[0].title).toContain("Staff Systems Architect");
       expect(experiences[0].bullets.length).toBe(3);
@@ -152,7 +151,6 @@ AWS Certified Solutions Architect - Professional (2023)
     it("should parse skill groups into categories and skill lists", () => {
       const sections = ResumeStructuringService.structureResumeText(sampleResumeText, "Test Resume");
       const skillGroups = sections.filter((s) => s.entryType === "skill_group");
-
       expect(skillGroups.length).toBeGreaterThanOrEqual(2);
       const languages = skillGroups.find((g) => g.title.toLowerCase().includes("languages"));
       expect(languages).toBeDefined();
@@ -336,6 +334,36 @@ SUMMARY I am a third - year Computer Engineering student who likes building thin
       expect(skillGroups.length).toBeGreaterThanOrEqual(4);
       expect(skillGroups.some((g) => g.title === "Cloud & Deployment")).toBe(true);
       expect(skillGroups.some((g) => g.title === "Databases & Tools")).toBe(true);
+      expect(skillGroups.some((g) => g.title === "Languages")).toBe(true);
+      expect(skillGroups.some((g) => g.title === "AI & GenAI")).toBe(true);
+      expect(skillGroups.some((g) => g.title === "ML & Computer Vision")).toBe(true);
+      expect(skillGroups.some((g) => g.title === "Web & Backend")).toBe(true);
+
+      // Verify that glued skills were decoupled cleanly
+      const langGroup = skillGroups.find((g) => g.title === "Languages");
+      expect(langGroup).toBeDefined();
+      expect(langGroup!.bullets).toContain("Python");
+      expect(langGroup!.bullets).toContain("HTML / CSS");
+      // Must not contain glued categories or glued skills
+      expect(langGroup!.bullets.some((b) => b.includes("AI & GenAI"))).toBe(false);
+
+      const aiGroup = skillGroups.find((g) => g.title === "AI & GenAI");
+      expect(aiGroup).toBeDefined();
+      expect(aiGroup!.bullets).toContain("Generative AI");
+      expect(aiGroup!.bullets).toContain("AI Automation");
+      expect(aiGroup!.bullets.some((b) => b.includes("ML & Computer Vision"))).toBe(false);
+
+      const mlGroup = skillGroups.find((g) => g.title === "ML & Computer Vision");
+      expect(mlGroup).toBeDefined();
+      expect(mlGroup!.bullets).toContain("TensorFlow");
+      expect(mlGroup!.bullets).toContain("Object Detection");
+      expect(mlGroup!.bullets.some((b) => b.includes("Web & Backend"))).toBe(false);
+
+      const webGroup = skillGroups.find((g) => g.title === "Web & Backend");
+      expect(webGroup).toBeDefined();
+      expect(webGroup!.bullets).toContain("React");
+      expect(webGroup!.bullets).toContain("Next.js");
+      expect(webGroup!.bullets).toContain("Tailwind CSS");
 
       const projects = sections.filter((s) => s.entryType === "project");
       expect(projects.length).toBeGreaterThanOrEqual(3);
@@ -348,5 +376,69 @@ SUMMARY I am a third - year Computer Engineering student who likes building thin
       expect(education).toBeDefined();
       expect(education!.organization).toContain("Fr. Conceicao Rodrigues");
     });
+
+    it("should strip trailing contact info leakage from experience bullets", () => {
+      const resumeWithContactLeak = `
+WORK EXPERIENCE
+Software Engineer at Acme Corp
+Jan 2022 - Present
+• Built high-performance microservices serving 10M requests daily. ABHISHEK JOSE 7738969557 | abhishekjose780@gmail.com
+• Optimized database queries by 30%. github.com/test-user | linkedin.com/in/test
+`;
+      const sections = ResumeStructuringService.structureResumeText(resumeWithContactLeak, "Leak Test");
+      const exp = sections.find((s) => s.entryType === "experience");
+      expect(exp).toBeDefined();
+      expect(exp!.bullets[0]).toBe("Built high-performance microservices serving 10M requests daily.");
+      expect(exp!.bullets[1]).toBe("Optimized database queries by 30%.");
+    });
+
+    it("should auto-balance unclosed brackets in awards and hackathons", () => {
+      const text = `
+AWARDS & ACTIVITIES
+• 2x Hackathon Winner [ PKP Hacks ] | [ Pixels Sies
+• Winner of National Coding Challenge [ TechFest 2024
+`;
+      const sections = ResumeStructuringService.structureResumeText(text, "Awards Test");
+      const awards = sections.filter((s) => s.entryType === "award");
+      expect(awards.length).toBeGreaterThanOrEqual(1);
+      const combined = awards.map((a) => a.title).join(" ");
+      expect(combined).toContain("[ Pixels Sies ]");
+      expect(combined).toContain("[ TechFest 2024 ]");
+    });
+
+    it("should classify a flat list of skills into canonical categories", () => {
+      const rawSkills = [
+        "Python", "TypeScript", "React", "Next.js", "Docker", "AWS", "PostgreSQL",
+        "Generative AI", "RAG", "TensorFlow", "Pandas", "Git", "Playwright"
+      ];
+      const classified = classifySkills(rawSkills);
+      expect(classified.length).toBeGreaterThanOrEqual(5);
+
+      const languages = classified.find((c) => c.category === "Languages");
+      expect(languages?.skills).toContain("Python");
+      expect(languages?.skills).toContain("TypeScript");
+
+      const ai = classified.find((c) => c.category === "AI & GenAI");
+      expect(ai?.skills).toContain("Generative AI");
+      expect(ai?.skills).toContain("RAG");
+
+      const ml = classified.find((c) => c.category === "Machine Learning & CV");
+      expect(ml?.skills).toContain("TensorFlow");
+      expect(ml?.skills).toContain("Pandas");
+
+      const web = classified.find((c) => c.category === "Web & Backend");
+      expect(web?.skills).toContain("React");
+      expect(web?.skills).toContain("Next.js");
+
+      const cloud = classified.find((c) => c.category === "Cloud & DevOps");
+      expect(cloud?.skills).toContain("Docker");
+      expect(cloud?.skills).toContain("AWS");
+
+      const db = classified.find((c) => c.category === "Databases & Tools");
+      expect(db?.skills).toContain("PostgreSQL");
+      expect(db?.skills).toContain("Git");
+      expect(db?.skills).toContain("Playwright");
+    });
   });
 });
+

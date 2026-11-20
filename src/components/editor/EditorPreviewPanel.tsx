@@ -140,6 +140,8 @@ export function EditorPreviewPanel({
               <option value="modern-ats">Modern ATS</option>
               <option value="minimal-executive">Minimal Executive</option>
               <option value="technical-scholar">Technical Scholar</option>
+              <option value="luxurious-grid">Luxurious Grid (2-Column)</option>
+              <option value="compact-engineer">Compact Engineer</option>
             </select>
 
             <button

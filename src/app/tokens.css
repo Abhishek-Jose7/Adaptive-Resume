@@ -47,8 +47,8 @@
   --color-sheet: #FFFFFF;
   --color-ink: #000052;
   --color-ink-2: #0A0A66;
-  --color-muted: #3B4740;
-  --color-rule: #8F9D93;
+  --color-muted: #0A0A66;
+  --color-rule: rgba(0, 0, 82, 0.2);
   --color-rule-2: #000052;
   --color-accent: #000052;
   --color-accent-hover: #0A0A66;
@@ -60,7 +60,7 @@
   --color-warning-soft: #EFE4D2;
   --color-danger: #991B1B;
   --color-danger-soft: #FDE8E8;
-  --color-blue-soft: #DFE3F0;
+  --color-blue-soft: #D5DED8;
   --color-proof: #000052;
   --color-seaglass: #D5DED8;
   --color-chalk: #FFFFFF;

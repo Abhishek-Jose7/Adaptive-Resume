@@ -1,8 +1,4 @@
-"use client";
-
 import React from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 const ASCII_ART = `=========-:.     .........::-=+********###**+**+=:.      .:-=====++**#####*+--=*##############%%%%%%
 =======-:           .........::-=+***####*+-..:.        ........::-=+****#*=-=+*###########%%%%%%%%@
@@ -35,38 +31,16 @@ const ASCII_ART = `=========-:.     .........::-=+********###**+**+=:.      .:-=
 ......:-==:.        ......        ...           ..::::::.                 .:-+*+-.
 ......:-=-::. ..... .....          .             ...:::....               .:=+*#*+-.
 ......:-====--:::........                          .........              .:+***#***+=-::.
-......:-==--==--:.......                               ...::               .=+*#*****####*+-..
+......:-==--==--:.......                               ...::               .=+*#*****####*+-.
 .....::--------::.......                                ..:-=:             .-+****+*##**####*=.
 ......:-------::...                                    ..:=++++=--:.      ..-=+*++*##########**+=.`;
 
 export default function LracsPage() {
   return (
-    <div className="min-h-screen bg-[#07090D] text-zinc-300 flex flex-col justify-between selection:bg-zinc-800 selection:text-white p-4 sm:p-8">
-      {/* Top minimal header */}
-      <header className="max-w-5xl mx-auto w-full flex items-center justify-between pb-4 border-b border-zinc-900">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-200 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back</span>
-        </Link>
-        <span className="text-xs font-mono tracking-widest text-zinc-600 uppercase">
-          ASCII
-        </span>
-      </header>
-
-      {/* Centered clean ASCII portrait */}
-      <main className="flex-1 flex items-center justify-center py-8 overflow-x-auto">
-        <pre className="font-mono text-zinc-200 leading-[1.08] text-[7px] xs:text-[9px] sm:text-[11px] md:text-[13px] lg:text-[14px] whitespace-pre select-all text-center">
-          {ASCII_ART}
-        </pre>
-      </main>
-
-      {/* Clean subtle footer */}
-      <footer className="max-w-5xl mx-auto w-full text-center text-xs text-zinc-600 pt-4 border-t border-zinc-900">
-        <span>lracs</span>
-      </footer>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <pre className="font-mono text-[7px] xs:text-[9px] sm:text-[11px] md:text-[12px] leading-tight whitespace-pre select-all text-center">
+        {ASCII_ART}
+      </pre>
     </div>
   );
 }
