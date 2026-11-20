@@ -16,6 +16,7 @@ const navItems: Array<{
   { label: "Career Vault", href: "/bank", icon: "bank", badge: true },
   { label: "Target a job", href: "/jobs", icon: "target" },
   { label: "My resumes", href: "/resumes", icon: "file" },
+  { label: "Profile", href: "/profile", icon: "user" },
 ];
 
 function isRouteActive(pathname: string | null, href: string) {
@@ -102,12 +103,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           </div>
 
-          <Link href="/">
-            <FigmaIcon name="chevron" size={17} />
-            <span>View landing page</span>
-          </Link>
           <Link href="/settings/providers">
-            <FigmaIcon name="user" size={17} />
+            <FigmaIcon name="lock" size={17} />
             <span>Settings</span>
           </Link>
         </div>

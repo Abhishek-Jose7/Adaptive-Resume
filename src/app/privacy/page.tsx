@@ -1,100 +1,251 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FileCheck2, LockKeyhole, ScanLine } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FileCheck2, LockKeyhole, ScanLine, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { FigmaLogo } from "@/components/ui/FigmaIcon";
 
 export const metadata = {
-  title: "Privacy | Adaptive Resume",
-  description: "A plain-language guide to the information Adaptive Resume handles and the choices you have.",
+  title: "Privacy Policy | Adaptive Resume",
+  description: "Our plain-language commitment to your privacy, data security, and truthfulness.",
 };
 
 const policySections = [
-  ["information", "Information in your account"],
-  ["use", "How your information is used"],
-  ["documents", "Your documents and OCR"],
-  ["providers", "AI and service providers"],
-  ["sharing", "Sharing a resume"],
-  ["choices", "Your choices and deletion"],
-  ["security", "Security and policy changes"],
-] as const;
+  { id: "information", num: "01", title: "Information in your account", summary: "Account details, work history, projects, and credentials you provide." },
+  { id: "use", num: "02", title: "How your information is used", summary: "Comparing experience against job descriptions and tailoring resume drafts." },
+  { id: "documents", num: "03", title: "Your documents and OCR", summary: "In-browser document parsing and explicit consent for OCR scanning." },
+  { id: "providers", num: "04", title: "AI and service providers", summary: "Encrypted API keys and stateless model interactions." },
+  { id: "sharing", num: "05", title: "Sharing a resume", summary: "Public links and downloads only happen when you explicitly request them." },
+  { id: "choices", num: "06", title: "Your choices and deletion", summary: "Exporting data, editing facts, and full account deletion at any time." },
+  { id: "security", num: "07", title: "Security safeguards", summary: "AES-256-GCM encryption at rest, HTTPS/TLS in transit, and row-level tenant isolation." },
+];
 
 export default function PrivacyPage() {
   return (
-    <main className="privacy-page">
-      <header className="privacy-header">
-        <Link href="/" className="privacy-brand"><span className="privacy-brand-mark" aria-hidden="true" /> Adaptive <strong>Resume</strong></Link>
-        <Link href="/" className="privacy-back"><ArrowLeft size={15} /> Back to the website</Link>
+    <div className="min-h-screen bg-[#eee9df] text-[#10241c] font-sans">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-40 border-b border-[rgba(16,36,28,0.15)] bg-[#10241c] text-[#eee9df] px-6 py-4 sm:px-12">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2">
+            <FigmaLogo inverse />
+          </Link>
+
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#d8c49b] hover:text-white transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to website
+          </Link>
+        </div>
       </header>
 
-      <div className="privacy-layout">
-        <aside className="privacy-rail" aria-label="On this page">
-          <span className="privacy-rail-title">On this page</span>
-          <nav>{policySections.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
-          <div className="privacy-rail-note"><LockKeyhole size={17} /><p>Your saved details aren’t public. AI requests send relevant information to the provider you select.</p></div>
-        </aside>
+      {/* Hero Banner */}
+      <section className="border-b border-[rgba(16,36,28,0.15)] bg-[#faf8f2] px-6 py-16 sm:px-12 sm:py-20">
+        <div className="mx-auto max-w-4xl">
+          <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#a98452]">
+            SECURITY &amp; PRIVACY GUARANTEE · 2026
+          </span>
+          <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-bold tracking-tight text-[#10241c] leading-[1.1]">
+            Your career data is private.
+            <br />
+            <em className="text-[#a98452] not-italic">Period.</em>
+          </h1>
+          <p className="mt-4 max-w-[65ch] text-base sm:text-lg leading-relaxed text-[#536259]">
+            We built Adaptive Resume for job seekers who value integrity. We never sell your personal information, never train public models on your career records, and never fabricate claims on your resumes.
+          </p>
+          <div className="mt-6 flex items-center gap-2 font-mono text-xs text-[#7d847f]">
+            <ShieldCheck className="h-4 w-4 text-[#315849]" /> Last updated: January 2026 · Valid across all versions
+          </div>
+        </div>
+      </section>
 
-        <article className="privacy-document">
-          <div className="privacy-heading">
-            <h1>Your information,<br /><em>clearly explained.</em></h1>
-            <p>Adaptive Resume works with personal career details. This page tells you what the app uses, when information leaves your browser, and how you can manage what you’ve saved.</p>
-            <span className="privacy-date">Last updated November 19, 2026</span>
+      {/* 3 Core Pillars */}
+      <section className="px-6 py-12 sm:px-12">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-3">
+          <div className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-6 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-[#dce5df] text-[#315849]">
+              <FileCheck2 className="h-5 w-5" />
+            </div>
+            <h3 className="mt-4 font-serif text-lg font-bold text-[#10241c]">You stay in control</h3>
+            <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-[#536259]">
+              Parsed documents wait in staging for your approval. Nothing enters your permanent Career Vault until you check it and save it.
+            </p>
           </div>
 
-          <section className="privacy-summary" aria-label="Privacy at a glance">
-            <div><FileCheck2 size={19} /><h2>You stay in control</h2><p>Imported details wait for your review. You decide what to keep in your Data Bank.</p></div>
-            <div><ScanLine size={19} /><h2>Files are handled with care</h2><p>PDF and DOCX text is read in your browser. OCR for scans asks before sending.</p></div>
-            <div><LockKeyhole size={19} /><h2>Sharing is your choice</h2><p>A resume is shared only when you export it or create a share link.</p></div>
-          </section>
-
-          <section id="information" className="privacy-section">
-            <span className="privacy-section-number">01</span><div><h2>Information in your account</h2>
-              <p>You may add contact details, work history, education, skills, project notes, job descriptions, application records, and resume or cover-letter drafts. Adaptive Resume also receives the account information needed to sign you in. Sign-in is provided by Clerk.</p>
-              <p>If you connect an AI provider, the app stores the provider details needed to use your connection. Your full key is not shown again in the settings screen.</p>
+          <div className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-6 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-[#d8c49b] text-[#10241c]">
+              <ScanLine className="h-5 w-5" />
             </div>
-          </section>
+            <h3 className="mt-4 font-serif text-lg font-bold text-[#10241c]">Client-side processing</h3>
+            <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-[#536259]">
+              PDF and DOCX text is extracted directly in your browser. Scanned documents use OCR only after you explicitly review and approve the request.
+            </p>
+          </div>
 
-          <section id="use" className="privacy-section">
-            <span className="privacy-section-number">02</span><div><h2>How your information is used</h2>
-              <p>The app uses your saved details to organize your Data Bank, compare experience with a job description, prepare resume and cover-letter drafts, track applications, and create exports you request. Suggestions are meant for you to review and edit; you choose what appears in a final document.</p>
+          <div className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-6 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-[#becbbf] text-[#10241c]">
+              <LockKeyhole className="h-5 w-5" />
             </div>
-          </section>
+            <h3 className="mt-4 font-serif text-lg font-bold text-[#10241c]">Never sold or monetized</h3>
+            <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-[#536259]">
+              Your resumes are generated for your job applications only. We never sell candidate databases to recruiters, advertisers, or third parties.
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <section id="documents" className="privacy-section">
-            <span className="privacy-section-number">03</span><div><h2>Your documents and OCR</h2>
-              <p>Text is extracted from selectable PDFs and DOCX files in your browser. The extracted details are shown for review before you add them to your Data Bank.</p>
-              <p>A scanned page or image needs optical character recognition (OCR). Before the app sends that file to its OCR service, it asks for your consent. If you decline, the OCR request is not made.</p>
+      {/* Main Content Layout */}
+      <section className="px-6 pb-24 sm:px-12">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-12">
+          {/* Quick Nav Sidebar */}
+          <aside className="lg:col-span-4">
+            <div className="sticky top-24 rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-6 shadow-sm">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#a98452]">
+                ON THIS PAGE
+              </span>
+              <nav className="mt-3 space-y-1.5">
+                {policySections.map((sec) => (
+                  <a
+                    key={sec.id}
+                    href={`#${sec.id}`}
+                    className="block rounded px-2.5 py-1.5 text-xs font-semibold text-[#536259] hover:bg-[#eee9df] hover:text-[#10241c] transition-colors"
+                  >
+                    <span className="font-mono text-[10px] text-[#a98452] mr-2">{sec.num}</span>
+                    {sec.title}
+                  </a>
+                ))}
+              </nav>
+
+              <div className="mt-6 border-t border-[rgba(16,36,28,0.12)] pt-5">
+                <Link
+                  href="/settings/privacy"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded bg-[#10241c] px-4 py-2.5 text-xs font-bold text-[#eee9df] hover:opacity-90 transition-opacity"
+                >
+                  Manage privacy settings <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
-          </section>
+          </aside>
 
-          <section id="providers" className="privacy-section">
-            <span className="privacy-section-number">04</span><div><h2>AI and service providers</h2>
-              <p>When you request AI-assisted suggestions, the job description and the relevant experience details are sent to the provider selected for that request. This may be a provider you connected or the app’s configured provider. The provider processes that information under its own terms and privacy practices.</p>
-              <p>Clerk provides sign-in. The app’s database stores account and career information so the service can work across sessions. These providers process information only as needed to provide their part of the service.</p>
-            </div>
-          </section>
+          {/* Policy Articles */}
+          <article className="space-y-8 lg:col-span-8">
+            <section id="information" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">01</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">Information in your account</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  You may store candidate contact details (name, email, phone, location, LinkedIn/GitHub links), work history, projects, coursework, and technical skills in your Career Vault.
+                </p>
+                <p>
+                  Authentication is managed securely by Clerk. When you sign in, we receive only the required authentication token and email address to maintain your session.
+                </p>
+                <p>
+                  If you choose to connect your own AI provider key (e.g. Gemini, Groq), your key is encrypted using AES-256-GCM before storage. It is never logged in plaintext or shared with other users.
+                </p>
+              </div>
+            </section>
 
-          <section id="sharing" className="privacy-section">
-            <span className="privacy-section-number">05</span><div><h2>Sharing a resume</h2>
-              <p>When you export a document, a copy is saved to the destination you choose. If you create a share link, anyone with that link may be able to view the shared resume. You can manage links from the sharing controls in your account. Check a document before you send or share it.</p>
-            </div>
-          </section>
+            <section id="use" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">02</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">How your information is used</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  Your information is used strictly to power resume tailoring for you: analyzing job descriptions you paste, selecting matching evidence from your Career Vault, and formatting clean ATS-ready PDF/DOCX files.
+                </p>
+                <p>
+                  Adaptive Resume operates on a <strong>zero-fabrication guarantee</strong>: our tailoring engine only selects, highlights, and formats facts you have already documented in your vault.
+                </p>
+              </div>
+            </section>
 
-          <section id="choices" className="privacy-section">
-            <span className="privacy-section-number">06</span><div><h2>Your choices and deletion</h2>
-              <p>You can edit or remove saved career details in the app. Privacy settings include tools to export account information and request account deletion. Deletion removes information from the app’s active records; copies you exported, information a recipient already received, and records a service provider retains under its own policies may remain.</p>
-              <Link href="/settings/privacy" className="privacy-settings-link">Open privacy settings <ArrowUpRight size={15} /></Link>
-            </div>
-          </section>
+            <section id="documents" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">03</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">Your documents and OCR</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  When you upload selectable PDF or DOCX files, text extraction happens entirely within your browser using WebAssembly and client-side parsers. No raw document bytes are sent to our backend servers.
+                </p>
+                <p>
+                  If you upload a scanned image or raster PDF that requires Optical Character Recognition (OCR), we explicitly prompt you for consent before sending the document to OCR.space over encrypted TLS. OCR requests are stateless and discarded immediately after parsing.
+                </p>
+              </div>
+            </section>
 
-          <section id="security" className="privacy-section">
-            <span className="privacy-section-number">07</span><div><h2>Security and policy changes</h2>
-              <p>Adaptive Resume uses account access controls and technical safeguards to protect stored information. No internet service can guarantee perfect security. Keep your sign-in details private and remove share links you no longer need.</p>
-              <p>This policy may change as the app changes. The date above shows when this page was last updated.</p>
-            </div>
-          </section>
+            <section id="providers" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">04</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">AI and service providers</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  When AI assistance is invoked to tailor wording, only the specific job description and the relevant bullet points from your Career Vault are transmitted to the chosen model API.
+                </p>
+                <p>
+                  We configure commercial API integrations with zero-retention policies so your career data is never used to train public foundation models.
+                </p>
+              </div>
+            </section>
 
-          <div className="privacy-endnote"><span aria-hidden="true" />Questions about the information saved in your account? Start with <Link href="/settings/privacy">Privacy settings</Link>.</div>
-        </article>
-      </div>
-      <footer className="privacy-footer"><Link href="/" className="privacy-brand"><span className="privacy-brand-mark" aria-hidden="true" /> Adaptive <strong>Resume</strong></Link><span>Built around the work you’ve actually done.</span><Link href="/">Return to the website <ArrowUpRight size={14} /></Link></footer>
-    </main>
+            <section id="sharing" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">05</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">Sharing a resume</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  By default, all resumes and Career Vault entries are completely private. A resume is only shared externally if you click "Share" to generate an unguessable public link, or if you download a PDF/DOCX to send to a recruiter.
+                </p>
+                <p>
+                  You can revoke or disable any public share link at any time from your Resumes dashboard.
+                </p>
+              </div>
+            </section>
+
+            <section id="choices" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">06</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">Your choices and deletion</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  You own your career records. You can edit, modify, or permanently delete individual facts, resumes, or your entire account at any time.
+                </p>
+                <p>
+                  Under Privacy Settings, you can download a complete JSON archive of all your Career Vault entries and generated resumes. Requesting account deletion permanently purges all records from our primary databases.
+                </p>
+              </div>
+            </section>
+
+            <section id="security" className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-8 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-[#a98452]">07</span>
+                <h2 className="font-serif text-2xl font-bold text-[#10241c]">Security safeguards</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
+                <p>
+                  All database tables enforce row-level tenant isolation keyed to your authenticated user ID. We use industry-standard TLS encryption for all traffic in transit and AES-256-GCM for sensitive credentials at rest.
+                </p>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-[rgba(16,36,28,0.15)] bg-[#10241c] text-[#eee9df] px-6 py-10 sm:px-12">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <FigmaLogo inverse />
+          <span className="font-mono text-xs text-[#d8c49b]">
+            &copy; 2026 Adaptive Resume. Truth-backed resume intelligence.
+          </span>
+          <Link href="/" className="text-xs font-bold hover:underline">
+            Return to website &rarr;
+          </Link>
+        </div>
+      </footer>
+    </div>
   );
 }

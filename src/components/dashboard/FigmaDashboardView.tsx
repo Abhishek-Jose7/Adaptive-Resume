@@ -231,7 +231,7 @@ export function FigmaDashboardView() {
             </div>
             <Link
               href="/bank/intake"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded bg-[#eee9df] text-[#10241c] hover:bg-[#e2dcd2]"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-bold rounded bg-[#eee9df] text-[#10241c] hover:bg-[#e2dcd2]"
             >
               <FigmaIcon name="plus" size={15} /> Add fact
             </Link>
@@ -280,7 +280,7 @@ export function FigmaDashboardView() {
             ))
           ) : (
             <div className="py-5 text-center">
-              <p className="text-xs text-[#536259]">
+              <p className="text-[13.5px] text-[#536259]">
                 Your vault is empty. Click <strong>Add fact</strong> above to import your resume.
               </p>
             </div>
@@ -301,7 +301,7 @@ export function FigmaDashboardView() {
           </div>
           <Link
             href="/resumes"
-            className="inline-flex items-center gap-2 text-[10px] font-bold text-[#10241c] hover:text-[#a98452]"
+            className="inline-flex items-center gap-2 text-[13px] font-bold text-[#10241c] hover:text-[#a98452]"
           >
             View all <FigmaIcon name="arrow" size={16} />
           </Link>
@@ -334,7 +334,7 @@ export function FigmaDashboardView() {
             ))
           ) : (
             <div className="py-7 text-center border-t border-[rgba(16,36,28,0.17)]">
-              <p className="text-xs text-[#536259]">
+              <p className="text-[13.5px] text-[#536259]">
                 No tailored resumes yet. Paste a job description above to generate your first
                 truth-backed resume.
               </p>
