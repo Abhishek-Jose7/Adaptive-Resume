@@ -306,84 +306,65 @@ export function ResumeSheet({
 }) {
   const role = roles[roleIndex] || roles[0];
 
-  if (compact) {
-    return (
-      <div className="resume-sheet compact">
-        <div className="resume-top">
-          <div>
-            <strong>ARJUN MEHTA</strong>
-            <span className="resume-subtitle">B.Tech CSE · Pune, India</span>
-          </div>
-          <span className="match-pill" style={{ background: role.color }}>
-            {role.match}% match
-          </span>
-        </div>
-        <div className="resume-rule" />
-        <div className="target-banner">
-          <span>{role.targetBanner}</span>
-        </div>
-        <div className="resume-section">
-          <span className="section-title">WORK EXPERIENCE</span>
-          <div className="entry-item">
-            <div className="entry-header">
-              <h4>
-                {role.experience[0].title} · <span>{role.experience[0].company}</span>
-              </h4>
-              <span className="entry-meta">{role.experience[0].period}</span>
-            </div>
-            <ul className="entry-bullets">
-              <li>
-                <HighlightedText
-                  text={role.experience[0].bullets[0].text}
-                  keywords={role.experience[0].bullets[0].keywords}
-                />
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="resume-section">
-          <span className="section-title">KEY PROJECT</span>
-          <div className="entry-item">
-            <div className="entry-header">
-              <h4>
-                {role.projects[0].title} · <span>{role.projects[0].type}</span>
-              </h4>
-            </div>
-            <ul className="entry-bullets">
-              <li>
-                <HighlightedText
-                  text={role.projects[0].bullets[0].text}
-                  keywords={role.projects[0].bullets[0].keywords}
-                />
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="resume-section">
-          <span className="section-title">TARGET SKILLS</span>
-          <div className="sheet-skills">
-            {role.skills.slice(0, 5).map((skill) => (
-              <span key={skill}>{skill}</span>
-            ))}
-          </div>
-        </div>
-        <div className="evidence-note">
-          <span>
-            <FigmaIcon name="shield" size={13} /> Verified by Career Vault
-          </span>
-          <span>0 unverified claims</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="resume-sheet">
+    <div className={`resume-sheet ${compact ? "compact" : ""}`}>
       <div className="resume-top">
         <div>
           <strong>ARJUN MEHTA</strong>
-          <span className="resume-subtitle">Software Engineer · B.Tech Computer Science (2026)</span>
-          <div className="resume-contact-bar">
+          <span>B.Tech CSE · Pune, India</span>
+        </div>
+        <span className="match-pill" style={{ background: role.color }}>
+          {role.match}% match
+        </span>
+      </div>
+      <div className="resume-rule" />
+      <p className="resume-role">
+        TARGET · {role.label.toUpperCase()} @ {role.company.toUpperCase()}
+      </p>
+      <section>
+        <b>EXPERIENCE &amp; PROJECTS</b>
+        <h4>
+          {role.experience[0].title} <span>{role.experience[0].company}</span>
+        </h4>
+        <p>
+          <HighlightedText
+            text={role.experience[0].bullets[0].text}
+            keywords={role.experience[0].bullets[0].keywords}
+          />
+        </p>
+        <p>
+          <HighlightedText
+            text={role.projects[0].bullets[0].text}
+            keywords={role.projects[0].bullets[0].keywords}
+          />
+        </p>
+      </section>
+      <section>
+        <b>TARGET SKILLS</b>
+        <div className="sheet-skills">
+          {role.skills.slice(0, 5).map((skill) => (
+            <span key={skill}>{skill}</span>
+          ))}
+        </div>
+      </section>
+      <div className="evidence-note">
+        <FigmaIcon name="shield" size={13} />
+        <span>Every claim links to approved evidence</span>
+      </div>
+    </div>
+  );
+}
+
+export function DetailedResumeSheet({ roleIndex = 0 }: { roleIndex?: number }) {
+  const role = roles[roleIndex] || roles[0];
+
+  return (
+    <div className="detailed-resume-sheet" aria-label="Detailed tailored resume">
+      <div className="detailed-resume-top">
+        <div>
+          <strong>ARJUN MEHTA</strong>
+          <span className="detailed-subtitle">Software Engineer · B.Tech Computer Science (2026)</span>
+          <div className="detailed-contact-bar">
             <span>Pune, MH, India</span>
             <span>·</span>
             <span>+91 98201 45820</span>
@@ -395,28 +376,28 @@ export function ResumeSheet({
             <span>linkedin.com/in/arjun-mehta</span>
           </div>
         </div>
-        <span className="match-pill" style={{ background: role.color }}>
+        <span className="detailed-match-pill" style={{ background: role.color }}>
           {role.match}% match
         </span>
       </div>
 
-      <div className="resume-rule" />
+      <div className="detailed-rule" />
 
-      <div className="target-banner">
+      <div className="detailed-target-banner">
         <span>{role.targetBanner}</span>
         <span className="score-tag">VERIFIED MATCH</span>
       </div>
 
-      <div className="resume-section">
-        <span className="section-title">PROFESSIONAL SUMMARY</span>
-        <p className="summary-text">{role.summary}</p>
+      <div className="detailed-section">
+        <span className="detailed-section-title">PROFESSIONAL SUMMARY</span>
+        <p className="detailed-summary-text">{role.summary}</p>
       </div>
 
-      <div className="resume-section">
-        <span className="section-title">WORK EXPERIENCE</span>
+      <div className="detailed-section">
+        <span className="detailed-section-title">WORK EXPERIENCE</span>
         {role.experience.map((exp) => (
-          <div className="entry-item" key={exp.title + exp.company}>
-            <div className="entry-header">
+          <div className="detailed-entry-item" key={exp.title + exp.company}>
+            <div className="detailed-entry-header">
               <h4>
                 {exp.title} · <span>{exp.company}</span>
               </h4>
@@ -424,7 +405,7 @@ export function ResumeSheet({
                 {exp.period} | {exp.location}
               </span>
             </div>
-            <ul className="entry-bullets">
+            <ul className="detailed-bullets">
               {exp.bullets.map((b, bi) => (
                 <li key={bi}>
                   <HighlightedText text={b.text} keywords={b.keywords} />
@@ -435,16 +416,16 @@ export function ResumeSheet({
         ))}
       </div>
 
-      <div className="resume-section">
-        <span className="section-title">PRODUCTION &amp; OPEN SOURCE PROJECTS</span>
+      <div className="detailed-section">
+        <span className="detailed-section-title">PRODUCTION &amp; OPEN SOURCE PROJECTS</span>
         {role.projects.map((proj) => (
-          <div className="entry-item" key={proj.title}>
-            <div className="entry-header">
+          <div className="detailed-entry-item" key={proj.title}>
+            <div className="detailed-entry-header">
               <h4>
                 {proj.title} · <span>{proj.type}</span>
               </h4>
             </div>
-            <ul className="entry-bullets">
+            <ul className="detailed-bullets">
               {proj.bullets.map((b, bi) => (
                 <li key={bi}>
                   <HighlightedText text={b.text} keywords={b.keywords} />
@@ -455,20 +436,20 @@ export function ResumeSheet({
         ))}
       </div>
 
-      <div className="resume-section">
-        <span className="section-title">TECHNICAL SKILLS</span>
-        <div className="categorized-skills">
+      <div className="detailed-section">
+        <span className="detailed-section-title">TECHNICAL SKILLS</span>
+        <div className="detailed-categorized-skills">
           {role.skillCategories.map((cat) => (
-            <div className="skill-cat-row" key={cat.category}>
+            <div className="detailed-skill-cat-row" key={cat.category}>
               <b>{cat.category}:</b> {cat.skills.join(" · ")}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="resume-section">
-        <span className="section-title">EDUCATION</span>
-        <div className="education-item">
+      <div className="detailed-section">
+        <span className="detailed-section-title">EDUCATION</span>
+        <div className="detailed-education-item">
           <div>
             <b>B.Tech in Computer Science &amp; Engineering</b> · Pune Institute of Computer Technology
           </div>
@@ -476,7 +457,7 @@ export function ResumeSheet({
         </div>
       </div>
 
-      <div className="evidence-note">
+      <div className="detailed-evidence-note">
         <span>
           <FigmaIcon name="shield" size={13} /> Grounded in Career Vault Facts
         </span>
@@ -490,7 +471,7 @@ export function FigmaLanding() {
   const [role, setRole] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
-  const tailorRef = useRef<HTMLElement>(null);
+  const spotlightRef = useRef<HTMLElement>(null);
   const userManualRef = useRef(false);
   const manualTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -543,30 +524,26 @@ export function FigmaLanding() {
     };
   }, []);
 
-  // Section 03 "TRY THE SHIFT" Scroll Synchronizer
+  // Section 03 "TRY THE SHIFT" Spotlight Scroll Synchronizer
   useEffect(() => {
-    const tailor = tailorRef.current;
-    if (!tailor) return;
+    const spotlight = spotlightRef.current;
+    if (!spotlight) return;
 
     const handleScroll = () => {
       if (userManualRef.current) return;
-      const rect = tailor.getBoundingClientRect();
-      const windowH = window.innerHeight;
+      const rect = spotlight.getBoundingClientRect();
+      const totalScrollable = rect.height - window.innerHeight;
+      if (totalScrollable <= 0) return;
 
-      // When tailor section is in view
-      if (rect.top <= windowH * 0.4 && rect.bottom >= windowH * 0.2) {
-        const totalScrollable = rect.height - windowH;
-        if (totalScrollable > 0) {
-          const scrolled = -rect.top + windowH * 0.15;
-          const p = Math.max(0, Math.min(1, scrolled / totalScrollable));
-          if (p < 0.35) {
-            setRole(0);
-          } else if (p < 0.70) {
-            setRole(1);
-          } else {
-            setRole(2);
-          }
-        }
+      const scrolled = -rect.top;
+      const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
+
+      if (progress < 0.33) {
+        setRole(0);
+      } else if (progress < 0.67) {
+        setRole(1);
+      } else {
+        setRole(2);
       }
     };
 
@@ -589,14 +566,14 @@ export function FigmaLanding() {
       <nav className="top-nav">
         <FigmaLogo />
         <div className={`nav-links ${menuOpen ? "open" : ""}`}>
-          <a href="#how" onClick={() => setMenuOpen(false)}>
-            How it works
-          </a>
           <a href="#proof" onClick={() => setMenuOpen(false)}>
-            Why truth-bound?
+            One story, adapted
           </a>
           <a href="#shift" onClick={() => setMenuOpen(false)}>
             Interactive demo
+          </a>
+          <a href="#how" onClick={() => setMenuOpen(false)}>
+            How it works
           </a>
           <Link href="/privacy" onClick={() => setMenuOpen(false)}>
             Privacy
@@ -657,7 +634,7 @@ export function FigmaLanding() {
         </div>
 
         <div className="hero-visual" aria-label="Resume tailoring preview">
-          <ResumeSheet roleIndex={0} compact={false} />
+          <ResumeSheet roleIndex={0} />
           <div className="proof-tag proof-one">
             <FigmaIcon name="check" size={16} /> Verified project metric
           </div>
@@ -720,14 +697,96 @@ export function FigmaLanding() {
         </div>
       </section>
 
-      {/* Section Bridge */}
-      <div className="section-bridge" aria-hidden="true">
-        <span>ONE VERIFIED FOUNDATION</span>
-        <i />
-        <b>THE THREE-STEP METHOD</b>
-        <i />
-        <span>TARGETED APPLICATIONS</span>
-      </div>
+      {/* Section 03 — Spotlight Stage (Card 1 glides here into center stage) */}
+      <section className="spotlight-section" ref={spotlightRef} id="shift">
+        <div className="spotlight-sticky">
+          {/* Left Column: Heading, Subtitle, Role Switcher Tabs */}
+          <div className="spotlight-left">
+            <span className="section-index">02 — INTERACTIVE DEMO</span>
+            <h2>
+              Same candidate.
+              <br />
+              <em>Different spotlight.</em>
+            </h2>
+            <p className="spotlight-desc">
+              Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills
+              rearrange to match what each employer wants:
+            </p>
+            <div className="spotlight-tabs" role="tablist">
+              {roles.map((item, i) => (
+                <button
+                  type="button"
+                  key={item.label}
+                  onClick={() => handleRoleSelect(i)}
+                  className={`spotlight-tab-btn ${role === i ? "active" : ""}`}
+                  role="tab"
+                  aria-selected={role === i}
+                >
+                  <div className="tab-indicator" style={{ background: item.color }}>
+                    0{i + 1}
+                  </div>
+                  <div className="tab-info">
+                    <b>{item.label}</b>
+                    <small>{item.company}</small>
+                  </div>
+                  <span className="tab-match" style={{ color: item.color }}>
+                    {item.match}% fit
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="spotlight-scroll-hint">
+              <span>↓</span> Scroll to change roles automatically
+            </div>
+          </div>
+
+          {/* Center Column: Detailed Realistic Resume */}
+          <div className="spotlight-center">
+            <DetailedResumeSheet roleIndex={role} />
+          </div>
+
+          {/* Right Column: Matched Signals & Truth Guarantee */}
+          <div className="spotlight-right">
+            <div className="spotlight-signals-panel">
+              <div className="signals-header">
+                <span>MATCHED SIGNALS</span>
+                <b>{roles[role].match}% ATS Fit</b>
+              </div>
+              <div className="signals-list">
+                {roles[role].signals.map((sig) => (
+                  <div className="signal-item" key={sig.name}>
+                    <div className="signal-title-row">
+                      <b>{sig.name}</b>
+                      <span>{sig.pct}%</span>
+                    </div>
+                    <div className="signal-bar-track">
+                      <i
+                        className="signal-bar-fill"
+                        style={{
+                          width: `${sig.pct}%`,
+                          background: roles[role].color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="spotlight-truth-card">
+                <div className="truth-icon-wrap">
+                  <FigmaIcon name="shield" size={18} />
+                </div>
+                <div>
+                  <strong>100% Truth-Bound</strong>
+                  <p>
+                    Every bullet and skill is derived from Arjun&apos;s Career Vault facts. Zero AI hallucinations, zero exaggerated claims.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Steps Section — How It Works */}
       <section className="steps-section" id="how">
@@ -818,59 +877,6 @@ export function FigmaLanding() {
         </div>
       </section>
 
-      {/* Section 03 — Interactive Demo (Scroll-Driven Role Shift) */}
-      <section className="tailor-section" ref={tailorRef} id="shift">
-        <div className="tailor-sticky">
-          <div className="tailor-heading">
-            <span className="section-index">INTERACTIVE PREVIEW</span>
-            <h2>
-              Same candidate.
-              <br />
-              Different spotlight.
-            </h2>
-            <p>
-              Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills
-              rearrange to match what each employer wants:
-            </p>
-            <div className="role-tabs">
-              {roles.map((item, i) => (
-                <button
-                  type="button"
-                  key={item.label}
-                  onClick={() => handleRoleSelect(i)}
-                  className={role === i ? "active" : ""}
-                >
-                  {item.label} @ {item.company}
-                  <span>{item.match}% match</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="tailor-preview">
-            <div className="analysis-rail">
-              <span>MATCHED SIGNALS</span>
-              {roles[role].signals.map((sig) => (
-                <div key={sig.name}>
-                  <b>{sig.name}</b>
-                  <div>
-                    <i style={{ width: `${sig.pct}%`, background: roles[role].color }} />
-                  </div>
-                  <small>{sig.pct}% confidence</small>
-                </div>
-              ))}
-              <div className="truth-box">
-                <FigmaIcon name="shield" />
-                <p>
-                  <b>100% Truth-Bound</b>
-                  <br />0 unverified claims or AI hallucinations
-                </p>
-              </div>
-            </div>
-            <ResumeSheet roleIndex={role} compact={false} />
-          </div>
-        </div>
-      </section>
-
       {/* Section 04 — Privacy Trust Section */}
       <section className="trust-section" id="privacy">
         <div className="trust-stamp">
@@ -937,8 +943,9 @@ export function FigmaLanding() {
           Built in India, for everywhere.
         </p>
         <div>
-          <a href="#how">How it works</a>
+          <a href="#proof">Story</a>
           <a href="#shift">Demo</a>
+          <a href="#how">How it works</a>
           <Link href="/privacy">Privacy</Link>
           <SignInButton mode="modal">
             <button type="button">Log in</button>
