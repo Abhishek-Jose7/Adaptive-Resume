@@ -31,13 +31,13 @@ export function CompactEngineerTemplate({
       {/* Compact Engineering Header */}
       <header
         onClick={() => handleClick("profile")}
-        className={`border-b border-[#000052] pb-2 cursor-pointer ${
-          !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""
+        className={`border-b border-[#10241c] pb-2 cursor-pointer ${
+          !readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
           <div className="flex items-baseline gap-2">
-            <h1 className="text-xl font-black text-[#000052] tracking-tight">
+            <h1 className="text-xl font-black text-[#10241c] tracking-tight">
               {doc.profile.fullName || "Your Full Name"}
             </h1>
             {doc.profile.headline && (
@@ -53,7 +53,7 @@ export function CompactEngineerTemplate({
         </div>
 
         {doc.profile.links && doc.profile.links.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-2 text-[10.5px] text-[#000052] font-semibold mt-1">
+          <div className="flex flex-wrap items-center gap-x-2 text-[10.5px] text-[#10241c] font-semibold mt-1">
             {doc.profile.links.map((link, idx) => (
               <span key={idx}>
                 {idx > 0 && <span className="text-gray-400 mr-2">•</span>}
@@ -76,7 +76,7 @@ export function CompactEngineerTemplate({
         <section
           onClick={() => handleClick("profile")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
         >
           <p className="text-[10.5px] text-gray-800 leading-snug">{doc.profile.summary}</p>
         </section>
@@ -87,10 +87,10 @@ export function CompactEngineerTemplate({
         <section
           onClick={() => handleClick("skills")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
         >
-          <div className="flex items-center gap-2 border-b border-[#000052] pb-0.5 mb-1.5">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#000052]">
+          <div className="flex items-center gap-2 border-b border-[#10241c] pb-0.5 mb-1.5">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#10241c]">
               Technical Skills & Environment
             </h2>
           </div>
@@ -98,7 +98,7 @@ export function CompactEngineerTemplate({
             {doc.skills.map((s, idx) => (
               <span
                 key={idx}
-                className="bg-[#B2BEB5]/20 text-[#000052] font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded border border-[#000052]/25"
+                className="bg-[#becbbf]/20 text-[#10241c] font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded border border-[#10241c]/25"
               >
                 {s.name}
               </span>
@@ -110,8 +110,8 @@ export function CompactEngineerTemplate({
       {/* Experience */}
       {doc.experience && doc.experience.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <div className="flex items-center gap-2 border-b border-[#000052] pb-0.5 mb-1.5">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#000052]">
+          <div className="flex items-center gap-2 border-b border-[#10241c] pb-0.5 mb-1.5">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#10241c]">
               Work Experience
             </h2>
           </div>
@@ -120,12 +120,12 @@ export function CompactEngineerTemplate({
               <div
                 key={exp.id}
                 onClick={() => handleClick("experience", exp.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-0.5" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-0.5" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs">
                   <div>
                     <span className="font-black text-gray-950">{exp.position}</span>
-                    <span className="text-[#000052] font-bold"> — {exp.company}</span>
+                    <span className="text-[#10241c] font-bold"> — {exp.company}</span>
                     {exp.location && <span className="text-gray-500 text-[10.5px]"> ({exp.location})</span>}
                   </div>
                   <span className="text-[10px] font-mono font-medium text-gray-600 whitespace-nowrap">
@@ -147,8 +147,8 @@ export function CompactEngineerTemplate({
       {/* Technical Projects */}
       {doc.projects && doc.projects.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <div className="flex items-center gap-2 border-b border-[#000052] pb-0.5 mb-1.5">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#000052]">
+          <div className="flex items-center gap-2 border-b border-[#10241c] pb-0.5 mb-1.5">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#10241c]">
               Engineering Projects
             </h2>
           </div>
@@ -157,7 +157,7 @@ export function CompactEngineerTemplate({
               <div
                 key={proj.id}
                 onClick={() => handleClick("projects", proj.id)}
-                className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-0.5" : ""}`}
+                className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-0.5" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs">
                   <div>
@@ -169,7 +169,7 @@ export function CompactEngineerTemplate({
                       href={proj.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[10px] font-mono text-[#000052] hover:underline"
+                      className="text-[10px] font-mono text-[#10241c] hover:underline"
                     >
                       {proj.url}
                     </a>
@@ -192,8 +192,8 @@ export function CompactEngineerTemplate({
       {/* Education */}
       {doc.education && doc.education.length > 0 && (
         <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <div className="flex items-center gap-2 border-b border-[#000052] pb-0.5 mb-1.5">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#000052]">
+          <div className="flex items-center gap-2 border-b border-[#10241c] pb-0.5 mb-1.5">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#10241c]">
               Education
             </h2>
           </div>
@@ -203,7 +203,7 @@ export function CompactEngineerTemplate({
                 key={edu.id}
                 onClick={() => handleClick("education", edu.id)}
                 className={`flex justify-between items-baseline text-xs cursor-pointer ${
-                  !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-0.5" : ""
+                  !readOnly ? "hover:bg-[#becbbf]/15 rounded p-0.5" : ""
                 }`}
               >
                 <div>
@@ -225,10 +225,10 @@ export function CompactEngineerTemplate({
         <section
           onClick={() => handleClick("certifications")}
           style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-0.5" : ""}`}
+          className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-0.5" : ""}`}
         >
-          <div className="flex items-center gap-2 border-b border-[#000052] pb-0.5 mb-1">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#000052]">
+          <div className="flex items-center gap-2 border-b border-[#10241c] pb-0.5 mb-1">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#10241c]">
               Certifications & Credentials
             </h2>
           </div>

@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FigmaIcon } from "@/components/ui/FigmaIcon";
-import { AdaptiveResumeWorkspace } from "@/components/workspace/AdaptiveResumeWorkspace";
 
 interface BankEntry {
   id: string;
@@ -26,7 +25,6 @@ interface ResumeListItem {
 
 export function FigmaDashboardView() {
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<"overview" | "workbench">("overview");
   const [jobText, setJobText] = useState("");
   const [analyzed, setAnalyzed] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{
@@ -64,7 +62,7 @@ export function FigmaDashboardView() {
           setResumes(list);
         }
       } catch {
-        // Fallback gracefully to default Figma mock stats
+        // Fallback gracefully
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -111,70 +109,28 @@ export function FigmaDashboardView() {
     setAnalyzed(true);
   }
 
-  // Calculate vault stats
-  const skillsCount =
-    bankEntries.filter((e) => e.entryType === "skill_group" || e.entryType === "skill").length || 5;
-  const projectsCount =
-    bankEntries.filter((e) => e.entryType === "project").length || 3;
-  const rolesCount =
-    bankEntries.filter((e) => e.entryType === "experience").length || 2;
-  const totalBullets = bankEntries.reduce((acc, e) => acc + (e.bullets?.length || 1), 0);
-  const metricsCount = Math.max(4, totalBullets || 4);
+  // Calculate real vault stats from actual user Data Bank entries
+  const skillsCount = bankEntries.filter(
+    (e) => e.entryType === "skill_group" || e.entryType === "skill",
+  ).length;
+  const projectsCount = bankEntries.filter((e) => e.entryType === "project").length;
+  const rolesCount = bankEntries.filter((e) => e.entryType === "experience").length;
+  const metricsCount = bankEntries.reduce((acc, e) => acc + (e.bullets?.length || 0), 0);
   const totalFacts = skillsCount + projectsCount + rolesCount + metricsCount;
 
-  if (viewMode === "workbench") {
-    return (
-      <div className="dash-content">
-        <div className="flex items-center justify-between mb-6 pb-3 border-b border-[rgba(16,36,28,0.14)]">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="px-3.5 py-1.5 text-xs font-bold rounded bg-[#10241c] text-[#eee9df] hover:opacity-90"
-              onClick={() => setViewMode("overview")}
-            >
-              ← Back to Overview
-            </button>
-            <span className="font-mono text-xs uppercase tracking-wider font-bold text-[#10241c]">
-              Adaptive Resume Workbench
-            </span>
-          </div>
-        </div>
-        <AdaptiveResumeWorkspace />
-      </div>
-    );
-  }
+  // Real recent facts to display in Vault Foundation panel
+  const displayFacts = bankEntries.slice(0, 2);
 
   return (
     <div className="dash-content">
-      {/* Workspace Switcher */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-[#10241c] opacity-60">
-            View:
-          </span>
-          <div className="inline-flex rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-0.5">
-            <button
-              type="button"
-              className="px-2.5 py-1 text-[11px] font-bold rounded bg-[#10241c] text-[#eee9df]"
-              onClick={() => setViewMode("overview")}
-            >
-              Dashboard Overview
-            </button>
-            <button
-              type="button"
-              className="px-2.5 py-1 text-[11px] font-bold rounded text-[#10241c] opacity-60 hover:opacity-100"
-              onClick={() => setViewMode("workbench")}
-            >
-              Split-Pane Workbench
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Welcome Card */}
       <div className="welcome-card">
         <div>
-          <span>CAREER VAULT · {totalFacts} VERIFIED FACTS</span>
+          <span>
+            {totalFacts > 0
+              ? `CAREER VAULT · ${totalFacts} VERIFIED FACTS`
+              : "CAREER VAULT · READY FOR YOUR FIRST FACTS"}
+          </span>
           <h2>
             Your experience is ready.
             <br />
@@ -242,25 +198,26 @@ export function FigmaDashboardView() {
                 <span>STRONG MATCH</span>
                 <h3>{analysisResult?.title || "Frontend Engineer Intern"}</h3>
                 <p>{analysisResult?.details || "6 skills matched · 3 strong evidence points found"}</p>
-                <button
-                  type="button"
-                  className="start-over-btn"
-                  onClick={() => {
-                    setAnalyzed(false);
-                    setJobText("");
-                    setAnalysisResult(null);
-                  }}
-                >
-                  Start over
-                </button>
               </div>
-              <Link
-                href={`/jobs?jd=${encodeURIComponent(jobText.slice(0, 1000))}`}
-                className="create-resume"
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalyzed(false);
+                  setJobText("");
+                }}
               >
-                <span>Create tailored resume</span>
-                <FigmaIcon name="arrow" size={17} />
-              </Link>
+                Start over
+              </button>
+              <button
+                type="button"
+                className="create-resume"
+                onClick={() => {
+                  sessionStorage.setItem("pending_job_desc", jobText);
+                  router.push("/jobs");
+                }}
+              >
+                Create tailored resume <FigmaIcon name="arrow" size={17} />
+              </button>
             </div>
           )}
         </section>
@@ -272,11 +229,17 @@ export function FigmaDashboardView() {
               <span>YOUR FOUNDATION</span>
               <h3>Career Vault</h3>
             </div>
-            <Link href="/bank/intake">
-              <FigmaIcon name="plus" size={17} /> Add fact
+            <Link
+              href="/bank/intake"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold rounded bg-[#eee9df] text-[#10241c] hover:bg-[#e2dcd2]"
+            >
+              <FigmaIcon name="plus" size={15} /> Add fact
             </Link>
           </div>
 
+          <input ref={fileRef} type="file" hidden accept=".pdf,.doc,.docx" />
+
+          {/* Dynamic counts based on real Data Bank */}
           <div className="vault-stats">
             <div>
               <b>{skillsCount}</b>
@@ -296,9 +259,9 @@ export function FigmaDashboardView() {
             </div>
           </div>
 
-          {/* Verified Fact Rows */}
-          {bankEntries.length > 0 ? (
-            bankEntries.slice(0, 2).map((entry, idx) => (
+          {/* Real verified items from Data Bank */}
+          {displayFacts.length > 0 ? (
+            displayFacts.map((entry, idx) => (
               <div className="fact-row" key={entry.id}>
                 <span className={`fact-icon ${idx % 2 === 1 ? "purple" : "orange"}`}>
                   <FigmaIcon name="briefcase" size={17} />
@@ -306,8 +269,8 @@ export function FigmaDashboardView() {
                 <div>
                   <b>{entry.title}</b>
                   <small>
-                    {entry.entryType} · {entry.bullets?.length || 1} verified fact
-                    {(entry.bullets?.length || 1) > 1 ? "s" : ""}
+                    {entry.entryType.replace("_", " ")} · {entry.bullets?.length || 1} verified fact
+                    {(entry.bullets?.length || 1) === 1 ? "" : "s"}
                   </small>
                 </div>
                 <span className="verified">
@@ -316,32 +279,11 @@ export function FigmaDashboardView() {
               </div>
             ))
           ) : (
-            <>
-              <div className="fact-row">
-                <span className="fact-icon orange">
-                  <FigmaIcon name="briefcase" size={17} />
-                </span>
-                <div>
-                  <b>Campus Marketplace</b>
-                  <small>Project · 4 verified facts</small>
-                </div>
-                <span className="verified">
-                  <FigmaIcon name="check" size={13} /> Verified
-                </span>
-              </div>
-              <div className="fact-row">
-                <span className="fact-icon purple">
-                  <FigmaIcon name="briefcase" size={17} />
-                </span>
-                <div>
-                  <b>TCS iON Internship</b>
-                  <small>Experience · 3 verified facts</small>
-                </div>
-                <span className="verified">
-                  <FigmaIcon name="check" size={13} /> Verified
-                </span>
-              </div>
-            </>
+            <div className="py-5 text-center">
+              <p className="text-xs text-[#536259]">
+                Your vault is empty. Click <strong>Add fact</strong> above to import your resume.
+              </p>
+            </div>
           )}
 
           <Link href="/bank" className="view-all">
@@ -350,76 +292,53 @@ export function FigmaDashboardView() {
         </section>
       </div>
 
-      {/* Recent Resumes Section */}
+      {/* Recent Resumes */}
       <section className="recent-section">
         <div className="recent-head">
           <div>
             <span>RECENT WORK</span>
             <h3>Your resumes</h3>
           </div>
-          <Link href="/resumes">
+          <Link
+            href="/resumes"
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[#10241c] hover:text-[#a98452]"
+          >
             View all <FigmaIcon name="arrow" size={16} />
           </Link>
         </div>
 
         <div className="resume-list">
           {resumes.length > 0 ? (
-            resumes.slice(0, 3).map((res, i) => (
-              <Link
-                href={`/resumes/${res.id}/edit`}
-                className="resume-item"
-                key={res.id}
-              >
-                <div className={`mini-doc ${i % 2 === 1 ? "lilac" : ""}`}>
+            resumes.slice(0, 3).map((item, idx) => (
+              <div className="resume-item" key={item.id}>
+                <div className={`mini-doc ${idx % 2 === 1 ? "lilac" : ""}`}>
                   <span />
                 </div>
                 <div>
-                  <b>{res.title || res.jobTitle || "Tailored Software Engineer"}</b>
+                  <b>{item.title || item.jobTitle || "Tailored Resume"}</b>
                   <small>
-                    {res.targetCompany ? `${res.targetCompany} · ` : ""}
-                    {res.updatedAt ? new Date(res.updatedAt).toLocaleDateString() : "Recently active"}
+                    {item.targetCompany ? `${item.targetCompany} · ` : ""}
+                    {item.updatedAt
+                      ? `Updated ${new Date(item.updatedAt).toLocaleDateString()}`
+                      : "Recently edited"}
                   </small>
                 </div>
-                <span className="score high">{res.matchScore || 92}% match</span>
-                <span className={`status ${res.status === "exported" ? "exported" : "draft"}`}>
-                  {res.status === "exported" ? "Exported" : "Draft"}
+                <span className="score high">{item.matchScore || 92}% match</span>
+                <span className={`status ${item.status === "exported" ? "exported" : "draft"}`}>
+                  {item.status || "Draft"}
                 </span>
-                <div className="arrow-btn" aria-label="Open resume">
+                <Link href={`/resumes/${item.id}`} aria-label="Open resume">
                   <FigmaIcon name="chevron" />
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))
           ) : (
-            <>
-              <Link href="/jobs" className="resume-item">
-                <div className="mini-doc">
-                  <span />
-                </div>
-                <div>
-                  <b>Frontend Intern · Razorpay</b>
-                  <small>Edited recently · Bengaluru</small>
-                </div>
-                <span className="score high">92% match</span>
-                <span className="status draft">Draft</span>
-                <div className="arrow-btn" aria-label="Open resume">
-                  <FigmaIcon name="chevron" />
-                </div>
-              </Link>
-              <Link href="/jobs" className="resume-item">
-                <div className="mini-doc lilac">
-                  <span />
-                </div>
-                <div>
-                  <b>SDE I · CRED</b>
-                  <small>Exported recently · Bengaluru</small>
-                </div>
-                <span className="score">84% match</span>
-                <span className="status exported">Exported</span>
-                <div className="arrow-btn" aria-label="Open resume">
-                  <FigmaIcon name="chevron" />
-                </div>
-              </Link>
-            </>
+            <div className="py-7 text-center border-t border-[rgba(16,36,28,0.17)]">
+              <p className="text-xs text-[#536259]">
+                No tailored resumes yet. Paste a job description above to generate your first
+                truth-backed resume.
+              </p>
+            </div>
           )}
         </div>
       </section>

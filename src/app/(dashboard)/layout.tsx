@@ -14,26 +14,21 @@ const navItems: Array<{
 }> = [
   { label: "Overview", href: "/", icon: "grid" },
   { label: "Career Vault", href: "/bank", icon: "bank", badge: true },
-  { label: "Add experience", href: "/bank/intake", icon: "plus" },
   { label: "Target a job", href: "/jobs", icon: "target" },
   { label: "My resumes", href: "/resumes", icon: "file" },
-  { label: "Applications", href: "/applications", icon: "briefcase" },
-  { label: "Cover letters", href: "/cover-letters", icon: "file" },
-  { label: "AI settings", href: "/settings/providers", icon: "spark" },
-  { label: "Profile", href: "/profile", icon: "user" },
 ];
 
 function isRouteActive(pathname: string | null, href: string) {
   if (!pathname) return false;
   if (href === "/") return pathname === "/";
-  if (href === "/bank") return pathname === "/bank";
+  if (href === "/bank") return pathname === "/bank" || pathname.startsWith("/bank/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
-  const [factCount, setFactCount] = useState<number>(14);
+  const [factCount, setFactCount] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -41,13 +36,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetch("/api/v1/bank/entries?limit=100")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.items) {
+        if (data?.items && Array.isArray(data.items)) {
           const total = data.items.reduce(
             (acc: number, entry: { bullets?: Array<unknown> }) =>
-              acc + (entry.bullets?.length || 1),
+              acc + Math.max(1, entry.bullets?.length || 1),
             0,
           );
-          if (total > 0) setFactCount(total);
+          setFactCount(total);
         }
       })
       .catch(() => {});
@@ -85,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 <FigmaIcon name={icon} size={18} />
                 <span>{label}</span>
-                {badge && <small>{factCount}</small>}
+                {badge && factCount > 0 && <small>{factCount}</small>}
               </Link>
             );
           })}
@@ -95,19 +90,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="vault-health">
             <div>
               <span>VAULT HEALTH</span>
-              <b>82%</b>
+              <b>{factCount > 0 ? "82%" : "READY"}</b>
             </div>
             <i>
-              <em style={{ width: "82%" }} />
+              <em style={{ width: factCount > 0 ? "82%" : "15%" }} />
             </i>
-            <p>Add 2 project metrics to improve your matches.</p>
+            <p>
+              {factCount > 0
+                ? "Add 2 project metrics to improve your matches."
+                : "Add your first real project or experience to start matching."}
+            </p>
           </div>
 
           <Link href="/">
             <FigmaIcon name="chevron" size={17} />
             <span>View landing page</span>
           </Link>
-          <Link href="/profile">
+          <Link href="/settings/providers">
             <FigmaIcon name="user" size={17} />
             <span>Settings</span>
           </Link>
@@ -124,29 +123,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {greeting}, {firstName}.
             </h1>
           </div>
+
           <div className="dash-actions">
-            <button
-              type="button"
-              aria-label="Search"
-              onClick={() => {
-                const el = document.getElementById("job-input");
-                el?.focus();
-              }}
-            >
-              <FigmaIcon name="search" size={18} />
-            </button>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "w-[39px] h-[39px] rounded-full border border-[rgba(16,36,28,0.17)]",
-                },
-              }}
-            />
+            <Link href="/bank" className="dash-search-btn" aria-label="Search Vault">
+              <FigmaIcon name="search" size={17} />
+            </Link>
+            <UserButton />
           </div>
         </header>
 
-        {/* Content View */}
-        <main className="dash-inner-content">{children}</main>
+        {children}
       </div>
     </div>
   );

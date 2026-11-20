@@ -31,13 +31,13 @@ export function LuxuriousGridTemplate({
       {/* Top Banner Header */}
       <header
         onClick={() => handleClick("profile")}
-        className={`border-b-2 border-[#000052] pb-3 mb-4 cursor-pointer ${
-          !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""
+        className={`border-b-2 border-[#10241c] pb-3 mb-4 cursor-pointer ${
+          !readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-[#000052] uppercase">
+            <h1 className="text-2xl font-black tracking-tight text-[#10241c] uppercase">
               {doc.profile.fullName || "Your Full Name"}
             </h1>
             {doc.profile.headline && (
@@ -55,7 +55,7 @@ export function LuxuriousGridTemplate({
         </div>
 
         {doc.profile.links && doc.profile.links.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-[#000052] font-semibold mt-1.5 pt-1.5 border-t border-[#B2BEB5]/40">
+          <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-[#10241c] font-semibold mt-1.5 pt-1.5 border-t border-[#becbbf]/40">
             {doc.profile.links.map((link, idx) => (
               <a
                 key={idx}
@@ -74,21 +74,21 @@ export function LuxuriousGridTemplate({
       {/* 2-Column Grid Layout */}
       <div className="grid grid-cols-12 gap-5">
         {/* Left Sidebar (4 columns / 33%) */}
-        <aside className="col-span-4 border-r border-[#B2BEB5]/40 pr-4 space-y-4">
+        <aside className="col-span-4 border-r border-[#becbbf]/40 pr-4 space-y-4">
           {/* Skills Section */}
           {doc.skills && doc.skills.length > 0 && (
             <section
               onClick={() => handleClick("skills")}
-              className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+              className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
             >
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Competencies
               </h2>
               <div className="flex flex-wrap gap-1 mt-2">
                 {doc.skills.map((s, idx) => (
                   <span
                     key={idx}
-                    className="bg-[#B2BEB5]/20 text-[#000052] text-[10.5px] font-semibold px-2 py-0.5 rounded border border-[#000052]/20"
+                    className="bg-[#becbbf]/20 text-[#10241c] text-[10.5px] font-semibold px-2 py-0.5 rounded border border-[#10241c]/20"
                   >
                     {s.name}
                   </span>
@@ -100,7 +100,7 @@ export function LuxuriousGridTemplate({
           {/* Education Section */}
           {doc.education && doc.education.length > 0 && (
             <section style={{ marginTop: `${sectionGapRem}rem` }}>
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Education
               </h2>
               <div className="space-y-2 mt-2">
@@ -109,7 +109,7 @@ export function LuxuriousGridTemplate({
                     key={edu.id}
                     onClick={() => handleClick("education", edu.id)}
                     className={`text-xs cursor-pointer ${
-                      !readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""
+                      !readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""
                     }`}
                   >
                     <div className="font-bold text-gray-900 leading-tight">
@@ -131,9 +131,9 @@ export function LuxuriousGridTemplate({
             <section
               onClick={() => handleClick("certifications")}
               style={{ marginTop: `${sectionGapRem}rem` }}
-              className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+              className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
             >
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Certifications
               </h2>
               <div className="space-y-1.5 mt-2">
@@ -156,9 +156,9 @@ export function LuxuriousGridTemplate({
           {doc.profile.summary && (
             <section
               onClick={() => handleClick("profile")}
-              className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+              className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
             >
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Executive Profile
               </h2>
               <p className="mt-1.5 text-xs text-gray-800 leading-relaxed font-normal">
@@ -170,7 +170,7 @@ export function LuxuriousGridTemplate({
           {/* Work Experience */}
           {doc.experience && doc.experience.length > 0 && (
             <section style={{ marginTop: `${sectionGapRem}rem` }}>
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Professional Experience
               </h2>
               <div className="space-y-3 mt-2">
@@ -178,12 +178,12 @@ export function LuxuriousGridTemplate({
                   <div
                     key={exp.id}
                     onClick={() => handleClick("experience", exp.id)}
-                    className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+                    className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
                   >
                     <div className="flex justify-between items-baseline text-xs">
                       <div>
                         <span className="font-bold text-gray-900">{exp.position}</span>
-                        <span className="text-[#000052] font-semibold"> • {exp.company}</span>
+                        <span className="text-[#10241c] font-semibold"> • {exp.company}</span>
                       </div>
                       <span className="text-[10.5px] font-semibold text-gray-500 whitespace-nowrap">
                         {exp.startDate} – {exp.isCurrent ? "Present" : exp.endDate || "Present"}
@@ -204,7 +204,7 @@ export function LuxuriousGridTemplate({
           {/* Key Projects */}
           {doc.projects && doc.projects.length > 0 && (
             <section style={{ marginTop: `${sectionGapRem}rem` }}>
-              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#000052] border-b border-[#000052] pb-0.5">
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Key Initiatives & Projects
               </h2>
               <div className="space-y-2.5 mt-2">
@@ -212,7 +212,7 @@ export function LuxuriousGridTemplate({
                   <div
                     key={proj.id}
                     onClick={() => handleClick("projects", proj.id)}
-                    className={`cursor-pointer ${!readOnly ? "hover:bg-[#B2BEB5]/15 rounded p-1" : ""}`}
+                    className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
                   >
                     <div className="flex justify-between items-baseline text-xs font-bold text-gray-900">
                       <span>
@@ -224,7 +224,7 @@ export function LuxuriousGridTemplate({
                           href={proj.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[10.5px] font-medium text-[#000052] hover:underline"
+                          className="text-[10.5px] font-medium text-[#10241c] hover:underline"
                         >
                           {proj.url}
                         </a>

@@ -97,14 +97,14 @@ export function TransformationCarousel() {
       onMouseLeave={() => setIsPaused(false)}
     >
       <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#000052] text-[#B2BEB5] text-xs font-bold tracking-wide uppercase mb-4">
-          <Sparkles className="w-3.5 h-3.5 text-[#B2BEB5]" />
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#10241c] text-[#becbbf] text-xs font-bold tracking-wide uppercase mb-4">
+          <Sparkles className="w-3.5 h-3.5 text-[#becbbf]" />
           <span>Interactive Transformation Showcase</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#000052] tracking-tight leading-tight">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#10241c] tracking-tight leading-tight">
           How your experience travels into new roles.
         </h2>
-        <p className="mt-4 text-base sm:text-lg text-[#000052]/80 leading-relaxed font-medium">
+        <p className="mt-4 text-base sm:text-lg text-[#10241c]/80 leading-relaxed font-medium">
           Every career pivot begins with facts you already possess. Watch how Adaptive Resume translates raw experience into high-impact, role-specific qualifications.
         </p>
 
@@ -116,8 +116,8 @@ export function TransformationCarousel() {
               onClick={() => setActiveIdx(i)}
               className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                 activeIdx === i
-                  ? "bg-[#000052] text-white shadow-md scale-105"
-                  : "bg-white/80 text-[#000052] hover:bg-white border border-[#000052]/20"
+                  ? "bg-[#10241c] text-white shadow-md scale-105"
+                  : "bg-white/80 text-[#10241c] hover:bg-white border border-[#10241c]/20"
               }`}
             >
               {sc.category}
@@ -127,53 +127,53 @@ export function TransformationCarousel() {
       </div>
 
       {/* Main Showcase Card */}
-      <div className="bg-white rounded-2xl shadow-xl border-2 border-[#000052]/20 overflow-hidden transition-all duration-300">
+      <div className="bg-white rounded-2xl shadow-xl border-2 border-[#10241c]/20 overflow-hidden transition-all duration-300">
         {/* Top Meta Bar */}
-        <div className="bg-[#000052] text-white px-5 sm:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-[#10241c] text-white px-5 sm:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="p-2 rounded-lg bg-white/10 text-[#B2BEB5]">
+            <span className="p-2 rounded-lg bg-white/10 text-[#becbbf]">
               <Briefcase className="w-4 h-4" />
             </span>
             <div>
-              <div className="text-xs text-[#B2BEB5] uppercase tracking-wider font-semibold">Career Pivot</div>
+              <div className="text-xs text-[#becbbf] uppercase tracking-wider font-semibold">Career Pivot</div>
               <div className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                 <span>{active.fromRole}</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#B2BEB5]" />
-                <span className="text-white underline decoration-[#B2BEB5]">{active.toRole}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#becbbf]" />
+                <span className="text-white underline decoration-[#becbbf]">{active.toRole}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-[#B2BEB5]">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-[#becbbf]">
               <Building2 className="w-3.5 h-3.5" />
               <span>{active.company}</span>
             </div>
-            <div className="px-3 py-1 rounded-full bg-[#B2BEB5] text-[#000052] text-xs font-extrabold tracking-wide">
+            <div className="px-3 py-1 rounded-full bg-[#becbbf] text-[#10241c] text-xs font-extrabold tracking-wide">
               {active.matchScore}% Match
             </div>
           </div>
         </div>
 
         {/* 3-Stage Transformation Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#000052]/10 p-5 sm:p-8 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#10241c]/10 p-5 sm:p-8 gap-6 sm:gap-8">
           {/* Stage 1: Role Requirement */}
           <div className="flex flex-col justify-between">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#000052]/5 text-[#000052] text-xs font-bold uppercase tracking-wider mb-3">
-                <span className="w-2 h-2 rounded-full bg-[#000052]" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#10241c]/5 text-[#10241c] text-xs font-bold uppercase tracking-wider mb-3">
+                <span className="w-2 h-2 rounded-full bg-[#10241c]" />
                 1. What The Job Asks
               </div>
-              <h3 className="text-lg font-bold text-[#000052] mb-2">{active.toRole}</h3>
-              <p className="text-sm text-[#000052]/80 leading-relaxed font-normal bg-[#B2BEB5]/15 p-4 rounded-xl border border-[#000052]/10">
+              <h3 className="text-lg font-bold text-[#10241c] mb-2">{active.toRole}</h3>
+              <p className="text-sm text-[#10241c]/80 leading-relaxed font-normal bg-[#becbbf]/15 p-4 rounded-xl border border-[#10241c]/10">
                 "{active.jobRequirement}"
               </p>
             </div>
-            <div className="mt-4 pt-4 border-t border-[#000052]/10">
-              <span className="text-xs font-semibold text-[#000052]/60 uppercase tracking-wide">Target Core Needs</span>
+            <div className="mt-4 pt-4 border-t border-[#10241c]/10">
+              <span className="text-xs font-semibold text-[#10241c]/60 uppercase tracking-wide">Target Core Needs</span>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {active.skills.slice(0, 2).map((s) => (
-                  <span key={s} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#000052]/5 text-[#000052]">
+                  <span key={s} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#10241c]/5 text-[#10241c]">
                     {s}
                   </span>
                 ))}
@@ -184,20 +184,20 @@ export function TransformationCarousel() {
           {/* Stage 2: Saved Raw Career History */}
           <div className="flex flex-col justify-between">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#B2BEB5]/30 text-[#000052] text-xs font-bold uppercase tracking-wider mb-3">
-                <span className="w-2 h-2 rounded-full bg-[#B2BEB5]" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#becbbf]/30 text-[#10241c] text-xs font-bold uppercase tracking-wider mb-3">
+                <span className="w-2 h-2 rounded-full bg-[#becbbf]" />
                 2. In Your Private Data Bank
               </div>
-              <h3 className="text-lg font-bold text-[#000052] mb-2">{active.fromRole}</h3>
-              <div className="text-sm text-[#000052]/80 leading-relaxed bg-[#F7F9F8] p-4 rounded-xl border border-dashed border-[#000052]/20">
-                <div className="font-semibold text-xs text-[#000052]/60 mb-1">Your authentic entry:</div>
+              <h3 className="text-lg font-bold text-[#10241c] mb-2">{active.fromRole}</h3>
+              <div className="text-sm text-[#10241c]/80 leading-relaxed bg-[#F7F9F8] p-4 rounded-xl border border-dashed border-[#10241c]/20">
+                <div className="font-semibold text-xs text-[#10241c]/60 mb-1">Your authentic entry:</div>
                 "{active.bankBullet}"
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-[#000052]/10">
-              <span className="text-xs font-semibold text-[#000052]/60 uppercase tracking-wide">Verification Anchor</span>
-              <div className="text-xs font-bold text-[#000052] mt-1 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#000052]" />
+            <div className="mt-4 pt-4 border-t border-[#10241c]/10">
+              <span className="text-xs font-semibold text-[#10241c]/60 uppercase tracking-wide">Verification Anchor</span>
+              <div className="text-xs font-bold text-[#10241c] mt-1 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#10241c]" />
                 <span>Zero hallucination — grounded in truth</span>
               </div>
             </div>
@@ -206,20 +206,20 @@ export function TransformationCarousel() {
           {/* Stage 3: Synthesized Resume Output */}
           <div className="flex flex-col justify-between">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#000052] text-[#B2BEB5] text-xs font-bold uppercase tracking-wider mb-3">
-                <Sparkles className="w-3 h-3 text-[#B2BEB5]" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#10241c] text-[#becbbf] text-xs font-bold uppercase tracking-wider mb-3">
+                <Sparkles className="w-3 h-3 text-[#becbbf]" />
                 3. Tailored Resume Draft
               </div>
-              <h3 className="text-lg font-bold text-[#000052] mb-2">Ready For Review</h3>
-              <div className="text-sm text-[#000052] font-medium leading-relaxed bg-[#B2BEB5]/25 p-4 rounded-xl border-2 border-[#000052]/20 shadow-sm">
+              <h3 className="text-lg font-bold text-[#10241c] mb-2">Ready For Review</h3>
+              <div className="text-sm text-[#10241c] font-medium leading-relaxed bg-[#becbbf]/25 p-4 rounded-xl border-2 border-[#10241c]/20 shadow-sm">
                 "{active.tailoredBullet}"
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-[#000052]/10">
-              <span className="text-xs font-semibold text-[#000052]/60 uppercase tracking-wide">ATS & Recruiter Impact</span>
+            <div className="mt-4 pt-4 border-t border-[#10241c]/10">
+              <span className="text-xs font-semibold text-[#10241c]/60 uppercase tracking-wide">ATS & Recruiter Impact</span>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {active.skills.map((s) => (
-                  <span key={s} className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#000052] text-white">
+                  <span key={s} className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#10241c] text-white">
                     {s}
                   </span>
                 ))}
@@ -229,7 +229,7 @@ export function TransformationCarousel() {
         </div>
 
         {/* Bottom Carousel Controls */}
-        <div className="bg-[#B2BEB5]/20 px-6 py-4 flex items-center justify-between border-t border-[#000052]/10">
+        <div className="bg-[#becbbf]/20 px-6 py-4 flex items-center justify-between border-t border-[#10241c]/10">
           <div className="flex items-center gap-2">
             {SCENARIOS.map((_, i) => (
               <button
@@ -237,7 +237,7 @@ export function TransformationCarousel() {
                 onClick={() => setActiveIdx(i)}
                 aria-label={`Go to slide ${i + 1}`}
                 className={`h-2 rounded-full transition-all duration-200 ${
-                  activeIdx === i ? "w-8 bg-[#000052]" : "w-2 bg-[#000052]/30 hover:bg-[#000052]/50"
+                  activeIdx === i ? "w-8 bg-[#10241c]" : "w-2 bg-[#10241c]/30 hover:bg-[#10241c]/50"
                 }`}
               />
             ))}
@@ -247,17 +247,17 @@ export function TransformationCarousel() {
             <button
               onClick={handlePrev}
               aria-label="Previous scenario"
-              className="p-2 rounded-lg bg-white border border-[#000052]/20 text-[#000052] hover:bg-[#000052] hover:text-white transition-colors cursor-pointer shadow-sm"
+              className="p-2 rounded-lg bg-white border border-[#10241c]/20 text-[#10241c] hover:bg-[#10241c] hover:text-white transition-colors cursor-pointer shadow-sm"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs font-bold text-[#000052] px-2">
+            <span className="text-xs font-bold text-[#10241c] px-2">
               {activeIdx + 1} / {SCENARIOS.length}
             </span>
             <button
               onClick={handleNext}
               aria-label="Next scenario"
-              className="p-2 rounded-lg bg-white border border-[#000052]/20 text-[#000052] hover:bg-[#000052] hover:text-white transition-colors cursor-pointer shadow-sm"
+              className="p-2 rounded-lg bg-white border border-[#10241c]/20 text-[#10241c] hover:bg-[#10241c] hover:text-white transition-colors cursor-pointer shadow-sm"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

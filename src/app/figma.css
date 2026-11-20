@@ -1058,7 +1058,8 @@
   margin-bottom: 30px;
 }
 
-.landing-footer {
+.landing-footer,
+footer {
   background: var(--ink);
   color: var(--cream);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
@@ -1068,18 +1069,22 @@
   gap: 4vw;
   align-items: end;
 }
-.landing-footer p {
+.landing-footer p,
+footer p {
   opacity: 0.55;
   font-size: 12px;
   line-height: 1.5;
   margin: 0;
 }
-.landing-footer > div {
+.landing-footer > div,
+footer > div {
   display: flex;
   gap: 24px;
 }
 .landing-footer a,
-.landing-footer button {
+.landing-footer button,
+footer a,
+footer button {
   font-size: 12px;
   background: none;
   border: 0;
@@ -1088,7 +1093,8 @@
   cursor: pointer;
   text-decoration: none;
 }
-.landing-footer > span {
+.landing-footer > span,
+footer > span {
   font-family: "DM Mono", monospace;
   font-size: 8px;
   opacity: 0.4;
@@ -1922,10 +1928,12 @@
   .trust-section h2 {
     font-size: 48px;
   }
-  .landing-footer {
+  .landing-footer,
+  footer {
     grid-template-columns: 1fr 1fr;
   }
-  .landing-footer > span {
+  .landing-footer > span,
+  footer > span {
     grid-column: 1/-1;
   }
   .dashboard {
@@ -1960,6 +1968,7 @@
   .sidebar nav button.active,
   .sidebar nav a.active {
     background: var(--cream);
+    color: var(--ink) !important;
   }
   .dash-top {
     height: 76px;
