@@ -37,27 +37,27 @@ export default function PrivacyPage() {
       </header>
 
       {/* Hero Banner */}
-      <section className="border-b border-[rgba(16,36,28,0.15)] bg-[#faf8f2] px-6 py-16 sm:px-12 sm:py-20">
+      <section className="border-b border-[rgba(16,36,28,0.15)] bg-[#faf8f2] px-6 py-7 sm:px-12 sm:py-9">
         <div className="mx-auto max-w-4xl">
-          <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#a98452]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-[#a98452]">
             SECURITY &amp; PRIVACY GUARANTEE · 2026
           </span>
-          <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-bold tracking-tight text-[#10241c] leading-[1.1]">
+          <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#10241c] leading-[1.15]">
             Your career data is private.
             <br />
             <em className="text-[#a98452] not-italic">Period.</em>
           </h1>
-          <p className="mt-4 max-w-[65ch] text-base sm:text-lg leading-relaxed text-[#536259]">
+          <p className="mt-3 max-w-[65ch] text-sm sm:text-base leading-relaxed text-[#536259]">
             We built Adaptive Resume for job seekers who value integrity. We never sell your personal information, never train public models on your career records, and never fabricate claims on your resumes.
           </p>
-          <div className="mt-6 flex items-center gap-2 font-mono text-xs text-[#7d847f]">
-            <ShieldCheck className="h-4 w-4 text-[#315849]" /> Last updated: January 2026 · Valid across all versions
+          <div className="mt-4 flex items-center gap-2 font-mono text-[11px] text-[#7d847f]">
+            <ShieldCheck className="h-4 w-4 text-[#315849]" /> Last updated: November 2024 · Active policy
           </div>
         </div>
       </section>
 
       {/* 3 Core Pillars */}
-      <section className="px-6 py-12 sm:px-12">
+      <section className="px-6 py-8 sm:px-12">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-3">
           <div className="rounded border border-[rgba(16,36,28,0.15)] bg-[#faf8f2] p-6 shadow-sm">
             <div className="flex h-10 w-10 items-center justify-center rounded bg-[#dce5df] text-[#315849]">

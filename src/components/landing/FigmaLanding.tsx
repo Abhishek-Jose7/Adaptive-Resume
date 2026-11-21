@@ -306,50 +306,152 @@ export function ResumeSheet({
 }) {
   const role = roles[roleIndex] || roles[0];
 
+  if (compact) {
+    return (
+      <div className="resume-sheet compact">
+        <div className="resume-top">
+          <div>
+            <strong>ARJUN MEHTA</strong>
+            <span>B.Tech CSE · Pune, India</span>
+          </div>
+          <span className="match-pill" style={{ background: role.color }}>
+            {role.match}% match
+          </span>
+        </div>
+        <div className="resume-rule" />
+        <p className="resume-role">
+          TARGET · {role.label.toUpperCase()} @ {role.company.toUpperCase()}
+        </p>
+        <section className="compact-section">
+          <b>EXPERIENCE &amp; PROJECTS</b>
+          <h4>
+            {role.experience[0].title} <span>{role.experience[0].company}</span>
+          </h4>
+          <p>
+            <HighlightedText
+              text={role.experience[0].bullets[0].text}
+              keywords={role.experience[0].bullets[0].keywords}
+            />
+          </p>
+          <p>
+            <HighlightedText
+              text={role.projects[0].bullets[0].text}
+              keywords={role.projects[0].bullets[0].keywords}
+            />
+          </p>
+        </section>
+        <section className="compact-section">
+          <b>TARGET SKILLS</b>
+          <div className="sheet-skills">
+            {role.skills.slice(0, 5).map((skill) => (
+              <span key={skill}>{skill}</span>
+            ))}
+          </div>
+        </section>
+        <section className="compact-section compact-edu">
+          <b>EDUCATION</b>
+          <p className="compact-edu-text">B.Tech CSE · Pune Institute of Computer Tech · 8.8 CGPA</p>
+        </section>
+        <div className="evidence-note">
+          <FigmaIcon name="shield" size={13} />
+          <span>Every claim links to approved evidence</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`resume-sheet ${compact ? "compact" : ""}`}>
+    <div className="resume-sheet hero-a4-sheet">
       <div className="resume-top">
         <div>
           <strong>ARJUN MEHTA</strong>
-          <span>B.Tech CSE · Pune, India</span>
+          <span className="hero-resume-subtitle">Frontend &amp; Full-Stack Software Engineer</span>
+          <div className="hero-resume-contact">
+            <span>Pune, MH</span>
+            <span>·</span>
+            <span>+91 98201 45820</span>
+            <span>·</span>
+            <span>arjun.mehta@email.com</span>
+            <span>·</span>
+            <span>github.com/arjunmehta</span>
+          </div>
         </div>
         <span className="match-pill" style={{ background: role.color }}>
           {role.match}% match
         </span>
       </div>
       <div className="resume-rule" />
-      <p className="resume-role">
-        TARGET · {role.label.toUpperCase()} @ {role.company.toUpperCase()}
-      </p>
-      <section>
-        <b>EXPERIENCE &amp; PROJECTS</b>
-        <h4>
-          {role.experience[0].title} <span>{role.experience[0].company}</span>
-        </h4>
-        <p>
-          <HighlightedText
-            text={role.experience[0].bullets[0].text}
-            keywords={role.experience[0].bullets[0].keywords}
-          />
-        </p>
-        <p>
-          <HighlightedText
-            text={role.projects[0].bullets[0].text}
-            keywords={role.projects[0].bullets[0].keywords}
-          />
-        </p>
-      </section>
-      <section>
-        <b>TARGET SKILLS</b>
-        <div className="sheet-skills">
-          {role.skills.slice(0, 5).map((skill) => (
-            <span key={skill}>{skill}</span>
-          ))}
+      <div className="hero-target-banner">
+        <span>TARGET · FRONTEND INTERN @ RAZORPAY</span>
+        <span className="hero-target-badge">92% ATS MATCH</span>
+      </div>
+
+      <section className="hero-sheet-section">
+        <b>EXPERIENCE</b>
+        <div className="hero-entry">
+          <div className="hero-entry-header">
+            <h4>Frontend Engineering Intern · <span>PayPulse Technologies</span></h4>
+            <span className="hero-entry-dates">Jan 2024 – Present</span>
+          </div>
+          <p>
+            <HighlightedText
+              text="Re-architected user dashboard with React 18 & TypeScript, cutting First Contentful Paint by 42% and eliminating unnecessary re-renders via useMemo and React.memo."
+              keywords={["React 18", "TypeScript", "First Contentful Paint by 42%", "useMemo", "React.memo"]}
+            />
+          </p>
+          <p>
+            <HighlightedText
+              text="Engineered 20+ accessible UI components using Tailwind CSS and Radix UI primitives, ensuring 100% WCAG 2.1 AA compliance across mobile and desktop viewports."
+              keywords={["Tailwind CSS", "Radix UI", "100% WCAG 2.1 AA"]}
+            />
+          </p>
         </div>
       </section>
+
+      <section className="hero-sheet-section">
+        <b>FEATURED PROJECTS</b>
+        <div className="hero-entry">
+          <div className="hero-entry-header">
+            <h4>Campus Trade Portal · <span>Production SPA (React / Node.js)</span></h4>
+            <span className="hero-entry-dates">Sept 2023 – Dec 2023</span>
+          </div>
+          <p>
+            <HighlightedText
+              text="Developed responsive single-page web app used by 420+ university students for textbook exchanges, featuring real-time debounce search and client-side caching."
+              keywords={["420+ university students", "debounce search", "client-side caching"]}
+            />
+          </p>
+          <p>
+            <HighlightedText
+              text="Integrated RESTful payment gateway APIs with optimistic UI states and resilient error boundaries, decreasing checkout drop-offs by 14%."
+              keywords={["RESTful payment gateway APIs", "optimistic UI states", "error boundaries"]}
+            />
+          </p>
+        </div>
+      </section>
+
+      <section className="hero-sheet-section">
+        <b>TECHNICAL SKILLS</b>
+        <div className="hero-skills-grid">
+          <div><b>Languages &amp; Core:</b> TypeScript · JavaScript (ES6+) · HTML5 · CSS3 · SQL</div>
+          <div><b>Frameworks &amp; UI:</b> React 18 · Next.js · Tailwind CSS · Radix UI · Redux Toolkit</div>
+          <div><b>Developer Tools:</b> Vite · Git · GitHub Actions · Jest · Web Vitals · REST APIs</div>
+        </div>
+      </section>
+
+      <section className="hero-sheet-section">
+        <b>EDUCATION</b>
+        <div className="hero-edu-row">
+          <div>
+            <strong>B.Tech in Computer Science &amp; Engineering</strong> · Pune Institute of Computer Technology
+          </div>
+          <span>2022 – 2026 | CGPA: 8.8 / 10</span>
+        </div>
+      </section>
+
       <div className="evidence-note">
         <FigmaIcon name="shield" size={13} />
-        <span>Every claim links to approved evidence</span>
+        <span>Every claim links to approved evidence · Zero AI hallucinations</span>
       </div>
     </div>
   );
@@ -470,15 +572,14 @@ export function DetailedResumeSheet({ roleIndex = 0 }: { roleIndex?: number }) {
 export function FigmaLanding() {
   const [role, setRole] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const galleryRef = useRef<HTMLDivElement>(null);
-  const spotlightRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const userManualRef = useRef(false);
   const manualTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Gallery Symmetrical Scroll Animation
+  // Unified Scroll Stage Synchronizer (Spread -> Spotlight -> Role switcher)
   useEffect(() => {
-    const gallery = galleryRef.current;
-    if (!gallery) return;
+    const stage = stageRef.current;
+    if (!stage) return;
 
     let displayedProgress = 0;
     let targetProgress = 0;
@@ -487,27 +588,85 @@ export function FigmaLanding() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const applyProgress = (p: number) => {
+      // Phase 1 (Spread into Inverted U Arch): p from 0.00 to 0.12 -> Cards fan out
+      const spread = Math.max(0, Math.min(1, p / 0.12));
+
+      // Phase 2 (Extended Dwell Phase): p from 0.12 to 0.32
+      // All 3 detailed resumes stay fully spread out in inverted U arch — generous dwell for user to inspect.
+
+      // Phase 3 (Continuous Downward & Center Travel): p from 0.32 to 0.48
+      const travel = Math.max(0, Math.min(1, (p - 0.32) / 0.16));
+      // Spotlight (left copy & right signals) glides in as middle card enters center
+      const spotlight = Math.max(0, Math.min(1, (p - 0.40) / 0.08));
+
+      // Opacities: clean numbers between 0 and 1
+      const galleryOpacity = Math.max(0, Math.min(1, 1 - travel * 1.5));
+      const sideOpacity = Math.max(0, Math.min(1, 1 - travel * 1.5));
+      const spotlightOpacity = spotlight;
+
+      // Transforms — Card 2 glides smoothly from 63vw to 50vw (-13vw) and down 20px into Section 3 center
+      const travelX = (-travel * 13).toFixed(2) + "vw";
+      const travelY = (travel * 20).toFixed(1) + "px";
+
+      stage.style.setProperty("--scroll-progress", p.toFixed(4));
+      stage.style.setProperty("--spread", spread.toFixed(4));
+      stage.style.setProperty("--travel", travel.toFixed(4));
+      stage.style.setProperty("--travel-x", travelX);
+      stage.style.setProperty("--travel-y", travelY);
+      stage.style.setProperty("--gallery-opacity", galleryOpacity.toFixed(4));
+      stage.style.setProperty("--side-opacity", sideOpacity.toFixed(4));
+      stage.style.setProperty("--spotlight-opacity", spotlightOpacity.toFixed(4));
+
+      if (spotlight >= 0.5) {
+        stage.setAttribute("data-spotlight", "true");
+      } else {
+        stage.removeAttribute("data-spotlight");
+      }
+
+      // Phase 4: Slower, spacious Section 3 role switching (content changing):
+      // - p < 0.48: Section 2 & travel (Card 2 is Role 0, manual override cleared)
+      // - p from 0.48 to 0.65: Card 2 has arrived and is fully fitted in the center!
+      //   (Locked to Role 0, Tab 01, zero content changing — relaxed dwell)
+      // - p from 0.65 to 0.82: Content changes to Role 1 (02 SDE I @ CRED) — slow & readable
+      // - p >= 0.82: Content changes to Role 2 (03 Product Engineer @ Postman) — slow & readable
+      if (p < 0.48) {
+        userManualRef.current = false;
+        setRole(0);
+      } else if (!userManualRef.current) {
+        if (p < 0.65) {
+          setRole(0); // Arrived & fitted in center: Tab 01 locked, zero content changing!
+        } else if (p < 0.82) {
+          setRole(1); // Content change 1: Tab 02 SDE I @ CRED
+        } else {
+          setRole(2); // Content change 2: Tab 03 Product Engineer @ Postman
+        }
+      }
+    };
+
     const render = () => {
       const distance = targetProgress - displayedProgress;
-      displayedProgress += distance * 0.105;
-      gallery.style.setProperty("--scroll-progress", displayedProgress.toFixed(4));
+      displayedProgress += distance * 0.10;
+      applyProgress(displayedProgress);
 
-      if (Math.abs(distance) > 0.0005) {
+      if (Math.abs(distance) > 0.0004) {
         frame = requestAnimationFrame(render);
       } else {
         displayedProgress = targetProgress;
-        gallery.style.setProperty("--scroll-progress", displayedProgress.toFixed(4));
+        applyProgress(displayedProgress);
         frame = 0;
       }
     };
 
     const measure = () => {
-      const rect = gallery.getBoundingClientRect();
-      targetProgress = Math.max(0, Math.min(1, -rect.top / (rect.height - window.innerHeight)));
+      const rect = stage.getBoundingClientRect();
+      const totalScrollable = rect.height - window.innerHeight;
+      if (totalScrollable <= 0) return;
+      targetProgress = Math.max(0, Math.min(1, -rect.top / totalScrollable));
 
       if (reducedMotion) {
         displayedProgress = targetProgress;
-        gallery.style.setProperty("--scroll-progress", displayedProgress.toFixed(4));
+        applyProgress(displayedProgress);
       } else if (!frame) {
         frame = requestAnimationFrame(render);
       }
@@ -524,40 +683,13 @@ export function FigmaLanding() {
     };
   }, []);
 
-  // Section 03 "TRY THE SHIFT" Spotlight Scroll Synchronizer
-  useEffect(() => {
-    const spotlight = spotlightRef.current;
-    if (!spotlight) return;
-
-    const handleScroll = () => {
-      if (userManualRef.current) return;
-      const rect = spotlight.getBoundingClientRect();
-      const totalScrollable = rect.height - window.innerHeight;
-      if (totalScrollable <= 0) return;
-
-      const scrolled = -rect.top;
-      const progress = Math.max(0, Math.min(1, scrolled / totalScrollable));
-
-      if (progress < 0.33) {
-        setRole(0);
-      } else if (progress < 0.67) {
-        setRole(1);
-      } else {
-        setRole(2);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleRoleSelect = useCallback((idx: number) => {
     setRole(idx);
     userManualRef.current = true;
     if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
     manualTimeoutRef.current = setTimeout(() => {
       userManualRef.current = false;
-    }, 3500);
+    }, 4000);
   }, []);
 
   return (
@@ -614,10 +746,7 @@ export function FigmaLanding() {
             <em>Tailored to any job post.</em>
           </h1>
           <p className="hero-lede">
-            Store your projects, skills, and work experience once in your Career Vault. When you find
-            a job you want, paste the job description—we match your actual background to what the
-            employer is looking for and build an ATS-ready resume in seconds. Zero fake claims, zero
-            AI hallucinations.
+            Store your verified projects, skills, and experience once in your Career Vault. Paste any job post—we adapt your real facts into an ATS-ready resume in seconds. Zero fake claims, zero AI hallucinations.
           </p>
           <div className="hero-actions">
             <SignUpButton mode="modal">
@@ -661,92 +790,86 @@ export function FigmaLanding() {
         </div>
       </section>
 
-      {/* Section 02 — Symmetrical Scroll Gallery */}
-      <section className="gallery-section" ref={galleryRef} id="proof">
-        <div className="gallery-sticky">
-          <div className="gallery-copy">
-            <h2>
-              One career history.
-              <br />
-              <em>Customized for every role.</em>
-            </h2>
-            <p>
-              You don&apos;t need to rewrite your resume from scratch for every application. See how
-              the same verified skills and experience adapt to highlight exactly what each job
-              description asks for.
-            </p>
-          </div>
-          <div className="scroll-gallery">
-            {roles.map((item, index) => (
-              <div className={`gallery-card card-${index}`} key={item.label}>
-                <div className="gallery-role">
-                  <span style={{ background: item.color }}>{index + 1}</span>
-                  <div>
-                    <b>{item.label}</b>
-                    <small>{item.company} · {item.location}</small>
-                  </div>
-                </div>
-                <ResumeSheet roleIndex={index} compact />
+      {/* Section 02 & 03 — Story Gallery & Spotlight Stage */}
+      <section className="stage-section" ref={stageRef} id="proof">
+        <div id="shift" style={{ position: "absolute", top: "70%", pointerEvents: "none" }} />
+        <div className="stage-sticky">
+          {/* Left Panel: Gallery Copy cross-fades into Spotlight Copy & Role Switcher */}
+          <div className="stage-left-panel">
+            <div className="stage-gallery-copy">
+              <span className="section-index">01 — ONE CAREER, ADAPTED</span>
+              <h2>
+                One career history.
+                <br />
+                <em>Customized for every role.</em>
+              </h2>
+              <p>
+                You don&apos;t need to rewrite your resume from scratch for every application. See how
+                the same verified skills and experience adapt to highlight exactly what each job
+                description asks for.
+              </p>
+            </div>
+
+            <div className="stage-spotlight-copy">
+              <span className="section-index">02 — INTERACTIVE DEMO</span>
+              <h2>
+                Same candidate.
+                <br />
+                <em>Different spotlight.</em>
+              </h2>
+              <p className="spotlight-desc">
+                Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills
+                rearrange to match what each employer wants:
+              </p>
+              <div className="spotlight-tabs" role="tablist">
+                {roles.map((item, i) => (
+                  <button
+                    type="button"
+                    key={item.label}
+                    onClick={() => handleRoleSelect(i)}
+                    className={`spotlight-tab-btn ${role === i ? "active" : ""}`}
+                    role="tab"
+                    aria-selected={role === i}
+                  >
+                    <div className="tab-indicator" style={{ background: item.color }}>
+                      0{i + 1}
+                    </div>
+                    <div className="tab-info">
+                      <b>{item.label}</b>
+                      <small>{item.company}</small>
+                    </div>
+                    <span className="tab-match" style={{ color: item.color }}>
+                      {item.match}% fit
+                    </span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="scroll-meter">
-            <span />
-            <small>SCROLL TO ADAPT</small>
-          </div>
-        </div>
-      </section>
-
-      {/* Section 03 — Spotlight Stage (Card 1 glides here into center stage) */}
-      <section className="spotlight-section" ref={spotlightRef} id="shift">
-        <div className="spotlight-sticky">
-          {/* Left Column: Heading, Subtitle, Role Switcher Tabs */}
-          <div className="spotlight-left">
-            <span className="section-index">02 — INTERACTIVE DEMO</span>
-            <h2>
-              Same candidate.
-              <br />
-              <em>Different spotlight.</em>
-            </h2>
-            <p className="spotlight-desc">
-              Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills
-              rearrange to match what each employer wants:
-            </p>
-            <div className="spotlight-tabs" role="tablist">
-              {roles.map((item, i) => (
-                <button
-                  type="button"
-                  key={item.label}
-                  onClick={() => handleRoleSelect(i)}
-                  className={`spotlight-tab-btn ${role === i ? "active" : ""}`}
-                  role="tab"
-                  aria-selected={role === i}
-                >
-                  <div className="tab-indicator" style={{ background: item.color }}>
-                    0{i + 1}
-                  </div>
-                  <div className="tab-info">
-                    <b>{item.label}</b>
-                    <small>{item.company}</small>
-                  </div>
-                  <span className="tab-match" style={{ color: item.color }}>
-                    {item.match}% fit
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="spotlight-scroll-hint">
-              <span>↓</span> Scroll to change roles automatically
+              <div className="spotlight-scroll-hint">
+                <span>↓</span> Scroll to change roles automatically
+              </div>
             </div>
           </div>
 
-          {/* Center Column: Detailed Realistic Resume */}
-          <div className="spotlight-center">
-            <DetailedResumeSheet roleIndex={role} />
+          {/* Cards Container: Holds Card 1 (left), Card 3 (right), and Card 2 (middle traveler & Section 3 spotlight resume) */}
+          <div className="stage-cards-container">
+            {/* Card 1: Left Card (curves DOWN & LEFT in inverted U arch) */}
+            <div className="stage-card resume-card-1" aria-hidden="true">
+              <DetailedResumeSheet roleIndex={1} />
+            </div>
+
+            {/* Card 3: Right Card (curves DOWN & RIGHT in inverted U arch) */}
+            <div className="stage-card resume-card-3" aria-hidden="true">
+              <DetailedResumeSheet roleIndex={2} />
+            </div>
+
+            {/* Middle Card: Card 2 (starts at arch apex, travels DOWN & LEFT into Section 3 center) */}
+            <div className="stage-card resume-card-2 stage-traveler">
+              <DetailedResumeSheet roleIndex={role} />
+            </div>
           </div>
 
-          {/* Right Column: Matched Signals & Truth Guarantee */}
-          <div className="spotlight-right">
+          {/* Right Panel: Matched signals panel appears as Card 2 arrives in the spotlight */}
+          <div className="stage-right-panel">
             <div className="spotlight-signals-panel">
               <div className="signals-header">
                 <span>MATCHED SIGNALS</span>
@@ -785,8 +908,15 @@ export function FigmaLanding() {
               </div>
             </div>
           </div>
+
+          {/* Scroll Progress Meter */}
+          <div className="scroll-meter">
+            <span />
+            <small>SCROLL TO ADAPT</small>
+          </div>
         </div>
       </section>
+
 
       {/* Steps Section — How It Works */}
       <section className="steps-section" id="how">

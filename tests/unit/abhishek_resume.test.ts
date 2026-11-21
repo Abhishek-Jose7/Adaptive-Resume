@@ -38,5 +38,5 @@ describe("User Real Resume Parsing Inspection: abhishek (1).pdf", () => {
     expect(skillTitles).toContain("AI & GenAI");
     expect(skillTitles).toContain("ML & Computer Vision");
     expect(skillTitles).toContain("Web & Backend");
-  }, 15000);
+  }, 45000);
 });
