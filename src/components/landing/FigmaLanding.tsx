@@ -10,6 +10,18 @@ export interface DetailedBullet {
   keywords: string[];
 }
 
+export interface RoleAnnotation {
+  id: string;
+  badge: string;
+  text: string;
+  side: "left" | "right";
+  top: string;
+  arrowType: "left" | "right" | "up-left" | "down-left" | "up-right" | "down-right";
+  rotation?: string;
+  badgeColor?: string;
+  arrowColor?: string;
+}
+
 export interface DetailedRole {
   label: string;
   targetRole: string;
@@ -21,6 +33,7 @@ export interface DetailedRole {
   signals: { name: string; pct: number }[];
   targetBanner: string;
   summary: string;
+  annotations: RoleAnnotation[];
   experience: {
     title: string;
     company: string;
@@ -57,6 +70,35 @@ export const roles: DetailedRole[] = [
     targetBanner: "TARGET: FRONTEND INTERN @ RAZORPAY · 92% ATS MATCH",
     summary:
       "Frontend-focused engineer specializing in React 18, TypeScript, and modern component design systems. Proven experience slashing bundle sizes, integrating payment flows with optimistic UI, and building responsive, accessible web applications.",
+    annotations: [
+      {
+        id: "r0-banner",
+        badge: "92% ATS MATCH",
+        text: "Target headline anchored to React 18 & Design Systems",
+        side: "right",
+        top: "13.5%",
+        arrowType: "left",
+        rotation: "rotate(-1.5deg)",
+      },
+      {
+        id: "r0-exp",
+        badge: "PRIORITIZED #1",
+        text: "Web Vitals (FCP -42%) & checkout perf moved to top bullet",
+        side: "left",
+        top: "36.5%",
+        arrowType: "right",
+        rotation: "rotate(1.2deg)",
+      },
+      {
+        id: "r0-skills",
+        badge: "SKILLS RE-ORDERED",
+        text: "React, Next.js, Radix & Tailwind brought to #1 priority",
+        side: "right",
+        top: "73.5%",
+        arrowType: "up-left",
+        rotation: "rotate(-1.2deg)",
+      },
+    ],
     experience: [
       {
         title: "Frontend Engineering Intern",
@@ -137,6 +179,35 @@ export const roles: DetailedRole[] = [
     targetBanner: "TARGET: SDE I @ CRED · 86% ATS MATCH",
     summary:
       "Full-stack software engineer with strong foundations in distributed backend systems, PostgreSQL query optimization, and high-concurrency microservices. Passionate about clean architecture, strict ACID guarantees, and automated CI/CD pipelines.",
+    annotations: [
+      {
+        id: "r1-summary",
+        badge: "SYSTEMS HEADLINE",
+        text: "Summary reframed for Microservices & ACID Reliability",
+        side: "left",
+        top: "21%",
+        arrowType: "down-right",
+        rotation: "rotate(1.5deg)",
+      },
+      {
+        id: "r1-project",
+        badge: "ACID DATABASE PROJECT",
+        text: "Highlighted Prisma row-level locks & Redis caching",
+        side: "right",
+        top: "53.5%",
+        arrowType: "down-left",
+        rotation: "rotate(-1.5deg)",
+      },
+      {
+        id: "r1-skills",
+        badge: "BACKEND PRIORITIZED",
+        text: "Distributed backend stack ranked above UI tools",
+        side: "left",
+        top: "71.5%",
+        arrowType: "up-right",
+        rotation: "rotate(1.2deg)",
+      },
+    ],
     experience: [
       {
         title: "Software Engineering Intern",
@@ -217,6 +288,35 @@ export const roles: DetailedRole[] = [
     targetBanner: "TARGET: PRODUCT ENGINEER @ POSTMAN · 80% ATS MATCH",
     summary:
       "Product-minded software engineer focused on developer tooling, API governance, and distributed telemetry. Experienced in translating user requirements into scalable developer platforms, open-source utilities, and automated SDK generators.",
+    annotations: [
+      {
+        id: "r2-banner",
+        badge: "80% ATS MATCH",
+        text: "Re-anchored for API Governance & Tooling at Postman",
+        side: "left",
+        top: "13.5%",
+        arrowType: "right",
+        rotation: "rotate(-1.5deg)",
+      },
+      {
+        id: "r2-exp",
+        badge: "DEV-TOOLING FOCUS",
+        text: "OpenAPI 3.0 specs & automated TypeScript SDKs put first",
+        side: "right",
+        top: "36.5%",
+        arrowType: "left",
+        rotation: "rotate(1.2deg)",
+      },
+      {
+        id: "r2-tool",
+        badge: "FEATURED TOOL",
+        text: "Open-source CLI Mock Tool (1,800+ downloads) highlighted",
+        side: "left",
+        top: "54.5%",
+        arrowType: "right",
+        rotation: "rotate(-1.2deg)",
+      },
+    ],
     experience: [
       {
         title: "Backend & Developer Tooling Intern",
@@ -569,6 +669,324 @@ export function DetailedResumeSheet({ roleIndex = 0 }: { roleIndex?: number }) {
   );
 }
 
+export function HandDrawnArrow({
+  type,
+  color = "#111111",
+}: {
+  type: "left" | "right" | "up-left" | "down-left" | "up-right" | "down-right";
+  color?: string;
+}) {
+  if (type === "right") {
+    // Points from left callout horizontally right into resume
+    return (
+      <svg
+        className="hand-arrow arrow-right"
+        viewBox="0 0 76 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M 6 14 C 26 12, 48 16, 68 20"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 54 13 C 59 16, 64 18, 68 20"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 55 28 C 60 25, 64 22, 68 20"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 12 18 C 24 16, 38 18, 50 21"
+          stroke={color}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "down-right") {
+    // Points from left callout down and right into resume
+    return (
+      <svg
+        className="hand-arrow arrow-down-right"
+        viewBox="0 0 76 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M 6 10 C 26 12, 48 20, 68 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 55 21 C 59 24, 64 27, 68 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 57 37 C 61 34, 64 32, 68 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 12 14 C 26 14, 38 20, 50 25"
+          stroke={color}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "up-right") {
+    // Points from left callout up and right into resume
+    return (
+      <svg
+        className="hand-arrow arrow-up-right"
+        viewBox="0 0 76 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M 6 30 C 26 28, 48 20, 68 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 57 4 C 61 6, 65 8, 68 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 55 19 C 59 16, 64 13, 68 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 12 26 C 26 26, 38 20, 50 15"
+          stroke={color}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "down-left") {
+    // Points from right callout down and left into resume
+    return (
+      <svg
+        className="hand-arrow arrow-down-left"
+        viewBox="0 0 76 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M 70 10 C 50 12, 28 20, 8 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 21 21 C 17 24, 12 27, 8 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 19 37 C 15 34, 12 32, 8 30"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 64 14 C 50 14, 38 20, 26 25"
+          stroke={color}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "up-left") {
+    // Points from right callout up and left into resume
+    return (
+      <svg
+        className="hand-arrow arrow-up-left"
+        viewBox="0 0 76 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M 70 30 C 50 28, 28 20, 8 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 19 4 C 15 6, 11 8, 8 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 21 19 C 17 16, 12 13, 8 10"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 64 26 C 50 26, 38 20, 26 15"
+          stroke={color}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </svg>
+    );
+  }
+
+  // Default: "left" — points from right callout horizontally left into resume
+  return (
+    <svg
+      className="hand-arrow arrow-left"
+      viewBox="0 0 76 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M 70 14 C 50 12, 28 16, 8 20"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M 22 13 C 17 16, 12 18, 8 20"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M 21 28 C 16 25, 12 22, 8 20"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M 64 18 C 52 16, 38 18, 26 21"
+        stroke={color}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.35"
+      />
+    </svg>
+  );
+}
+
+export function ResumeAnnotationsLayer({ roleIndex = 0 }: { roleIndex?: number }) {
+  const currentRole = roles[roleIndex] || roles[0];
+  const annotations = currentRole.annotations || [];
+
+  return (
+    <div className="resume-annotations-layer" aria-hidden="true">
+      {annotations.map((ann, idx) => (
+        <div
+          key={`${currentRole.company}-${ann.id}`}
+          className={`resume-callout callout-${ann.side}`}
+          style={{
+            top: ann.top,
+            animationDelay: `${0.06 * (idx + 1)}s`,
+          }}
+        >
+          {ann.side === "left" ? (
+            <>
+              <div
+                className="callout-card"
+                style={{ transform: ann.rotation || "none" }}
+              >
+                <div className="callout-badge">
+                  <span className="callout-badge-dot" />
+                  {ann.badge}
+                </div>
+                <p className="callout-text">{ann.text}</p>
+              </div>
+              <div className="callout-arrow-wrapper">
+                <HandDrawnArrow
+                  type={ann.arrowType}
+                  color={ann.arrowColor || "#111111"}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="callout-arrow-wrapper">
+                <HandDrawnArrow
+                  type={ann.arrowType}
+                  color={ann.arrowColor || "#111111"}
+                />
+              </div>
+              <div
+                className="callout-card"
+                style={{ transform: ann.rotation || "none" }}
+              >
+                <div className="callout-badge">
+                  <span className="callout-badge-dot" />
+                  {ann.badge}
+                </div>
+                <p className="callout-text">{ann.text}</p>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function FigmaLanding() {
   const [role, setRole] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -589,16 +1007,16 @@ export function FigmaLanding() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const applyProgress = (p: number) => {
-      // Phase 1 (Spread into Inverted U Arch): p from 0.00 to 0.12 -> Cards fan out
-      const spread = Math.max(0, Math.min(1, p / 0.12));
+      // Phase 1 (Spread into Inverted U Arch): p from 0.00 to 0.08 -> Cards fan out
+      const spread = Math.max(0, Math.min(1, p / 0.08));
 
-      // Phase 2 (Extended Dwell Phase): p from 0.12 to 0.32
-      // All 3 detailed resumes stay fully spread out in inverted U arch — generous dwell for user to inspect.
+      // Phase 2 (Section 2 Dwell): p from 0.08 to 0.18
+      // Crisp dwell in Section 2 so travel initiates promptly.
 
-      // Phase 3 (Continuous Downward & Center Travel): p from 0.32 to 0.48
-      const travel = Math.max(0, Math.min(1, (p - 0.32) / 0.16));
+      // Phase 3 (Continuous Downward & Center Travel): p from 0.18 to 0.28
+      const travel = Math.max(0, Math.min(1, (p - 0.18) / 0.10));
       // Spotlight (left copy & right signals) glides in as middle card enters center
-      const spotlight = Math.max(0, Math.min(1, (p - 0.40) / 0.08));
+      const spotlight = Math.max(0, Math.min(1, (p - 0.22) / 0.06));
 
       // Opacities: clean numbers between 0 and 1
       const galleryOpacity = Math.max(0, Math.min(1, 1 - travel * 1.5));
@@ -624,22 +1042,21 @@ export function FigmaLanding() {
         stage.removeAttribute("data-spotlight");
       }
 
-      // Phase 4: Slower, spacious Section 3 role switching (content changing):
-      // - p < 0.48: Section 2 & travel (Card 2 is Role 0, manual override cleared)
-      // - p from 0.48 to 0.65: Card 2 has arrived and is fully fitted in the center!
-      //   (Locked to Role 0, Tab 01, zero content changing — relaxed dwell)
-      // - p from 0.65 to 0.82: Content changes to Role 1 (02 SDE I @ CRED) — slow & readable
-      // - p >= 0.82: Content changes to Role 2 (03 Product Engineer @ Postman) — slow & readable
-      if (p < 0.48) {
+      // Phase 4: Extended, generous Section 3 scroll dwell for all 3 versions:
+      // - p < 0.28: Section 2 and continuous travel (Card 2 is Role 0, manual override cleared)
+      // - p from 0.28 to 0.52: Role 01 (Frontend Intern @ Razorpay) — generous dwell after arrival!
+      // - p from 0.52 to 0.76: Role 02 (SDE I @ CRED) — generous dwell to read backend adaptation!
+      // - p >= 0.76: Role 03 (Product Engineer @ Postman) — generous dwell to read API tooling adaptation!
+      if (p < 0.28) {
         userManualRef.current = false;
         setRole(0);
       } else if (!userManualRef.current) {
-        if (p < 0.65) {
-          setRole(0); // Arrived & fitted in center: Tab 01 locked, zero content changing!
-        } else if (p < 0.82) {
-          setRole(1); // Content change 1: Tab 02 SDE I @ CRED
+        if (p < 0.52) {
+          setRole(0); // Role 01 (Razorpay): generous pause after fitting in center!
+        } else if (p < 0.76) {
+          setRole(1); // Role 02 (CRED): generous pause to read backend adaptation!
         } else {
-          setRole(2); // Content change 2: Tab 03 Product Engineer @ Postman
+          setRole(2); // Role 03 (Postman): generous pause to read API tooling adaptation!
         }
       }
     };
@@ -797,11 +1214,10 @@ export function FigmaLanding() {
           {/* Left Panel: Gallery Copy cross-fades into Spotlight Copy & Role Switcher */}
           <div className="stage-left-panel">
             <div className="stage-gallery-copy">
-              <span className="section-index">01 — ONE CAREER, ADAPTED</span>
               <h2>
                 One career history.
                 <br />
-                <em>Customized for every role.</em>
+                <em><span className="no-break-word">Customized</span> for every role.</em>
               </h2>
               <p>
                 You don&apos;t need to rewrite your resume from scratch for every application. See how
@@ -811,7 +1227,6 @@ export function FigmaLanding() {
             </div>
 
             <div className="stage-spotlight-copy">
-              <span className="section-index">02 — INTERACTIVE DEMO</span>
               <h2>
                 Same candidate.
                 <br />
@@ -865,6 +1280,7 @@ export function FigmaLanding() {
             {/* Middle Card: Card 2 (starts at arch apex, travels DOWN & LEFT into Section 3 center) */}
             <div className="stage-card resume-card-2 stage-traveler">
               <DetailedResumeSheet roleIndex={role} />
+              <ResumeAnnotationsLayer roleIndex={role} />
             </div>
           </div>
 

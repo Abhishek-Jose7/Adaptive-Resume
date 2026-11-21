@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:wdth,wght@75..100,400..700&family=Newsreader:ital,opsz,wght@1,6..72,500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wdth,wght@75..100,400..700&family=Newsreader:ital,opsz,wght@1,6..72,500&family=Patrick+Hand&display=swap");
 
 :root {
   --ink: #10241c;
@@ -934,7 +934,7 @@
 
 /* Unified Interactive Story & Spotlight Stage */
 .stage-section {
-  height: 850vh;
+  height: 1200vh;
   background:
     radial-gradient(circle at 82% 22%, rgba(169, 132, 82, 0.13), transparent 30%),
     linear-gradient(180deg, #dce2da 0%, #d5ddd5 45%, var(--cream) 100%);
@@ -965,10 +965,10 @@
 /* Left Panel: Gallery Copy cross-fades with Spotlight Copy */
 .stage-left-panel {
   position: absolute;
-  left: 5.5vw;
+  left: 3.5vw;
   top: 48%;
   transform: translateY(-50%);
-  width: clamp(260px, 19vw, 310px);
+  width: clamp(260px, 18.5vw, 340px);
   z-index: 40;
   pointer-events: none;
 }
@@ -978,11 +978,21 @@
   transform: translateY(calc(var(--travel, 0) * -30px));
 }
 .stage-gallery-copy h2 {
-  font-size: clamp(34px, 3.8vw, 58px);
-  line-height: 0.94;
-  letter-spacing: -0.05em;
+  font-size: clamp(26px, 2.5vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
   margin: 0;
   color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+.no-break-word {
+  display: inline-block;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 .stage-gallery-copy p {
   max-width: 340px;
@@ -1005,11 +1015,14 @@
   pointer-events: auto;
 }
 .stage-spotlight-copy h2 {
-  font-size: clamp(32px, 3.4vw, 50px);
-  line-height: 0.98;
-  letter-spacing: -0.04em;
+  font-size: clamp(26px, 2.5vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
   margin: 0;
   color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 .spotlight-desc {
   font-size: 13px;
@@ -1245,17 +1258,151 @@
 
 /* Section 3 Spotlight: Center Resume maintains the EXACT SAME size so it doesn't jump sizes! */
 .stage-section[data-spotlight="true"] .resume-card-2.stage-traveler {
+  overflow: visible; /* Allows hand-drawn annotations & arrows to extend into the flanking stage margins */
   pointer-events: auto;
   box-shadow: 0 25px 70px rgba(16, 36, 28, 0.22);
+}
+
+/* Hand-Drawn Annotations & Pointing Arrows Layer for Section 3 */
+.resume-annotations-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 70;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+.stage-section[data-spotlight="true"] .resume-annotations-layer {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.resume-callout {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: auto;
+  z-index: 75;
+  transform: translateY(-50%);
+  will-change: transform, opacity;
+  animation: calloutPopIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Callout on the left side of the resume: Note sits on left, hand-drawn arrow points right into the sheet */
+.resume-callout.callout-left {
+  right: calc(100% - 38px);
+  flex-direction: row;
+}
+
+/* Callout on the right side of the resume: Hand-drawn arrow points left into the sheet, Note sits on right */
+.resume-callout.callout-right {
+  left: calc(100% - 38px);
+  flex-direction: row;
+}
+
+.callout-card {
+  width: clamp(142px, 10vw, 168px);
+  background: #fffdf9;
+  border: 1px solid rgba(17, 17, 17, 0.24);
+  border-radius: 5px;
+  padding: 6px 10px 8px;
+  box-shadow: 0 8px 24px rgba(16, 36, 28, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  text-align: left;
+  position: relative;
+  backdrop-filter: blur(4px);
+}
+
+.callout-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Patrick Hand", "Caveat", cursive, sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #111111;
+  margin-bottom: 2px;
+  line-height: 1.1;
+  border-bottom: 1.5px solid rgba(17, 17, 17, 0.25);
+  padding-bottom: 2px;
+}
+
+.callout-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #111111;
+  flex-shrink: 0;
+}
+
+.callout-text {
+  font-family: "Caveat", "Patrick Hand", cursive, sans-serif;
+  font-size: 16px;
+  line-height: 1.22;
+  color: #111111;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.callout-arrow-wrapper {
+  width: 68px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.hand-arrow {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.2));
+}
+
+@keyframes calloutPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(-50% + 8px)) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@media (max-width: 1300px) {
+  .resume-callout {
+    transform: translateY(-50%) scale(0.9);
+    transform-origin: center center;
+  }
+}
+@media (max-width: 1100px) {
+  .resume-callout {
+    transform: translateY(-50%) scale(0.82);
+    transform-origin: center center;
+  }
+}
+@media (max-width: 900px) {
+  .resume-annotations-layer {
+    display: none !important;
+  }
 }
 
 /* Right Panel: Matched signals panel appears as Card 2 arrives in spotlight, aligned to top: 48% */
 .stage-right-panel {
   position: absolute;
-  right: 5.5vw;
+  right: 3.5vw;
   top: 48%;
   transform: translateY(calc(-50% + (1 - var(--spotlight-opacity, 0)) * 25px));
-  width: clamp(260px, 19vw, 310px);
+  width: clamp(235px, 16.5vw, 280px);
   z-index: 40;
   opacity: var(--spotlight-opacity, 0);
   pointer-events: none;
