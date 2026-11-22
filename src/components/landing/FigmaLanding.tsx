@@ -1006,6 +1006,20 @@ export function FigmaLanding() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const isMobileViewport = () => typeof window !== "undefined" && window.innerWidth <= 900;
+
+    const applyMobileStatic = () => {
+      stage.style.setProperty("--scroll-progress", "1");
+      stage.style.setProperty("--spread", "0");
+      stage.style.setProperty("--travel", "1");
+      stage.style.setProperty("--travel-x", "0px");
+      stage.style.setProperty("--travel-y", "0px");
+      stage.style.setProperty("--gallery-opacity", "0");
+      stage.style.setProperty("--side-opacity", "0");
+      stage.style.setProperty("--spotlight-opacity", "1");
+      stage.setAttribute("data-spotlight", "true");
+    };
+
     const applyProgress = (p: number) => {
       // Phase 1 (Spread into Inverted U Arch): p from 0.00 to 0.08 -> Cards fan out
       const spread = Math.max(0, Math.min(1, p / 0.08));
@@ -1077,6 +1091,10 @@ export function FigmaLanding() {
     };
 
     const measure = () => {
+      if (isMobileViewport()) {
+        applyMobileStatic();
+        return;
+      }
       const rect = stage.getBoundingClientRect();
       const totalScrollable = rect.height - window.innerHeight;
       if (totalScrollable <= 0) return;
@@ -1105,9 +1123,11 @@ export function FigmaLanding() {
     setRole(idx);
     userManualRef.current = true;
     if (manualTimeoutRef.current) clearTimeout(manualTimeoutRef.current);
-    manualTimeoutRef.current = setTimeout(() => {
-      userManualRef.current = false;
-    }, 4000);
+    if (typeof window !== "undefined" && window.innerWidth > 900) {
+      manualTimeoutRef.current = setTimeout(() => {
+        userManualRef.current = false;
+      }, 4000);
+    }
   }, []);
 
   return (
@@ -1128,6 +1148,18 @@ export function FigmaLanding() {
           <Link href="/privacy" onClick={() => setMenuOpen(false)}>
             Privacy
           </Link>
+          <div className="mobile-drawer-auth">
+            <SignInButton mode="modal">
+              <button type="button" className="text-button" onClick={() => setMenuOpen(false)}>
+                Log in
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button type="button" className="nav-cta" onClick={() => setMenuOpen(false)}>
+                Build my resume <FigmaIcon name="arrow" size={17} />
+              </button>
+            </SignUpButton>
+          </div>
         </div>
         <div className="nav-actions">
           <SignInButton mode="modal">
@@ -1234,8 +1266,8 @@ export function FigmaLanding() {
                 <em>Different spotlight.</em>
               </h2>
               <p className="spotlight-desc">
-                Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills
-                rearrange to match what each employer wants:
+                <span className="desktop-hint">Scroll down or choose a role below to see how Arjun&apos;s verified experience and skills rearrange to match what each employer wants:</span>
+                <span className="mobile-hint">Tap any role below to see how Arjun&apos;s verified experience adapts in real-time:</span>
               </p>
               <div className="spotlight-tabs" role="tablist">
                 {roles.map((item, i) => (

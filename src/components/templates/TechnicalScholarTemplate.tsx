@@ -3,7 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export function TechnicalScholarTemplate({
   doc,
@@ -78,10 +78,28 @@ export function TechnicalScholarTemplate({
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#10241c] font-sans border-b border-gray-200 pb-0.5">
             01. Technical Skills & Architecture
           </h2>
-          <div className="mt-1 text-xs text-gray-800">
-            <span className="font-semibold text-gray-600">Stack: </span>
-            {doc.skills.map((s) => s.name).join(", ")}
-          </div>
+          {(() => {
+            const grouped = getGroupedSkills(doc.skills);
+            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+            if (hasCategories) {
+              return (
+                <div className="space-y-1 mt-1 text-xs text-gray-800 font-sans">
+                  {grouped.map((g, idx) => (
+                    <div key={idx}>
+                      <span className="font-bold text-[#10241c]">{g.category}: </span>
+                      <span>{g.items.join(", ")}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <div className="mt-1 text-xs text-gray-800">
+                <span className="font-bold text-[#10241c]">Stack: </span>
+                {doc.skills.map((s) => s.name).join(", ")}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -135,7 +153,10 @@ export function TechnicalScholarTemplate({
                 className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/20 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-gray-900 font-sans">
-                  <span>{proj.name}</span>
+                  <span>
+                    <span className="font-bold text-gray-900">{proj.name}</span>
+                    {proj.role && <span className="font-bold text-[#10241c]"> ({proj.role})</span>}
+                  </span>
                   {proj.url && (
                     <a
                       href={proj.url}
@@ -178,8 +199,8 @@ export function TechnicalScholarTemplate({
               >
                 <div>
                   <span className="font-bold text-gray-900">{edu.degree}</span>
-                  {edu.field && <span> in {edu.field}</span>} —{" "}
-                  <span className="text-gray-600">{edu.institution}</span>
+                  {edu.field && <span className="font-bold text-gray-900"> in {edu.field}</span>} —{" "}
+                  <span className="text-gray-900 font-bold">{edu.institution}</span>
                 </div>
                 <span className="text-[11px] text-gray-500 font-mono">
                   {edu.startDate} - {edu.endDate || "Present"}

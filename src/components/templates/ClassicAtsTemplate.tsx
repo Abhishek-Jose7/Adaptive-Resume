@@ -2,7 +2,7 @@
 
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export interface TemplateProps {
   doc: ResumeDoc;
@@ -142,10 +142,10 @@ export function ClassicAtsTemplate({
               >
                 <div>
                   <span className="font-bold text-gray-900">{edu.degree || "Degree"}</span>
-                  {edu.field && <span> in {edu.field}</span>}
-                  <div className="text-gray-700">{edu.institution}</div>
+                  {edu.field && <span className="font-bold text-gray-900"> in {edu.field}</span>}
+                  <div className="font-bold text-gray-800">{edu.institution}</div>
                 </div>
-                <span className="text-[11px] text-gray-600">
+                <span className="text-[11px] text-gray-600 font-medium">
                   {edu.startDate} – {edu.endDate || "Present"}
                 </span>
               </div>
@@ -169,8 +169,8 @@ export function ClassicAtsTemplate({
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-gray-900">
                   <span>
-                    {proj.name}
-                    {proj.role && <span className="font-normal text-gray-600"> ({proj.role})</span>}
+                    <span className="font-bold text-gray-900">{proj.name}</span>
+                    {proj.role && <span className="font-bold text-gray-800"> ({proj.role})</span>}
                   </span>
                   {proj.url && (
                     <a
@@ -207,9 +207,27 @@ export function ClassicAtsTemplate({
           <h2 className="text-xs font-bold uppercase tracking-wider border-b border-gray-400 pb-0.5 text-gray-900">
             Technical & Professional Skills
           </h2>
-          <p className="mt-1 text-xs text-gray-800 leading-relaxed">
-            {doc.skills.map((s) => s.name).join(" • ")}
-          </p>
+          {(() => {
+            const grouped = getGroupedSkills(doc.skills);
+            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+            if (hasCategories) {
+              return (
+                <div className="space-y-1 mt-1.5 text-xs text-gray-800 leading-relaxed">
+                  {grouped.map((g, idx) => (
+                    <div key={idx}>
+                      <span className="font-bold text-gray-900">{g.category}: </span>
+                      <span>{g.items.join(", ")}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <p className="mt-1 text-xs text-gray-800 leading-relaxed">
+                {doc.skills.map((s) => s.name).join(" • ")}
+              </p>
+            );
+          })()}
         </section>
       )}
 

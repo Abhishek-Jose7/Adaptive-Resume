@@ -3,7 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export function CompactEngineerTemplate({
   doc,
@@ -95,16 +95,34 @@ export function CompactEngineerTemplate({
               Technical Skills & Environment
             </h2>
           </div>
-          <div className="flex flex-wrap gap-1">
-            {doc.skills.map((s, idx) => (
-              <span
-                key={idx}
-                className="bg-[#becbbf]/20 text-[#10241c] font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded border border-[#10241c]/25"
-              >
-                {s.name}
-              </span>
-            ))}
-          </div>
+          {(() => {
+            const grouped = getGroupedSkills(doc.skills);
+            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+            if (hasCategories) {
+              return (
+                <div className="space-y-1 mt-1 text-[10.5px] text-gray-900">
+                  {grouped.map((g, idx) => (
+                    <div key={idx}>
+                      <span className="font-black text-[#10241c]">{g.category}: </span>
+                      <span className="font-mono text-gray-800">{g.items.join(", ")}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <div className="flex flex-wrap gap-1">
+                {doc.skills.map((s, idx) => (
+                  <span
+                    key={idx}
+                    className="bg-[#becbbf]/20 text-[#10241c] font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded border border-[#10241c]/25"
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -163,7 +181,7 @@ export function CompactEngineerTemplate({
                 <div className="flex justify-between items-baseline text-xs">
                   <div>
                     <span className="font-black text-gray-950">{proj.name}</span>
-                    {proj.role && <span className="text-gray-600 text-[10.5px]"> [{proj.role}]</span>}
+                    {proj.role && <span className="font-black text-[#10241c] text-[10.5px]"> [{proj.role}]</span>}
                   </div>
                   {proj.url && (
                     <a
@@ -209,8 +227,8 @@ export function CompactEngineerTemplate({
               >
                 <div>
                   <span className="font-bold text-gray-900">{edu.degree || "Degree"}</span>
-                  {edu.field && <span> in {edu.field}</span>}
-                  <span className="text-gray-600 font-normal"> — {edu.institution}</span>
+                  {edu.field && <span className="font-bold text-gray-900"> in {edu.field}</span>}
+                  <span className="text-[#10241c] font-black"> — {edu.institution}</span>
                 </div>
                 <span className="text-[10px] font-mono text-gray-600 font-medium">
                   {edu.startDate} – {edu.endDate || "Present"}

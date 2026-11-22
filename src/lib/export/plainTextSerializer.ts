@@ -1,5 +1,5 @@
 import { ResumeDoc } from "@/types/resume";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export class PlainTextSerializer {
   /**
@@ -76,7 +76,15 @@ export class PlainTextSerializer {
     if (skills.length > 0) {
       lines.push("TECHNICAL & PROFESSIONAL SKILLS");
       lines.push("-".repeat(31));
-      lines.push(skills.map((s) => s.name).join(", "));
+      const grouped = getGroupedSkills(skills);
+      const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+      if (hasCategories) {
+        for (const g of grouped) {
+          lines.push(g.category ? `${g.category}: ${g.items.join(", ")}` : g.items.join(", "));
+        }
+      } else {
+        lines.push(skills.map((s) => s.name).join(", "));
+      }
       lines.push("");
     }
 

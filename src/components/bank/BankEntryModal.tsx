@@ -98,14 +98,14 @@ export function BankEntryModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           {error && (
             <div className="p-3 bg-alarm border border-alarm text-white text-sm rounded">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Entry Category
@@ -158,7 +158,7 @@ export function BankEntryModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Organization / Institution / Company
@@ -185,7 +185,7 @@ export function BankEntryModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-ink normal-case mb-1">
                 Start Date

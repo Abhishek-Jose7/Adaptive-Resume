@@ -3,7 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export function LuxuriousGridTemplate({
   doc,
@@ -85,16 +85,34 @@ export function LuxuriousGridTemplate({
               <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#10241c] border-b border-[#10241c] pb-0.5">
                 Competencies
               </h2>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {doc.skills.map((s, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-[#becbbf]/20 text-[#10241c] text-[10.5px] font-semibold px-2 py-0.5 rounded border border-[#10241c]/20"
-                  >
-                    {s.name}
-                  </span>
-                ))}
-              </div>
+              {(() => {
+                const grouped = getGroupedSkills(doc.skills);
+                const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+                if (hasCategories) {
+                  return (
+                    <div className="space-y-1.5 mt-2 text-xs text-[#10241c]">
+                      {grouped.map((g, idx) => (
+                        <div key={idx}>
+                          <span className="font-extrabold text-[#10241c] text-[11px] block">{g.category}:</span>
+                          <span className="text-[10.5px] text-gray-700">{g.items.join(", ")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {doc.skills.map((s, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-[#becbbf]/20 text-[#10241c] text-[10.5px] font-semibold px-2 py-0.5 rounded border border-[#10241c]/20"
+                      >
+                        {s.name}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </section>
           )}
 
@@ -116,8 +134,8 @@ export function LuxuriousGridTemplate({
                     <div className="font-bold text-gray-900 leading-tight">
                       {edu.degree || "Degree"}
                     </div>
-                    {edu.field && <div className="text-[11px] text-gray-700 font-medium">{edu.field}</div>}
-                    <div className="text-[11px] text-gray-600">{edu.institution}</div>
+                    {edu.field && <div className="text-[11px] text-gray-900 font-bold">{edu.field}</div>}
+                    <div className="text-[11px] text-gray-800 font-bold">{edu.institution}</div>
                     <div className="text-[10px] text-gray-500 font-semibold mt-0.5">
                       {edu.startDate} – {edu.endDate || "Present"}
                     </div>
@@ -217,8 +235,8 @@ export function LuxuriousGridTemplate({
                   >
                     <div className="flex justify-between items-baseline text-xs font-bold text-gray-900">
                       <span>
-                        {proj.name}
-                        {proj.role && <span className="font-normal text-gray-600"> ({proj.role})</span>}
+                        <span className="font-bold text-gray-900">{proj.name}</span>
+                        {proj.role && <span className="font-bold text-[#10241c]"> ({proj.role})</span>}
                       </span>
                       {proj.url && (
                         <a

@@ -8,7 +8,7 @@ import {
   BorderStyle,
 } from "docx";
 import { ResumeDoc } from "@/types/resume";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export class DocxGenerator {
   static async generate(doc: ResumeDoc): Promise<Blob> {
@@ -200,6 +200,7 @@ export class DocxGenerator {
               }),
               new TextRun({
                 text: `  -  ${edu.institution}`,
+                bold: true,
                 size: 20,
                 font: "Calibri",
               }),
@@ -219,18 +220,44 @@ export class DocxGenerator {
     const skills = doc.skills || [];
     if (skills.length > 0) {
       addSectionHeader("Skills");
-      paragraphs.push(
-        new Paragraph({
-          spacing: { after: 120 },
-          children: [
-            new TextRun({
-              text: skills.map((s) => s.name).join("  •  "),
-              size: 20,
-              font: "Calibri",
-            }),
-          ],
-        })
-      );
+      const grouped = getGroupedSkills(skills);
+      const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+
+      if (hasCategories) {
+        for (const g of grouped) {
+          paragraphs.push(
+            new Paragraph({
+              spacing: { after: 60 },
+              children: [
+                new TextRun({
+                  text: `${g.category}: `,
+                  bold: true,
+                  size: 20,
+                  font: "Calibri",
+                }),
+                new TextRun({
+                  text: g.items.join("  •  "),
+                  size: 20,
+                  font: "Calibri",
+                }),
+              ],
+            })
+          );
+        }
+      } else {
+        paragraphs.push(
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: skills.map((s) => s.name).join("  •  "),
+                size: 20,
+                font: "Calibri",
+              }),
+            ],
+          })
+        );
+      }
     }
 
     // Projects
@@ -248,12 +275,16 @@ export class DocxGenerator {
                 size: 20,
                 font: "Calibri",
               }),
-              new TextRun({
-                text: proj.role ? ` (${proj.role})` : "",
-                italics: true,
-                size: 19,
-                font: "Calibri",
-              }),
+              ...(proj.role
+                ? [
+                    new TextRun({
+                      text: ` (${proj.role})`,
+                      bold: true,
+                      size: 20,
+                      font: "Calibri",
+                    }),
+                  ]
+                : []),
             ],
           })
         );

@@ -58,3 +58,30 @@ export function shortenProjectDescription(
 
   return text;
 }
+
+/**
+ * Groups skills by category for resume templates and exports,
+ * enabling bold category titles (e.g. **Languages:** Python, TypeScript).
+ */
+export function getGroupedSkills(
+  skills?: Array<{ name: string; category?: string }>
+): { category: string; items: string[] }[] {
+  if (!skills || skills.length === 0) return [];
+
+  const groups: { [cat: string]: string[] } = {};
+  const hasCategories = skills.some((s) => Boolean(s.category && s.category.trim()));
+
+  if (!hasCategories) {
+    return [{ category: "", items: skills.map((s) => s.name) }];
+  }
+
+  for (const s of skills) {
+    const cat = s.category?.trim() || "Technical Skills";
+    if (!groups[cat]) groups[cat] = [];
+    if (!groups[cat].includes(s.name)) {
+      groups[cat].push(s.name);
+    }
+  }
+
+  return Object.entries(groups).map(([category, items]) => ({ category, items }));
+}

@@ -3,7 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export function ModernAtsTemplate({
   doc,
@@ -137,8 +137,8 @@ export function ModernAtsTemplate({
               >
                 <div>
                   <span className="font-bold text-gray-900">{edu.degree || "Degree"}</span>
-                  {edu.field && <span> in {edu.field}</span>}
-                  <div className="text-gray-600">{edu.institution}</div>
+                  {edu.field && <span className="font-bold text-gray-900"> in {edu.field}</span>}
+                  <div className="font-bold text-[#10241c]">{edu.institution}</div>
                 </div>
                 <span className="text-[11px] text-gray-500 font-medium">
                   {edu.startDate} – {edu.endDate || "Present"}
@@ -165,8 +165,8 @@ export function ModernAtsTemplate({
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-gray-900">
                   <span>
-                    {proj.name}
-                    {proj.role && <span className="font-normal text-gray-600"> ({proj.role})</span>}
+                    <span className="font-bold text-gray-900">{proj.name}</span>
+                    {proj.role && <span className="font-bold text-[#10241c]"> ({proj.role})</span>}
                   </span>
                   {proj.url && (
                     <a
@@ -204,16 +204,34 @@ export function ModernAtsTemplate({
             <span>Core Competencies & Skills</span>
             <span className="flex-1 border-b border-[#becbbf]" />
           </h2>
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {doc.skills.map((s, idx) => (
-              <span
-                key={idx}
-                className="bg-[#becbbf]/20 text-[#10241c] text-[11px] font-semibold px-2 py-0.5 rounded border border-[#10241c]/20"
-              >
-                {s.name}
-              </span>
-            ))}
-          </div>
+          {(() => {
+            const grouped = getGroupedSkills(doc.skills);
+            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+            if (hasCategories) {
+              return (
+                <div className="space-y-1.5 mt-2 text-xs text-[#10241c]">
+                  {grouped.map((g, idx) => (
+                    <div key={idx} className="flex flex-wrap items-baseline gap-1">
+                      <span className="font-bold text-[#10241c]">{g.category}:</span>
+                      <span className="text-gray-800">{g.items.join(", ")}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {doc.skills.map((s, idx) => (
+                  <span
+                    key={idx}
+                    className="bg-[#becbbf]/20 text-[#10241c] text-[11px] font-semibold px-2 py-0.5 rounded border border-[#10241c]/20"
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </section>
       )}
 

@@ -3,7 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 export function MinimalExecutiveTemplate({
   doc,
@@ -121,7 +121,10 @@ export function MinimalExecutiveTemplate({
                 className={`cursor-pointer ${!readOnly ? "hover:bg-slate-50 rounded p-1" : ""}`}
               >
                 <div className="flex justify-between items-baseline text-xs font-bold text-slate-900">
-                  <span>{proj.name}</span>
+                  <span>
+                    <span className="font-bold text-slate-900">{proj.name}</span>
+                    {proj.role && <span className="font-bold text-slate-800"> ({proj.role})</span>}
+                  </span>
                   {proj.url && <span className="text-[10px] font-normal text-slate-500">{proj.url}</span>}
                 </div>
                 {proj.description && (
@@ -155,8 +158,8 @@ export function MinimalExecutiveTemplate({
               >
                 <div>
                   <span className="font-bold text-slate-900">{edu.degree}</span>
-                  {edu.field && <span> in {edu.field}</span>} •{" "}
-                  <span className="text-slate-600">{edu.institution}</span>
+                  {edu.field && <span className="font-bold text-slate-900"> in {edu.field}</span>} •{" "}
+                  <span className="text-slate-900 font-bold">{edu.institution}</span>
                 </div>
                 <span className="text-[11px] text-slate-500 font-medium">
                   {edu.startDate} – {edu.endDate || "Present"}
@@ -177,9 +180,27 @@ export function MinimalExecutiveTemplate({
           <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-800 border-b border-slate-300 pb-0.5">
             Executive Competencies & Governance
           </h2>
-          <p className="mt-1 text-xs text-slate-800 leading-relaxed font-medium">
-            {doc.skills.map((s) => s.name).join(" • ")}
-          </p>
+          {(() => {
+            const grouped = getGroupedSkills(doc.skills);
+            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+            if (hasCategories) {
+              return (
+                <div className="space-y-1 mt-1 text-xs text-slate-800 leading-relaxed font-medium">
+                  {grouped.map((g, idx) => (
+                    <div key={idx}>
+                      <span className="font-bold text-slate-950">{g.category}: </span>
+                      <span>{g.items.join(", ")}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <p className="mt-1 text-xs text-slate-800 leading-relaxed font-medium">
+                {doc.skills.map((s) => s.name).join(" • ")}
+              </p>
+            );
+          })()}
         </section>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/projectUtils";
 
 describe("Project Description Formatting & Shortening Utility", () => {
   it("returns undefined for null, undefined, or empty descriptions", () => {
@@ -39,4 +39,35 @@ describe("Project Description Formatting & Shortening Utility", () => {
     // Must not cut words awkwardly
     expect(result).not.toContain("capab...");
   });
+
+  describe("Skill Categorization & Bold Heading Grouping Utility", () => {
+    it("returns empty array for empty or missing skills", () => {
+      expect(getGroupedSkills(undefined)).toEqual([]);
+      expect(getGroupedSkills([])).toEqual([]);
+    });
+
+    it("groups skills by category preserving distinct groups and items", () => {
+      const skills = [
+        { name: "TypeScript", category: "Languages" },
+        { name: "Python", category: "Languages" },
+        { name: "PostgreSQL", category: "Databases & Tools" },
+        { name: "Docker", category: "Databases & Tools" },
+      ];
+      const grouped = getGroupedSkills(skills);
+      expect(grouped).toHaveLength(2);
+      expect(grouped[0].category).toBe("Languages");
+      expect(grouped[0].items).toEqual(["TypeScript", "Python"]);
+      expect(grouped[1].category).toBe("Databases & Tools");
+      expect(grouped[1].items).toEqual(["PostgreSQL", "Docker"]);
+    });
+
+    it("returns single group with empty category if no categories are present", () => {
+      const skills = [{ name: "Git" }, { name: "Linux" }];
+      const grouped = getGroupedSkills(skills);
+      expect(grouped).toHaveLength(1);
+      expect(grouped[0].category).toBe("");
+      expect(grouped[0].items).toEqual(["Git", "Linux"]);
+    });
+  });
 });
+
