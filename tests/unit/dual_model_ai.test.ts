@@ -556,7 +556,49 @@ CGPA: 9.4
 
       expect(res).toBeDefined();
       expect(res.model).toBe("deterministic-v1");
-    });
+    }, 15000);
+
+    it("GroqAdapter cascades to OpenRouter before local deterministic fallback when Groq is exhausted", async () => {
+      const adapter = new GroqAdapter({
+        apiKey: primaryKey,
+        fallbackApiKey: fallbackKey,
+        model: "qwen/qwen3.8-27b",
+      });
+
+      let calledEndpoints: string[] = [];
+      global.fetch = vi.fn().mockImplementation(async (url: string) => {
+        calledEndpoints.push(url);
+        if (url.includes("groq.com")) {
+          return new Response(JSON.stringify({ error: { message: "Groq exhausted" } }), {
+            status: 429,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (url.includes("openrouter.ai")) {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: JSON.stringify({ cascadedToOpenRouter: true }) } }],
+              usage: { prompt_tokens: 15, completion_tokens: 10, total_tokens: 25 },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(JSON.stringify({ error: "unknown" }), { status: 500 });
+      });
+
+      const res = await adapter.generateStructured<{ cascadedToOpenRouter: boolean }>({
+        task: "rewrite",
+        systemPrompt: "system",
+        userPayload: { test: true },
+        schema: {},
+        maxOutputTokens: 256,
+        temperature: 0.1,
+      });
+
+      expect(calledEndpoints.some((u) => u.includes("groq.com"))).toBe(true);
+      expect(calledEndpoints.some((u) => u.includes("openrouter.ai"))).toBe(true);
+      expect(res.data.cascadedToOpenRouter).toBe(true);
+    }, 15000);
   });
 });
 

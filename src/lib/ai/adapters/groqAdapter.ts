@@ -8,10 +8,13 @@ export interface GroqAdapterOptions {
 }
 
 /**
- * Groq High-Speed Free-Tier Provider Adapter with Dual-Key Rotation & Failover
- * Primary Model: qwen/qwen3.8-27b (ultra-fast, sub-500ms JSON responses)
- * Secondary Models: openai/gpt-oss-120b, openai/gpt-oss-20b
- * Supports Multi-Key Failover: primary key -> fallback key -> local deterministic engine
+ * Groq High-Speed Free-Tier Provider Adapter with Dual-Key Rotation,
+ * OpenRouter Provider Cascading, and Local Deterministic Safety Net.
+ * 
+ * Hierarchy:
+ * 1. Groq (Primary Key) -> Groq (Secondary Key on 429) -> Model Rotation
+ * 2. OpenRouter (Free-tier models via OPENROUTER_API_KEY)
+ * 3. Local Deterministic Engine (100% offline, guaranteed schema output)
  */
 export class GroqAdapter implements LlmProvider {
   name = "groq";
@@ -88,6 +91,32 @@ export class GroqAdapter implements LlmProvider {
     }
   }
 
+  /**
+   * Cascades to OpenRouter if configured, otherwise falls back to the local deterministic engine.
+   */
+  private async fallbackToNextTier<T>(
+    input: StructuredLlmInput<T>
+  ): Promise<{ data: T; model: string; usage?: TokenUsage }> {
+    const openRouterKey =
+      process.env.OPENROUTER_API_KEY_REASONING ||
+      process.env.OPENROUTER_API_KEY_PARSER ||
+      process.env.OPENROUTER_API_KEY;
+
+    if (openRouterKey) {
+      try {
+        console.warn("[Groq] Cascading to OpenRouter free-tier provider...");
+        const { OpenRouterAdapter } = await import("./openRouterAdapter");
+        const role = input.task === "parse_resume" ? "parser" : "reasoning";
+        return await new OpenRouterAdapter(openRouterKey, undefined, role).generateStructured(input);
+      } catch (err: any) {
+        console.warn(`[Groq->OpenRouter] OpenRouter fallback failed (${err.message}). Falling back to local engine.`);
+      }
+    }
+
+    const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
+    return new LocalDeterministicAdapter().generateStructured(input);
+  }
+
   async generateStructured<T>(
     input: StructuredLlmInput<T>
   ): Promise<{ data: T; model: string; usage?: TokenUsage }> {
@@ -95,9 +124,8 @@ export class GroqAdapter implements LlmProvider {
     const fallbackKey = this.fallbackApiKey;
 
     if (!primaryKey && !fallbackKey) {
-      console.warn("[Groq] No API key configured. Falling back to local deterministic engine.");
-      const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
-      return new LocalDeterministicAdapter().generateStructured(input);
+      console.warn("[Groq] No Groq keys configured. Cascading to OpenRouter or local engine.");
+      return this.fallbackToNextTier(input);
     }
 
     const endpoint = "https://api.groq.com/openai/v1/chat/completions";
@@ -119,7 +147,6 @@ export class GroqAdapter implements LlmProvider {
 
     // If requested model is a llama model or not in available list, prepare fallback chain
     if (currentModel.toLowerCase().includes("llama")) {
-      // Check if we should start directly with qwen/qwen3.8-27b or attempt and handle 404
       currentModel = "qwen/qwen3.8-27b";
     }
 
@@ -186,9 +213,8 @@ export class GroqAdapter implements LlmProvider {
             continue;
           }
 
-          console.warn("[Groq] Rate limit exhausted across keys and models. Falling back to local deterministic engine.");
-          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
-          return new LocalDeterministicAdapter().generateStructured(input);
+          console.warn("[Groq] Rate limit exhausted across keys and models. Cascading to OpenRouter...");
+          return this.fallbackToNextTier(input);
         }
 
         // Model Not Found (HTTP 404)
@@ -220,9 +246,8 @@ export class GroqAdapter implements LlmProvider {
 
         if (!response.ok) {
           const errText = await response.text();
-          console.warn(`[Groq] API error (${response.status}): ${errText}. Falling back to local engine.`);
-          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
-          return new LocalDeterministicAdapter().generateStructured(input);
+          console.warn(`[Groq] API error (${response.status}): ${errText}. Cascading to OpenRouter...`);
+          return this.fallbackToNextTier(input);
         }
 
         const json = await response.json();
@@ -247,16 +272,14 @@ export class GroqAdapter implements LlmProvider {
         };
       } catch (err: any) {
         if (attempts >= maxAttempts) {
-          console.warn(`[Groq] Failed after retries: ${err.message}. Falling back to local engine.`);
-          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
-          return new LocalDeterministicAdapter().generateStructured(input);
+          console.warn(`[Groq] Failed after retries: ${err.message}. Cascading to OpenRouter...`);
+          return this.fallbackToNextTier(input);
         }
         await new Promise((resolve) => setTimeout(resolve, delay));
         delay *= 2;
       }
     }
 
-    const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
-    return new LocalDeterministicAdapter().generateStructured(input);
+    return this.fallbackToNextTier(input);
   }
 }
