@@ -11,6 +11,7 @@ import {
 } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { assertValidUserId } from "../db/tenant";
+import { safePostgresDate } from "../utils/dateUtils";
 
 export interface StagedItemInput {
   entryType: string;
@@ -158,6 +159,7 @@ export class ImportRepository {
     await db.transaction(async (tx) => {
       const entryInserts: Array<typeof bankEntries.$inferInsert> = [];
       const bulletInserts: Array<typeof achievementBullets.$inferInsert> = [];
+      const factInserts: Array<typeof bulletFacts.$inferInsert> = [];
       const evidenceInserts: Array<typeof sourceEvidence.$inferInsert> = [];
       const statusUpdates: string[] = [];
 
@@ -185,6 +187,11 @@ export class ImportRepository {
           });
         }
 
+        const isCurrent = Boolean(
+          data.isCurrent ||
+          (data.endDate && /^(present|current|now|ongoing)$/i.test(data.endDate.trim()))
+        );
+
         entryInserts.push({
           id: entryId,
           userId,
@@ -192,9 +199,9 @@ export class ImportRepository {
           title: data.title || "Imported Item",
           organization: data.organization || null,
           location: data.location || null,
-          startDate: data.startDate || null,
-          endDate: data.endDate || null,
-          isCurrent: data.isCurrent || false,
+          startDate: safePostgresDate(data.startDate, false),
+          endDate: isCurrent ? null : safePostgresDate(data.endDate, true),
+          isCurrent,
           descriptionContext: data.descriptionContext || null,
           visibility: "private",
           verificationStatus: "user_verified",
@@ -204,8 +211,9 @@ export class ImportRepository {
 
         if (data.bullets && data.bullets.length > 0) {
           data.bullets.forEach((bulletText, bIdx) => {
+            const bulletId = `bullet_${crypto.randomUUID()}`;
             bulletInserts.push({
-              id: `bullet_${crypto.randomUUID()}`,
+              id: bulletId,
               userId,
               entryId,
               text: bulletText,
@@ -217,6 +225,20 @@ export class ImportRepository {
               rowVersion: 1,
               sourceId: sourceId || undefined,
             });
+
+            // Index each skill as an individual fact for precise ATS / role matching
+            if (row.entryType === "skill_group" || row.entryType === "skill") {
+              factInserts.push({
+                id: `fact_${crypto.randomUUID()}`,
+                userId,
+                bulletId,
+                entryId,
+                factType: "tool",
+                factKey: "skill",
+                valueText: bulletText.trim(),
+                verificationStatus: "user_verified",
+              });
+            }
           });
         }
       }
@@ -234,6 +256,11 @@ export class ImportRepository {
       // 3. Batch insert bullets (1 query)
       if (bulletInserts.length > 0) {
         await tx.insert(achievementBullets).values(bulletInserts);
+      }
+
+      // 4. Batch insert individual skill/tool facts (1 query)
+      if (factInserts.length > 0) {
+        await tx.insert(bulletFacts).values(factInserts);
       }
 
       // 4. Update staged items status (1 query)

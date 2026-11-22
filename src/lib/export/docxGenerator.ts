@@ -8,6 +8,7 @@ import {
   BorderStyle,
 } from "docx";
 import { ResumeDoc } from "@/types/resume";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export class DocxGenerator {
   static async generate(doc: ResumeDoc): Promise<Blob> {
@@ -258,12 +259,13 @@ export class DocxGenerator {
         );
 
         if (proj.description) {
+          const shortDesc = shortenProjectDescription(proj.description) || proj.description;
           paragraphs.push(
             new Paragraph({
               spacing: { after: 40 },
               children: [
                 new TextRun({
-                  text: proj.description,
+                  text: shortDesc,
                   size: 20,
                   font: "Calibri",
                 }),

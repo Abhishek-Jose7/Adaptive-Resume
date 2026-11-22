@@ -7,6 +7,7 @@ import {
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { assertValidUserId, tenantActiveFilter, tenantFilter } from "../db/tenant";
 import { BankEntry, AchievementBullet, BulletFact, EntryType } from "../../types/bank";
+import { safePostgresDate } from "../utils/dateUtils";
 
 export interface BankListOptions {
   entryType?: EntryType;
@@ -322,6 +323,11 @@ export class BankRepository {
     assertValidUserId(userId);
     const id = `entry_${crypto.randomUUID()}`;
 
+    const isCurrent = Boolean(
+      data.isCurrent ||
+      (data.endDate && /^(present|current|now|ongoing)$/i.test(data.endDate.trim()))
+    );
+
     await db.insert(bankEntries).values({
       id,
       userId,
@@ -329,9 +335,9 @@ export class BankRepository {
       title: data.title,
       organization: data.organization || null,
       location: data.location || null,
-      startDate: data.startDate || null,
-      endDate: data.endDate || null,
-      isCurrent: data.isCurrent || false,
+      startDate: safePostgresDate(data.startDate, false),
+      endDate: isCurrent ? null : safePostgresDate(data.endDate, true),
+      isCurrent,
       descriptionContext: data.descriptionContext || null,
       visibility: data.visibility || "private",
       verificationStatus: data.verificationStatus || "unverified",
@@ -364,10 +370,22 @@ export class BankRepository {
   ): Promise<boolean> {
     assertValidUserId(userId);
 
+    const updatePayload: Record<string, any> = { ...data };
+    if ("startDate" in data) {
+      updatePayload.startDate = safePostgresDate(data.startDate, false);
+    }
+    if ("endDate" in data) {
+      const isCurr = Boolean(data.isCurrent || (data.endDate && /^(present|current|now|ongoing)$/i.test(data.endDate.trim())));
+      updatePayload.endDate = isCurr ? null : safePostgresDate(data.endDate, true);
+      if (data.isCurrent === undefined && isCurr) {
+        updatePayload.isCurrent = true;
+      }
+    }
+
     const result = await db
       .update(bankEntries)
       .set({
-        ...data,
+        ...updatePayload,
         rowVersion: expectedRowVersion + 1,
         updatedAt: new Date(),
       })

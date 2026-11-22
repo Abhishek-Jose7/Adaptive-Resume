@@ -51,14 +51,18 @@ export default function DataIntakePage() {
         const support = payload?.error?.requestId ? ` Support reference: ${payload.error.requestId}.` : "";
         throw new Error(`${payload?.error?.message || "We couldn’t read the imported details."}${support}`);
       }
-
-      const reviewRes = await fetch(`/api/v1/imports/${batchId}`);
-      if (!reviewRes.ok) {
-        const payload = await reviewRes.json().catch(() => null);
-        throw new Error(payload?.error?.message || "We couldn’t load the details for review.");
+      const parseData = await parseRes.json();
+      if (parseData.items && parseData.items.length > 0) {
+        setStagedItems(parseData.items);
+      } else {
+        const reviewRes = await fetch(`/api/v1/imports/${batchId}`);
+        if (!reviewRes.ok) {
+          const payload = await reviewRes.json().catch(() => null);
+          throw new Error(payload?.error?.message || "We couldn’t load the details for review.");
+        }
+        const data = await reviewRes.json();
+        setStagedItems(data.items || []);
       }
-      const data = await reviewRes.json();
-      setStagedItems(data.items || []);
 
       setMessage(`Staged ${items.length} candidate items from ${sourceLabel}. Review them below.`);
     } catch (err: any) {

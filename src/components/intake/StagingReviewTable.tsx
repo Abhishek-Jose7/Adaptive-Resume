@@ -47,6 +47,20 @@ function getBadgeStyle(entryType: string) {
   }
 }
 
+const CATEGORY_CONFIG: Array<{
+  key: string;
+  label: string;
+  match: (type: string) => boolean;
+}> = [
+  { key: "profile", label: "Professional Summary", match: (t) => t === "profile" },
+  { key: "experience", label: "Work Experience", match: (t) => t === "experience" || t === "volunteer" },
+  { key: "project", label: "Projects & Production Builds", match: (t) => t === "project" },
+  { key: "skill_group", label: "Technical & Core Skills", match: (t) => t === "skill_group" || t === "skill" },
+  { key: "education", label: "Education", match: (t) => t === "education" },
+  { key: "certification", label: "Certifications", match: (t) => t === "certification" },
+  { key: "award", label: "Awards & Honors", match: (t) => t === "award" || t === "publication" },
+];
+
 export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: StagingReviewTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     new Set(items.filter((item) => item.status === "pending").map((item) => item.id)),
@@ -59,12 +73,61 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
   const pendingItems = items.filter((item) => item.status === "pending");
   const allSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.has(item.id));
 
+  // Group items by category to keep similar details together
+  const groupedCategories = React.useMemo(() => {
+    const groups: Array<{
+      key: string;
+      label: string;
+      items: StagedItemView[];
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const cat of CATEGORY_CONFIG) {
+      const catItems = items.filter((item) => cat.match(item.entryType));
+      if (catItems.length > 0) {
+        catItems.forEach((i) => seen.add(i.id));
+        groups.push({
+          key: cat.key,
+          label: cat.label,
+          items: catItems,
+        });
+      }
+    }
+
+    const leftovers = items.filter((item) => !seen.has(item.id));
+    if (leftovers.length > 0) {
+      groups.push({
+        key: "other",
+        label: "Additional Information",
+        items: leftovers,
+      });
+    }
+
+    return groups;
+  }, [items]);
+
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(pendingItems.map((item) => item.id)));
     }
+  };
+
+  const toggleGroupSelect = (groupItems: StagedItemView[]) => {
+    const pendingGroupIds = groupItems.filter((i) => i.status === "pending").map((i) => i.id);
+    if (pendingGroupIds.length === 0) return;
+    const allGroupSelected = pendingGroupIds.every((id) => selectedIds.has(id));
+
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allGroupSelected) {
+        pendingGroupIds.forEach((id) => next.delete(id));
+      } else {
+        pendingGroupIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   };
 
   const toggleSelect = (id: string) => {
@@ -125,9 +188,9 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
   }
 
   return (
-    <section className="mt-8 space-y-5" aria-labelledby="staging-title">
+    <section className="mt-8 space-y-4" aria-labelledby="staging-title">
       {/* Sticky Review Action Bar */}
-      <div className="flex flex-col gap-4 rounded border border-[rgba(16,36,28,0.17)] bg-[#faf8f2] p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="sticky top-2 z-20 flex flex-col gap-4 rounded border border-[rgba(16,36,28,0.17)] bg-[#faf8f2]/95 backdrop-blur-md p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-[#a98452]">
             STAGING AREA · REVIEW CANDIDATES
@@ -135,8 +198,8 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
           <h2 id="staging-title" className="mt-0.5 font-serif text-xl font-bold text-[#10241c]">
             Review imported details
           </h2>
-          <p className="mt-1 text-[13px] text-[#536259]">
-            {items.length} items extracted. Check the items you want to keep in your permanent Career Vault.
+          <p className="mt-0.5 text-[12.5px] text-[#536259]">
+            {items.length} items extracted across {groupedCategories.length} categories. Check items to keep in your permanent Career Vault.
           </p>
         </div>
 
@@ -177,9 +240,38 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
         </div>
       )}
 
-      {/* Structured Items List */}
-      <div className="space-y-4">
-        {items.map((item) => {
+      {/* Dedicated Scrollable Container for Staged Items */}
+      <div className="max-h-[640px] overflow-y-auto pr-1 space-y-6 rounded-lg border border-[rgba(16,36,28,0.18)] bg-[#f7f5ee] p-4 shadow-inner">
+        {groupedCategories.map((group) => {
+          const groupPending = group.items.filter((i) => i.status === "pending");
+          const groupAllSelected = groupPending.length > 0 && groupPending.every((i) => selectedIds.has(i.id));
+
+          return (
+            <div key={group.key} className="space-y-3">
+              {/* Category Header */}
+              <div className="sticky top-0 z-10 -mx-1 -mt-1 flex items-center justify-between rounded border border-[rgba(16,36,28,0.12)] bg-[#ece7dd]/95 px-3.5 py-2 backdrop-blur-md shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#10241c]">
+                    {group.label}
+                  </span>
+                  <span className="rounded bg-[#10241c]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#10241c]">
+                    {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                {groupPending.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroupSelect(group.items)}
+                    className="text-[11px] font-bold text-[#a98452] hover:text-[#10241c] hover:underline cursor-pointer transition-colors"
+                  >
+                    {groupAllSelected ? "Deselect category" : "Select category"}
+                  </button>
+                )}
+              </div>
+
+              {/* Cards in this Category */}
+              <div className="space-y-3.5">
+                {group.items.map((item) => {
           const data = edits[item.id] || item.parsedDataJson;
           const pending = item.status === "pending";
           const isSelected = selectedIds.has(item.id);
@@ -233,11 +325,45 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
                       </p>
                     )}
 
-                    {(data.startDate || data.endDate || data.isCurrent) && (
-                      <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
-                        {data.startDate || ""}{data.startDate && " — "}{data.isCurrent ? "Present" : data.endDate || ""}
-                      </p>
-                    )}
+                    {(() => {
+                      const isWorkOrEdu = item.entryType === "experience" || item.entryType === "education" || item.entryType === "volunteer";
+                      if (data.startDate && data.endDate) {
+                        return (
+                          <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
+                            {data.startDate} — {data.endDate}
+                          </p>
+                        );
+                      }
+                      if (data.startDate && data.isCurrent && isWorkOrEdu) {
+                        return (
+                          <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
+                            {data.startDate} — Present
+                          </p>
+                        );
+                      }
+                      if (data.startDate) {
+                        return (
+                          <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
+                            {data.startDate}
+                          </p>
+                        );
+                      }
+                      if (data.endDate) {
+                        return (
+                          <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
+                            {data.endDate}
+                          </p>
+                        );
+                      }
+                      if (data.isCurrent && isWorkOrEdu) {
+                        return (
+                          <p className="mt-0.5 font-mono text-[11.5px] text-[#7d847f]">
+                            Present
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
@@ -417,6 +543,10 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
                   )}
                 </div>
               )}
+            </div>
+          );
+        })}
+              </div>
             </div>
           );
         })}

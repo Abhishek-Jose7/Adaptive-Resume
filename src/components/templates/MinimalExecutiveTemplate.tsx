@@ -3,6 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export function MinimalExecutiveTemplate({
   doc,
@@ -124,7 +125,7 @@ export function MinimalExecutiveTemplate({
                   {proj.url && <span className="text-[10px] font-normal text-slate-500">{proj.url}</span>}
                 </div>
                 {proj.description && (
-                  <p className="text-xs text-slate-600 mt-0.5">{proj.description}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">{shortenProjectDescription(proj.description) || proj.description}</p>
                 )}
                 <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-xs text-slate-800">
                   {proj.bullets.map((b) => (

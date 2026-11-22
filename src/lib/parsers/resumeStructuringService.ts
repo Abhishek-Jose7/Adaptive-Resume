@@ -118,8 +118,25 @@ export class ResumeStructuringService {
         const certEntries = this.parseCertificationBlocks(secLines);
         structuredResults.push(...certEntries);
       } else if (/AWARD|HONOR/i.test(heading)) {
-        for (const line of secLines) {
-          const clean = line.replace(/^[•\-\*]\s*/, "").trim();
+        // Merge wrapped lines (e.g. if previous line ended with unclosed bracket or open symbol)
+        const mergedLines: string[] = [];
+        for (const rawLine of secLines) {
+          const l = rawLine.trim();
+          if (!l) continue;
+          if (mergedLines.length > 0) {
+            const prev = mergedLines[mergedLines.length - 1];
+            const prevOpen = (prev.match(/\[/g) || []).length > (prev.match(/\]/g) || []).length;
+            if (prevOpen || /[,|–—\-]$/.test(prev) || /^[\]\),|]/.test(l)) {
+              mergedLines[mergedLines.length - 1] = `${prev} ${l}`;
+              continue;
+            }
+          }
+          mergedLines.push(l);
+        }
+
+        for (const line of mergedLines) {
+          let clean = line.replace(/^[•\-\*]\s*/, "").trim();
+          clean = this.balanceBrackets(clean);
           if (clean.length > 3) {
             structuredResults.push({
               entryType: "award",
@@ -205,7 +222,24 @@ export class ResumeStructuringService {
       });
     }
 
-    return structuredResults;
+    const CANONICAL_TYPE_WEIGHT: Record<string, number> = {
+      profile: 1,
+      experience: 2,
+      volunteer: 3,
+      project: 4,
+      skill_group: 5,
+      education: 6,
+      certification: 7,
+      award: 8,
+      publication: 9,
+      custom: 10,
+    };
+
+    return structuredResults.sort((a, b) => {
+      const weightA = CANONICAL_TYPE_WEIGHT[a.entryType] ?? 99;
+      const weightB = CANONICAL_TYPE_WEIGHT[b.entryType] ?? 99;
+      return weightA - weightB;
+    });
   }
 
   /**
@@ -847,6 +881,24 @@ export class ResumeStructuringService {
   }
 
   /**
+   * Auto-balances unclosed brackets and cleans extra bracket whitespace
+   */
+  static balanceBrackets(text: string): string {
+    if (!text) return text;
+    let res = text.trim();
+    // Auto-balance unclosed brackets before delimiter or end: e.g. "[ Pixels Sies |" -> "[ Pixels Sies ] |"
+    res = res.replace(/\[([^\]\n|;]+)(?=\s*(?:\||;|\n|$))/g, (m, p1) => `[ ${p1.trim()} ]`);
+    const openCount = (res.match(/\[/g) || []).length;
+    const closeCount = (res.match(/\]/g) || []).length;
+    if (openCount > closeCount) {
+      res = res + " ]".repeat(openCount - closeCount);
+    }
+    res = res.replace(/\[\s*\[/g, "[").replace(/\]\s*\]/g, "]");
+    res = res.replace(/\[\s+/g, "[ ").replace(/\s+\]/g, " ]");
+    return res.trim();
+  }
+
+  /**
    * Parses certifications
    */
   private static parseCertificationBlocks(lines: string[]): StructuredResumeSection[] {
@@ -854,7 +906,8 @@ export class ResumeStructuringService {
     for (const line of lines) {
       const items = line.split(/[,|•·;]\s*(?=[A-Z])/).map((s) => s.trim()).filter(Boolean);
       for (const item of items) {
-        const clean = item.replace(/^[•\-\*]\s*/, "").trim();
+        let clean = item.replace(/^[•\-\*]\s*/, "").trim();
+        clean = this.balanceBrackets(clean);
         if (clean.length > 3) {
           const dateMatch = clean.match(/\b(19|20)\d{2}\b/);
           results.push({
@@ -875,21 +928,24 @@ export class ResumeStructuringService {
    * Converts StructuredResumeSection array into StagedItemInput array for ImportRepository
    */
   static toStagedItemInputs(sections: StructuredResumeSection[]): StagedItemInput[] {
-    return sections.map((sec) => ({
-      entryType: sec.entryType,
-      rawSnippet: sec.rawSnippet,
-      parsedDataJson: {
-        title: sec.title,
-        organization: sec.organization || null,
-        location: sec.location || null,
-        startDate: sec.startDate || null,
-        endDate: sec.endDate || null,
-        isCurrent: sec.isCurrent || false,
-        descriptionContext: sec.descriptionContext || null,
-        bullets: sec.bullets,
-      },
-      confidence: sec.confidence,
-    }));
+    return sections.map((sec) => {
+      const isWorkOrEdu = sec.entryType === "experience" || sec.entryType === "education" || sec.entryType === "volunteer";
+      return {
+        entryType: sec.entryType,
+        rawSnippet: sec.rawSnippet,
+        parsedDataJson: {
+          title: this.balanceBrackets(sec.title),
+          organization: sec.organization || null,
+          location: sec.location || null,
+          startDate: sec.startDate || null,
+          endDate: sec.endDate || null,
+          isCurrent: Boolean(sec.isCurrent && isWorkOrEdu),
+          descriptionContext: sec.descriptionContext || null,
+          bullets: (sec.bullets || []).map((b) => this.balanceBrackets(b)),
+        },
+        confidence: sec.confidence,
+      };
+    });
   }
 }
 

@@ -71,7 +71,7 @@ OUTPUT JSON SCHEMA:
     parentEntry: { id?: string; title: string; organization?: string | null; descriptionContext?: string | null },
     allFacts: StructuredFact[] = [],
     targetJdKeywords: string[] = [],
-    options?: { apiKey?: string; model?: string; forceLocal?: boolean }
+    options?: { apiKey?: string; model?: string; forceLocal?: boolean; userEmail?: string | null }
   ): Promise<XyzRewriteResult> {
     const verifiedNumbers = this.extractNumericTokens(sourceBullet.text);
     for (const f of sourceBullet.facts || []) {
@@ -88,7 +88,7 @@ OUTPUT JSON SCHEMA:
     const hasVerifiedMetric = verifiedNumbers.size > 0;
 
     // Fast local deterministic path if requested or if using local adapter
-    const provider = ProviderFactory.getReasoningProvider(options?.apiKey, options?.model);
+    const provider = ProviderFactory.getReasoningProvider(options?.apiKey, options?.model, options?.userEmail);
 
     if (options?.forceLocal || provider.name === "local-deterministic") {
       return this.localDeterministicXyzRewrite(sourceBullet, parentEntry, hasVerifiedMetric, targetJdKeywords);

@@ -46,7 +46,8 @@ export async function POST(
         batchId,
         validated.items
       );
-      return apiSuccess({ stagedCount: stagedIds.length, stagedIds }, 201);
+      const items = await ImportRepository.getStagedItems(user.userId, batchId);
+      return apiSuccess({ stagedCount: stagedIds.length, stagedIds, items }, 201);
     }
 
     if (validated.base64Image) {
@@ -60,9 +61,11 @@ export async function POST(
         batchId,
         parseResult.stagedItems
       );
+      const items = await ImportRepository.getStagedItems(user.userId, batchId);
       return apiSuccess({
         stagedCount: stagedIds.length,
         stagedIds,
+        items,
         normalized: parseResult.normalized,
         parserModel: parseResult.parserModel,
         isVision: true,
@@ -79,16 +82,18 @@ export async function POST(
         batchId,
         parseResult.stagedItems
       );
+      const items = await ImportRepository.getStagedItems(user.userId, batchId);
       return apiSuccess({
         stagedCount: stagedIds.length,
         stagedIds,
+        items,
         normalized: parseResult.normalized,
         parserModel: parseResult.parserModel,
         isVision: false,
       }, 201);
     }
 
-    return apiSuccess({ stagedCount: 0, stagedIds: [] }, 200);
+    return apiSuccess({ stagedCount: 0, stagedIds: [], items: [] }, 200);
   } catch (error) {
     return handleApiError(error);
   }

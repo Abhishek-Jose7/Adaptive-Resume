@@ -1,4 +1,5 @@
 import { ResumeDoc } from "@/types/resume";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export class PlainTextSerializer {
   /**
@@ -87,7 +88,10 @@ export class PlainTextSerializer {
 
       for (const proj of projects) {
         lines.push(`${proj.name}${proj.role ? ` (${proj.role})` : ""}${proj.url ? ` - ${proj.url}` : ""}`);
-        if (proj.description) lines.push(`  ${proj.description}`);
+        if (proj.description) {
+          const shortDesc = shortenProjectDescription(proj.description) || proj.description;
+          lines.push(`  ${shortDesc}`);
+        }
         for (const b of proj.bullets) {
           lines.push(`  * ${b.text}`);
         }

@@ -172,14 +172,14 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
   static async parseFromText(
     rawText: string,
     sourceLabel: string = "Uploaded Resume",
-    options?: { apiKey?: string; model?: string; forceLocal?: boolean }
+    options?: { apiKey?: string; model?: string; forceLocal?: boolean; userEmail?: string | null }
   ): Promise<ParseResumeResult> {
     if (!rawText || rawText.trim().length === 0) {
       throw new Error("Cannot parse empty resume text.");
     }
 
     // If local mode is requested or no OpenRouter key is configured, use deterministic structuring
-    const provider = ProviderFactory.getParserProvider(options?.apiKey, options?.model);
+    const provider = ProviderFactory.getParserProvider(options?.apiKey, options?.model, options?.userEmail);
 
     if (options?.forceLocal || provider.name === "local-deterministic") {
       const structuredSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);

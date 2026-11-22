@@ -3,6 +3,7 @@
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateProps } from "./ClassicAtsTemplate";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export function CompactEngineerTemplate({
   doc,
@@ -176,7 +177,7 @@ export function CompactEngineerTemplate({
                   )}
                 </div>
                 {proj.description && (
-                  <p className="text-[10px] text-gray-600 leading-tight">{proj.description}</p>
+                  <p className="text-[10px] text-gray-600 leading-tight">{shortenProjectDescription(proj.description) || proj.description}</p>
                 )}
                 <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-[10.5px] text-gray-800 leading-tight">
                   {proj.bullets.map((b) => (

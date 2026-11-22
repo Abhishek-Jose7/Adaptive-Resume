@@ -1042,31 +1042,32 @@ export function FigmaLanding() {
         stage.removeAttribute("data-spotlight");
       }
 
-      // Phase 4: Extended, generous Section 3 scroll dwell for all 3 versions:
-      // - p < 0.28: Section 2 and continuous travel (Card 2 is Role 0, manual override cleared)
-      // - p from 0.28 to 0.52: Role 01 (Frontend Intern @ Razorpay) — generous dwell after arrival!
-      // - p from 0.52 to 0.76: Role 02 (SDE I @ CRED) — generous dwell to read backend adaptation!
-      // - p >= 0.76: Role 03 (Product Engineer @ Postman) — generous dwell to read API tooling adaptation!
-      if (p < 0.28) {
+      // Phase 4: Calibrated Section 3 dwell for all 3 versions:
+      // - p < 0.26: Section 2 and continuous travel (Card 2 arrives in center)
+      // - p from 0.26 to 0.46: Role 01 (Frontend Intern @ Razorpay)
+      // - p from 0.46 to 0.66: Role 02 (SDE I @ CRED) — crisp, reduced scroll between versions
+      // - p from 0.66 to 0.82: Role 03 (Product Engineer @ Postman)
+      // - p >= 0.82: Unpins and smoothly continues scrolling into the sections below earlier
+      if (p < 0.26) {
         userManualRef.current = false;
         setRole(0);
       } else if (!userManualRef.current) {
-        if (p < 0.52) {
-          setRole(0); // Role 01 (Razorpay): generous pause after fitting in center!
-        } else if (p < 0.76) {
-          setRole(1); // Role 02 (CRED): generous pause to read backend adaptation!
+        if (p < 0.46) {
+          setRole(0);
+        } else if (p < 0.66) {
+          setRole(1);
         } else {
-          setRole(2); // Role 03 (Postman): generous pause to read API tooling adaptation!
+          setRole(2);
         }
       }
     };
 
     const render = () => {
       const distance = targetProgress - displayedProgress;
-      displayedProgress += distance * 0.10;
+      displayedProgress += distance * 0.085;
       applyProgress(displayedProgress);
 
-      if (Math.abs(distance) > 0.0004) {
+      if (Math.abs(distance) > 0.0003) {
         frame = requestAnimationFrame(render);
       } else {
         displayedProgress = targetProgress;
@@ -1323,12 +1324,6 @@ export function FigmaLanding() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Scroll Progress Meter */}
-          <div className="scroll-meter">
-            <span />
-            <small>SCROLL TO ADAPT</small>
           </div>
         </div>
       </section>

@@ -242,7 +242,7 @@ describe("Recruiter Canary & Honey-Pot Trap Defense System", () => {
   // Test 3: ResumeQualityGateService blocks export when canary traps are detected & sanitizes them
   describe("ResumeQualityGateService: Canary Audit & Automated Sanitization", () => {
     it("should BLOCK export if a resume contains a recruiter canary trap keyword", () => {
-      const contaminatedDoc: ResumeDoc = {
+      const contaminatedDoc: any = {
         title: "Staff Resume with Accidental Canary Trap",
         profile: {
           name: "Abhishek Roy",
@@ -278,7 +278,7 @@ describe("Recruiter Canary & Honey-Pot Trap Defense System", () => {
     });
 
     it("should SANITIZE canary trap keywords from bullets, skills, and summary automatically", () => {
-      const contaminatedDoc: ResumeDoc = {
+      const contaminatedDoc: any = {
         title: "Contaminated Resume",
         profile: {
           name: "Abhishek Roy",
@@ -305,7 +305,7 @@ describe("Recruiter Canary & Honey-Pot Trap Defense System", () => {
 
       expect(sanitized.skills).not.toContain("Cribbage");
       expect(sanitized.profile?.summary).not.toContain("Cribbage");
-      expect(sanitized.experience[0].bullets[0].text).not.toContain("Cribbage");
+      expect(sanitized.experience?.[0].bullets[0].text).not.toContain("Cribbage");
 
       // Verify the sanitized doc now passes the quality gate
       const postAudit = ResumeQualityGateService.auditResume(sanitized, {

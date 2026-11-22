@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const entryType = searchParams.get("entryType") as EntryType | null;
     const searchQuery = searchParams.get("q") || undefined;
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 25;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 100;
     const cursorUpdated = searchParams.get("cursorUpdated");
     const cursorId = searchParams.get("cursorId");
 

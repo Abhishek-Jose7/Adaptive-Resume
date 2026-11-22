@@ -3,6 +3,7 @@ import { bankEntries, achievementBullets, bulletFacts, projectMetadata } from "@
 import { eq, and, isNull } from "drizzle-orm";
 import { JDAnalysis, ProjectRecommendation } from "@/types/job";
 import { ProjectMaturityLevel } from "@/types/bank";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export class ProjectRecommenderService {
   /**
@@ -102,7 +103,7 @@ export class ProjectRecommenderService {
       }
 
       // Generate honest, non-inflated draft description
-      let tailoredDescription = proj.descriptionContext || projBullets[0]?.text || "";
+      let tailoredDescription = shortenProjectDescription(proj.descriptionContext) || projBullets[0]?.text || "";
       if (maturityLevel === "functional_prototype" || maturityLevel === "partially_implemented") {
         tailoredDescription = `Architected functional prototype demonstrating ${Array.from(demonstratedSkills).slice(0, 3).join(", ")}. Focused on core technical workflows.`;
       } else if (maturityLevel === "deployed" || maturityLevel === "completed") {

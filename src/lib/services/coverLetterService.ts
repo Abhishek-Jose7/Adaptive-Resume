@@ -1,5 +1,5 @@
 import { db } from "../db/client";
-import { coverLetters, jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts } from "../db/schema";
+import { coverLetters, jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts, users } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { ProviderFactory } from "../ai/providerFactory";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
@@ -127,7 +127,14 @@ export class CoverLetterService {
     }));
 
     // 4. Generate Grounded Cover Letter with Canary Protection
-    const provider = ProviderFactory.getProvider(providerName, apiKey);
+    const [userRecord] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const userEmail = userRecord?.email || null;
+
+    const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
 
     const canaryScan = CanaryDetector.detectCanaryTraps(job.rawText || "");
     const quarantinedKeywords = canaryScan.quarantinedKeywords;

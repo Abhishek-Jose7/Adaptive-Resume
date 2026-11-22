@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenRouterAdapter } from "@/lib/ai/adapters/openRouterAdapter";
-import { ProviderFactory } from "@/lib/ai/providerFactory";
+import { GroqAdapter } from "@/lib/ai/adapters/groqAdapter";
+import { ProviderFactory, isPrimaryUser, resolveGroqKeys } from "@/lib/ai/providerFactory";
 import { AiResumeParserService } from "@/lib/ai/services/aiResumeParserService";
 import { XyzRewriterService } from "@/lib/ai/services/xyzRewriterService";
 import { TruthBoundValidator } from "@/lib/tailoring/truthBoundValidator";
@@ -174,7 +175,7 @@ CGPA: 9.4
         },
       };
 
-      const sanitized = AiResumeParserService.sanitizeNormalizedJson(incompleteJson);
+      const sanitized: any = AiResumeParserService.sanitizeNormalizedJson(incompleteJson);
 
       expect(sanitized.education[0].grades).toBeNull();
       expect(sanitized.education[0].startDate).toBeNull();
@@ -199,7 +200,7 @@ CGPA: 9.4
         ],
       };
 
-      const sanitized = AiResumeParserService.sanitizeNormalizedJson(dataWithAmbiguity);
+      const sanitized: any = AiResumeParserService.sanitizeNormalizedJson(dataWithAmbiguity);
       expect(sanitized.ambiguousOrFlagged).toHaveLength(1);
       expect(sanitized.ambiguousOrFlagged[0].field).toBe("experience.dates");
       expect(sanitized.ambiguousOrFlagged[0].reason).toContain("Unclear graduation");
@@ -238,14 +239,14 @@ CGPA: 9.4
 
       expect(result.isVision).toBe(true);
       expect(result.normalized.name).toBe("Abhishek Roy Jose");
-      expect(result.normalized.education[0].institution).toBe("CRCE");
+      expect((result.normalized.education as any)[0].institution).toBe("CRCE");
       expect(result.stagedItems.length).toBeGreaterThan(0);
     });
   });
 
   describe("3. Pipeline B: Google XYZ Achievement Rewriter & Anti-Fabrication", () => {
     it("rewrites bullet with verified metrics into Google XYZ structure (Accomplished X, measured by Y, by doing Z)", async () => {
-      const sourceBullet = {
+      const sourceBullet: any = {
         id: "bul_1",
         text: "Reduced average API response time by 35% by optimizing database queries and implementing Redis caching.",
         facts: [
@@ -376,8 +377,10 @@ CGPA: 9.4
           entryId: "entry_1",
           userId: "usr_1",
           text: "Optimized database queries for the user reporting service.",
-          verificationStatus: "verified",
-          usagePolicy: "full_detail",
+          verificationStatus: "user_verified",
+          usagePolicy: "eligible",
+          visibility: "private",
+          sortOrder: 0,
           rowVersion: 1,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -393,4 +396,167 @@ CGPA: 9.4
       expect(numericFail?.message).toContain("45");
     });
   });
+
+  describe("5. Groq Dual-Key Rotation, VIP User Routing & Rate-Limit Failover", () => {
+    const primaryKey = "gsk_primary_key_11111111111111111111111111111111111111111";
+    const fallbackKey = "gsk_fallback_key_2222222222222222222222222222222222222222";
+
+    beforeEach(() => {
+      process.env.GROQ_API_KEY = primaryKey;
+      process.env.GROQ_API_KEY_FALLBACK = fallbackKey;
+    });
+
+    it("isPrimaryUser correctly identifies Abhishek and Scarlett as primary users", () => {
+      expect(isPrimaryUser("abhishekjose780@gmail.com")).toBe(true);
+      expect(isPrimaryUser("scarlettmenezes29@gmail.com")).toBe(true);
+      expect(isPrimaryUser("ABHISHEKJOSE780@GMAIL.COM")).toBe(true);
+      expect(isPrimaryUser("ScarlettMenezes29@GMAIL.COM")).toBe(true);
+      expect(isPrimaryUser("guest.user@example.com")).toBe(false);
+      expect(isPrimaryUser("random_developer@gmail.com")).toBe(false);
+    });
+
+    it("resolveGroqKeys gives primary users Key 1 with Key 2 fallback", () => {
+      const keys = resolveGroqKeys(undefined, "abhishekjose780@gmail.com");
+      expect(keys.primaryKey).toBe(primaryKey);
+      expect(keys.fallbackKey).toBe(fallbackKey);
+
+      const scarlettKeys = resolveGroqKeys(undefined, "scarlettmenezes29@gmail.com");
+      expect(scarlettKeys.primaryKey).toBe(primaryKey);
+      expect(scarlettKeys.fallbackKey).toBe(fallbackKey);
+    });
+
+    it("resolveGroqKeys routes normal users to Key 2 first and falls back to Key 1 only if Key 2 is exhausted", () => {
+      const keys = resolveGroqKeys(undefined, "guest_applicant@company.org");
+      expect(keys.primaryKey).toBe(fallbackKey);
+      expect(keys.fallbackKey).toBe(primaryKey);
+    });
+
+    it("GroqAdapter immediately rotates to fallback key on HTTP 429", async () => {
+      const adapter = new GroqAdapter({
+        apiKey: primaryKey,
+        fallbackApiKey: fallbackKey,
+        model: "qwen/qwen3.8-27b",
+      });
+
+      let requestedKeys: string[] = [];
+      global.fetch = vi.fn().mockImplementation(async (_url, opts) => {
+        const authHeader = (opts?.headers as Record<string, string>)?.Authorization;
+        const usedKey = authHeader?.replace("Bearer ", "");
+        if (usedKey) requestedKeys.push(usedKey);
+
+        if (requestedKeys.length === 1) {
+          // First attempt with primary key returns 429
+          return new Response(JSON.stringify({ error: { message: "Rate limit exceeded", code: "rate_limit_exceeded" } }), {
+            status: 429,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Second attempt with fallback key succeeds
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({ success: true, message: "Rotated cleanly to Key 2" }),
+                },
+              },
+            ],
+            usage: { prompt_tokens: 20, completion_tokens: 15, total_tokens: 35 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      const res = await adapter.generateStructured<{ success: boolean; message: string }>({
+        task: "rewrite",
+        systemPrompt: "system",
+        userPayload: { test: true },
+        schema: {},
+        maxOutputTokens: 256,
+        temperature: 0.1,
+      });
+
+      expect(requestedKeys[0]).toBe(primaryKey);
+      expect(requestedKeys[1]).toBe(fallbackKey);
+      expect(res.data.success).toBe(true);
+      expect(res.data.message).toBe("Rotated cleanly to Key 2");
+    });
+
+    it("GroqAdapter automatically recovers from 404 model not found to qwen/qwen3.8-27b", async () => {
+      const adapter = new GroqAdapter({
+        apiKey: primaryKey,
+        fallbackApiKey: fallbackKey,
+        model: "openai/gpt-oss-120b",
+      });
+
+      let requestedModels: string[] = [];
+      global.fetch = vi.fn().mockImplementation(async (_url, opts) => {
+        const body = JSON.parse(opts?.body as string);
+        requestedModels.push(body.model);
+
+        if (requestedModels.length === 1) {
+          return new Response(JSON.stringify({ error: { code: "model_not_found" } }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({ recovered: true }),
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      const res = await adapter.generateStructured<{ recovered: boolean }>({
+        task: "rewrite",
+        systemPrompt: "system",
+        userPayload: { test: true },
+        schema: {},
+        maxOutputTokens: 256,
+        temperature: 0.1,
+      });
+
+      expect(requestedModels[0]).toBe("openai/gpt-oss-120b");
+      expect(requestedModels[1]).toBe("qwen/qwen3.8-27b");
+      expect(res.data.recovered).toBe(true);
+    });
+
+    it("GroqAdapter safely falls back to local deterministic engine if all attempts fail", async () => {
+      const adapter = new GroqAdapter({
+        apiKey: primaryKey,
+        fallbackApiKey: fallbackKey,
+        model: "qwen/qwen3.8-27b",
+      });
+
+      global.fetch = vi.fn().mockImplementation(async () => {
+        return new Response(JSON.stringify({ error: { message: "Persistent rate limit" } }), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        });
+      });
+
+      // Should NEVER throw, should gracefully return deterministic structure
+      const res = await adapter.generateStructured<{ text: string }>({
+        task: "rewrite",
+        systemPrompt: "system",
+        userPayload: { sourceBullet: { text: "Managed critical systems" } },
+        schema: {},
+        maxOutputTokens: 256,
+        temperature: 0.1,
+      });
+
+      expect(res).toBeDefined();
+      expect(res.model).toBe("deterministic-v1");
+    });
+  });
 });
+

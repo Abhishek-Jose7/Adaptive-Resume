@@ -122,6 +122,20 @@ export function AdaptiveResumeWorkspace() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => { if (data) setProfile(data); })
       .catch(() => undefined);
+
+    // Auto-import pending job description from overview
+    try {
+      const pendingDesc = sessionStorage.getItem("pending_job_desc");
+      if (pendingDesc && pendingDesc.trim()) {
+        setJobText(pendingDesc);
+        const titleMatch = pendingDesc.match(/(?:title|role|position|looking for a|seeking a)\s*:?\s*([A-Za-z0-9\s-]{4,40})/i);
+        if (titleMatch) {
+          setTitle(titleMatch[1].trim());
+        }
+      }
+    } catch {
+      // Ignore sessionStorage access errors
+    }
   }, []);
 
   const currentResults = run?.results || [];

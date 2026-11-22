@@ -20,6 +20,7 @@
     "@neon/config": "^1.14.3",
     "@neon/env": "^2.1.6",
     "@neondatabase/serverless": "^0.10.4",
+    "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "diff": "^7.0.0",
     "docx": "^9.1.1",

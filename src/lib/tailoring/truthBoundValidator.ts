@@ -83,11 +83,21 @@ export class TruthBoundValidator {
     const effectiveTargetEntryId =
       targetEntryId || (candidateEntries.length === 1 ? candidateEntries[0].id : undefined);
 
+    // Defensively normalize sourceBulletIds and sourceFactIds to prevent non-iterable crashes
+    const safeBulletIds = Array.isArray(rewritten?.sourceBulletIds)
+      ? rewritten.sourceBulletIds
+      : candidateBullets.length > 0
+      ? [candidateBullets[0].id]
+      : [];
+    const safeFactIds = Array.isArray(rewritten?.sourceFactIds)
+      ? rewritten.sourceFactIds
+      : [];
+
     // 1. Schema Validation & Experience Isolation: Check source IDs existence & cross-experience contamination
     const bulletMap = new Map(candidateBullets.map((b) => [b.id, b]));
     const factMap = new Map(candidateFacts.map((f) => [f.id, f]));
 
-    for (const bId of rewritten.sourceBulletIds) {
+    for (const bId of safeBulletIds) {
       const b = bulletMap.get(bId);
       if (!b) {
         failures.push({
@@ -104,7 +114,7 @@ export class TruthBoundValidator {
       }
     }
 
-    for (const fId of rewritten.sourceFactIds) {
+    for (const fId of safeFactIds) {
       const f = factMap.get(fId);
       if (!f) {
         failures.push({
@@ -121,7 +131,7 @@ export class TruthBoundValidator {
       }
     }
 
-    if (rewritten.sourceBulletIds.length === 0) {
+    if (safeBulletIds.length === 0) {
       failures.push({
         rule: "SCHEMA_MISMATCH",
         message: "Rewritten bullet must reference at least one source bullet ID.",
@@ -129,11 +139,11 @@ export class TruthBoundValidator {
     }
 
     // Build aggregate source text & facts pool for referenced evidence
-    const referencedBullets = rewritten.sourceBulletIds
+    const referencedBullets = safeBulletIds
       .map((id) => bulletMap.get(id))
       .filter((b): b is AchievementBullet => Boolean(b));
 
-    const referencedFacts = rewritten.sourceFactIds
+    const referencedFacts = safeFactIds
       .map((id) => factMap.get(id))
       .filter((f): f is StructuredFact => Boolean(f));
 

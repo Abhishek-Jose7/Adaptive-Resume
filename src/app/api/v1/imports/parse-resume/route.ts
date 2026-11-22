@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       parseResult = await AiResumeParserService.parseFromText(
         validated.rawText!,
         validated.sourceLabel,
-        { forceLocal: validated.forceLocal }
+        { forceLocal: validated.forceLocal, userEmail: user.email }
       );
     }
 

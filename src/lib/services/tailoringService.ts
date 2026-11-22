@@ -1,5 +1,5 @@
 import { db } from "../db/client";
-import { aiRuns, jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts } from "../db/schema";
+import { aiRuns, jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts, users } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { ProviderFactory } from "../ai/providerFactory";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
@@ -79,7 +79,14 @@ export class TailoringService {
       pinnedBulletIds?: string[];
     }
   ): Promise<AiRunDetails> {
-    // 1. Fetch Job and JD Analysis
+    // 1. Fetch User Email for dual-key routing & Job/JD Analysis
+    const [userRecord] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const userEmail = userRecord?.email || null;
+
     const jobList = await db
       .select()
       .from(jobs)
@@ -190,7 +197,7 @@ export class TailoringService {
       candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
     }
 
-    const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning");
+    const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
     let totalTokensIn = 0;
     let totalTokensOut = 0;
     const tailoredResults: TailoredBulletResult[] = [];
@@ -227,15 +234,15 @@ CRITICAL INTEGRITY AND WRITING RULES:
     const allCandidateBullets = candidates.map((c) => c.bullet);
     const allCandidateFacts = userFacts as unknown as StructuredFact[];
 
-    // 4. Tailor each candidate bullet
-    for (const item of candidates) {
+    // 4. Tailor candidate bullets in bounded concurrent chunks for maximum speed
+    const tailorCandidate = async (item: typeof candidates[0]): Promise<TailoredBulletResult> => {
       const sourceBullet = item.bullet;
       const relevantKeywords = item.scoreBreakdown.matchedKeywords;
 
       // Check if bullet is pinned (PRD Section 10.4 & T9)
       const isPinned = options?.pinnedBulletIds?.includes(sourceBullet.id);
       if (isPinned) {
-        tailoredResults.push({
+        return {
           bulletId: sourceBullet.id,
           originalText: sourceBullet.text,
           rewrittenText: sourceBullet.text,
@@ -247,8 +254,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
           retryCount: 0,
           status: "accepted",
           diffChunks: [{ value: sourceBullet.text }],
-        });
-        continue;
+        };
       }
 
       const userPayload = {
@@ -266,7 +272,6 @@ CRITICAL INTEGRITY AND WRITING RULES:
       };
 
       let attempt = 0;
-      let finalResult: TailoredBulletResult | null = null;
       let promptFeedback = "";
 
       while (attempt <= 1) {
@@ -288,7 +293,34 @@ CRITICAL INTEGRITY AND WRITING RULES:
           totalTokensOut += res.usage.completionTokens;
         }
 
-        const candidateRewrite = res.data;
+        let candidateRewrite: RewrittenBullet = res.data;
+        if (!candidateRewrite || typeof candidateRewrite !== "object") {
+          candidateRewrite = {
+            text: sourceBullet.text,
+            sourceBulletIds: [sourceBullet.id],
+            sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+            claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+            validatorStatus: "not_applicable",
+          };
+        } else {
+          if (!candidateRewrite.text || typeof candidateRewrite.text !== "string") {
+            candidateRewrite.text = sourceBullet.text;
+          }
+          if (!Array.isArray(candidateRewrite.sourceBulletIds) || candidateRewrite.sourceBulletIds.length === 0) {
+            candidateRewrite.sourceBulletIds = [sourceBullet.id];
+          }
+          if (!Array.isArray(candidateRewrite.sourceFactIds)) {
+            candidateRewrite.sourceFactIds = (sourceBullet.facts || []).map((f) => f.id);
+          }
+          if (!Array.isArray(candidateRewrite.claimMap)) {
+            candidateRewrite.claimMap = [
+              { claim: candidateRewrite.text, evidenceIds: candidateRewrite.sourceBulletIds, claimType: "action" },
+            ];
+          }
+          if (!candidateRewrite.validatorStatus) {
+            candidateRewrite.validatorStatus = "not_applicable";
+          }
+        }
 
         // Scope evidence strictly to the target entry being tailored (Experience Isolation & Truth Scoping)
         const targetEntryBullets = allCandidateBullets.filter((b) => b.entryId === item.parentEntry.id);
@@ -346,7 +378,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
             })
             .join("");
 
-          finalResult = {
+          return {
             bulletId: sourceBullet.id,
             originalText: sourceBullet.text,
             rewrittenText: candidateRewrite.text,
@@ -370,14 +402,13 @@ CRITICAL INTEGRITY AND WRITING RULES:
               byDoingZ: "Targeted implementation",
             },
           };
-          break;
         } else {
           // If 1st attempt failed, set feedback and retry
           if (attempt === 1) {
             promptFeedback = validation.feedbackForRetry || "Validation failed";
           } else {
             // Second attempt failed: Mandatory conservative fallback to source bullet (PRD 10.4 Rule 9)
-            finalResult = {
+            return {
               bulletId: sourceBullet.id,
               originalText: sourceBullet.text,
               rewrittenText: sourceBullet.text,
@@ -406,9 +437,27 @@ CRITICAL INTEGRITY AND WRITING RULES:
         }
       }
 
-      if (finalResult) {
-        tailoredResults.push(finalResult);
-      }
+      return {
+        bulletId: sourceBullet.id,
+        originalText: sourceBullet.text,
+        rewrittenText: sourceBullet.text,
+        sourceBulletIds: [sourceBullet.id],
+        sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+        claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+        validatorStatus: "fallback_to_source",
+        validationNotes: ["Fell back to verified source bullet."],
+        retryCount: 0,
+        status: "pending",
+        diffChunks: [{ value: sourceBullet.text }],
+      };
+    };
+
+    // Run candidate rewrites in bounded concurrent chunks (3 at a time) for speed and rate-limit safety
+    const chunkSize = 3;
+    for (let i = 0; i < candidates.length; i += chunkSize) {
+      const chunk = candidates.slice(i, i + chunkSize);
+      const results = await Promise.all(chunk.map((item) => tailorCandidate(item)));
+      tailoredResults.push(...results);
     }
 
     // 5. Store AI Run Record

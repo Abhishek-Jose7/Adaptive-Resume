@@ -73,9 +73,24 @@ export function BankEntryCard({
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-graphite">
             {entry.organization && <span className="font-medium text-ink">{entry.organization}</span>}
             {entry.location && <span>{entry.location}</span>}
-            <span className="font-mono text-[11px]">
-              {entry.startDate || "no date"} — {entry.isCurrent ? "present" : entry.endDate || "present"}
-            </span>
+            {(() => {
+              const isWorkOrEdu = entry.entryType === "experience" || entry.entryType === "education" || entry.entryType === "volunteer";
+              let dateLabel: string | null = null;
+              if (entry.startDate && entry.endDate) {
+                dateLabel = `${entry.startDate} — ${entry.endDate}`;
+              } else if (entry.startDate && entry.isCurrent && isWorkOrEdu) {
+                dateLabel = `${entry.startDate} — present`;
+              } else if (entry.startDate) {
+                dateLabel = entry.startDate;
+              } else if (entry.endDate) {
+                dateLabel = entry.endDate;
+              } else if (entry.isCurrent && isWorkOrEdu) {
+                dateLabel = "present";
+              }
+              return dateLabel ? (
+                <span className="font-mono text-[11px]">{dateLabel}</span>
+              ) : null;
+            })()}
           </div>
 
           {hasMissingDates && (
@@ -110,14 +125,16 @@ export function BankEntryCard({
       <div className="border-t border-rule px-4 py-3.5 sm:px-5">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-[12px] text-graphite">
-            {bulletCount} {bulletCount === 1 ? "bullet" : "bullets"}
+            {entry.entryType === "skill_group"
+              ? `${bulletCount} individual ${bulletCount === 1 ? "skill" : "skills"}`
+              : `${bulletCount} ${bulletCount === 1 ? "bullet" : "bullets"}`}
           </span>
           <button
             onClick={() => setIsAddingBullet(true)}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-stamp hover:underline"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            Add bullet
+            {entry.entryType === "skill_group" ? "Add individual skill" : "Add bullet"}
           </button>
         </div>
 
@@ -135,7 +152,9 @@ export function BankEntryCard({
           </div>
         ) : (
           <p className="border border-dashed border-rule px-3 py-4 text-center text-[12px] text-graphite">
-            No bullets yet. A bullet is one verifiable thing you did.
+            {entry.entryType === "skill_group"
+              ? "No skills yet. Add individual skills or tools into this group."
+              : "No bullets yet. A bullet is one verifiable thing you did."}
           </p>
         )}
 

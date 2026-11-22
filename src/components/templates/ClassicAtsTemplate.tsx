@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ResumeDoc } from "@/types/resume";
+import { shortenProjectDescription } from "@/lib/utils/projectUtils";
 
 export interface TemplateProps {
   doc: ResumeDoc;
@@ -183,7 +184,7 @@ export function ClassicAtsTemplate({
                   )}
                 </div>
                 {proj.description && (
-                  <p className="text-xs text-gray-700 mt-0.5">{proj.description}</p>
+                  <p className="text-xs text-gray-700 mt-0.5">{shortenProjectDescription(proj.description) || proj.description}</p>
                 )}
                 <ul className="list-disc pl-4 mt-1 space-y-0.5 text-xs text-gray-800">
                   {proj.bullets.map((b) => (

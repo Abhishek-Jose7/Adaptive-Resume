@@ -152,6 +152,13 @@ export class OpenRouterAdapter implements LlmProvider {
       },
     ];
 
+    const fallbackModels = [
+      "openrouter/free",
+      "baidu/ernie-5.5-flash-preview:free",
+      "particle-ai/particle-1:free",
+      "nvidia/nemotron-3.5-lightning:free",
+    ];
+
     const body: Record<string, any> = {
       model: this.model,
       messages,
@@ -184,14 +191,21 @@ export class OpenRouterAdapter implements LlmProvider {
         clearTimeout(timeoutId);
 
         if (response.status === 429) {
-          const retryAfter = response.headers.get("retry-after");
-          const waitTime = retryAfter ? parseInt(retryAfter, 10) * 1000 : delay;
-          if (attempts < maxAttempts) {
+          const nextModel = fallbackModels.find((m) => m !== body.model);
+          if (nextModel && attempts < maxAttempts) {
+            console.warn(`[OpenRouter] Rate limited on ${body.model}. Retrying with fallback model ${nextModel}...`);
+            body.model = nextModel;
+            const retryAfter = response.headers.get("retry-after");
+            const waitTime = retryAfter ? parseInt(retryAfter, 10) * 1000 : delay;
             await new Promise((resolve) => setTimeout(resolve, waitTime));
             delay *= 2;
             continue;
           }
-          throw new Error("OpenRouter rate limit exceeded (HTTP 429) after retries.");
+
+          // If rate limits persist, fall back to LocalDeterministicAdapter gracefully without breaking user workflow
+          console.warn("[OpenRouter] Rate limit (HTTP 429) encountered. Falling back to local deterministic engine.");
+          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
+          return new LocalDeterministicAdapter().generateStructured(input);
         }
 
         if (!response.ok) {
@@ -201,11 +215,15 @@ export class OpenRouterAdapter implements LlmProvider {
             delay *= 2;
             continue;
           }
-          throw new Error(`OpenRouter API error (${response.status}): ${errText}`);
+          // On other client/auth errors, fall back to deterministic engine rather than crashing
+          console.warn(`[OpenRouter] API error (${response.status}): ${errText}. Falling back to local deterministic engine.`);
+          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
+          return new LocalDeterministicAdapter().generateStructured(input);
         }
 
         const json = await response.json();
-        const contentText = json.choices?.[0]?.message?.content;
+        const msg = json.choices?.[0]?.message;
+        const contentText = msg?.content || (typeof msg?.reasoning === "string" ? msg.reasoning : "");
 
         if (!contentText) {
           throw new Error("OpenRouter returned empty content in choices.");
@@ -221,7 +239,7 @@ export class OpenRouterAdapter implements LlmProvider {
 
         return {
           data: parsedData,
-          model: this.model,
+          model: body.model || this.model,
           usage,
         };
       } catch (err: any) {
@@ -232,11 +250,12 @@ export class OpenRouterAdapter implements LlmProvider {
             delay *= 2;
             continue;
           }
-          throw new Error("OpenRouter API request timed out after 35 seconds.");
         }
 
         if (attempts >= maxAttempts) {
-          throw err;
+          console.warn("[OpenRouter] All attempts failed, falling back to local deterministic engine:", err.message);
+          const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
+          return new LocalDeterministicAdapter().generateStructured(input);
         }
 
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -244,6 +263,7 @@ export class OpenRouterAdapter implements LlmProvider {
       }
     }
 
-    throw new Error("OpenRouter API request failed after all attempts.");
+    const { LocalDeterministicAdapter } = await import("./localDeterministicAdapter");
+    return new LocalDeterministicAdapter().generateStructured(input);
   }
 }
