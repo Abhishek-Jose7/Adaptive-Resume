@@ -439,6 +439,226 @@ AWARDS & ACTIVITIES
       expect(db?.skills).toContain("Git");
       expect(db?.skills).toContain("Playwright");
     });
+
+    it("should accurately segment complex scanned resumes like Johann Joseph into distinct experiences, educations, projects, and certifications", () => {
+      const resume = `
+JOHANN JOSEPH Cloud Security | Cybersecurity Analyst | Frontend Developer Mumbai, India 400103 | 9969394238 | johannjoseph232006@gmail.com | linkedin.com/in/johann - joseph - 852253330 | github.com/johann - jos
+
+Professional Summary
+Computer Engineering student in progress, pursuing cloud security, AWS - and Google Cloud - certified, with hands - on experience in OSINT, network/web security, vulnerability assessment, and CTF competitions. Hackathon winner and Senior Marketing Head at GDG On Ca mpus (FRCRCE), le ading technical teams and driving event outreach, branding, and sponsor acquisition
+
+Work Experience
+Cybersecurity Intern
+Strike Engine Team Lead — CyArt Tech LLP (Remote)
+2026 — 2026
+Served as Team Lead for Strike Engine, an AI - powered security platform, coordinating development and testing across the project team. Built an automated threat - analysis engine to streamline identification of potential cybersecurity vulnerabilities. Applied OSINT, vulnerability assessment, SIEM, Linux, network securit y, and web security concepts throughout the development and testing of security workflows. Senior Marketing Head — Google Developer Group On Campus, FRCRCE
+Lead marketing and promotional strategy for technical events, hackathons, and com munity initiatives for an 800+ member, 40+ event community. Manage social media campaigns, content strategy, and event promotions that drive registrations and engagement. Drive outreach, branding, and sponsorship initiatives for Bit N Build 2026, an intern ational hackathon spanning 200+ colleges across ~15 Indian states and universities in the UK, Germany, Canada, USA, and other countries. Public Relations, Documentation & Marketing Head — Game Developers Association
+Promote GDA event s through public speaking, announcements, and community outreach. Manage social media content, including reels, posts, and stories, for events and club updates. Secure sponsorships and oversee overall marketing activities for the club
+
+Projects & Production Builds
+Strike Engi ne — AI - Powered Cybersecurity Platform Team Lead
+Built an AI - powered cybersecurity platform integrating OSINT, automated reconnaissance, vulnerability assessment, SIEM, and web security modules to streamline threat detection and analysis. Led the project team across development, testing, and implementation.
+
+Real - Time Bot Detection Engine (BotShield)
+Designed and deployed a full - stack ML system in Python that analyzes session behavior to detect automated traffic in real time, including a synthetic traffic generator and an XGBoost classification model. Implemented a SAFE / CHALLENGED / BLOCKED verdict system with a FastAPI REST backend and a Vanilla JS, Chart.js - powered analytics dashboard.
+
+NyaayaAI — AI Legal Assistant
+Built an AI assistant that explains I ndian laws in plain language and gives citizens instant legal guidance, while helping lawyers with research, document drafting, and case summaries. Hangout App Developed a location - based hangout application using the Google Maps API to process real - time u ser locations, calculate optimal meetup points, and recommend nearby restaurants and entertainment venues. Focused on geospatial data handling and a responsive user interface
+
+Technical & Core Skills
+Tools: Soft
+Languages: English, Hindi, Malayalam, German (Basic), Japanese (Basic)
+
+CERTIFICATIONS & ACHIEVEMENTS
+AWS Certified Cloud Practitioner
+Google Associate Cloud Engineer
+Google Cybersecurity Certificate
+IBM AI Developer Certification
+Introduction to Retrieval - Augmented Generation
+Winner
+PKP Mumbai Hackathon
+
+Education
+Fr. Conceicao Rodrigues College of Engineering (FRCRCE) — Computer Eng ineering 2024 — Present Nirmala Memorial Foundation College — Higher Secondary (Science) St. Francis School — ICSE (10th Grade)
+      `.trim();
+
+      const sections = ResumeStructuringService.structureResumeText(resume, "Johann Resume");
+
+      // 1. Profile: Contact info is parsed as Personal Details; summary is parsed cleanly
+      const personalDetails = sections.find((s) => s.entryType === "profile" && s.title === "Personal Details");
+      expect(personalDetails).toBeDefined();
+      expect(personalDetails!.bullets.some((b) => b.includes("9969394238"))).toBe(true);
+
+      const summaryProfile = sections.find((s) => s.entryType === "profile" && s.title === "Professional Summary");
+      expect(summaryProfile).toBeDefined();
+      expect(summaryProfile!.bullets[0]).not.toContain("9969394238");
+      expect(summaryProfile!.bullets[0]).toContain("Computer Engineering student in progress");
+      expect(summaryProfile!.bullets[0]).toContain("Campus");
+      expect(summaryProfile!.bullets[0]).toContain("leading");
+
+      // 2. Experience: Exactly 3 separate roles
+      const experiences = sections.filter((s) => s.entryType === "experience");
+      expect(experiences.length).toBe(3);
+      expect(experiences[0].title).toContain("Cybersecurity Intern");
+      expect(experiences[0].organization).toContain("CyArt Tech LLP");
+      expect(experiences[1].title).toContain("Senior Marketing Head");
+      expect(experiences[1].organization).toContain("Google Developer Group On Campus");
+      expect(experiences[2].title).toContain("Public Relations, Documentation & Marketing Head");
+      expect(experiences[2].organization).toContain("Game Developers Association");
+
+      // 3. Education: Exactly 3 distinct education entries
+      const educations = sections.filter((s) => s.entryType === "education");
+      expect(educations.length).toBe(3);
+      expect(educations[0].organization).toContain("Fr. Conceicao Rodrigues College of Engineering");
+      expect(educations[0].title).toContain("Computer Engineering");
+      expect(educations[0].startDate).toBe("2024");
+      expect(educations[0].isCurrent).toBe(true);
+
+      expect(educations[1].organization).toContain("Nirmala Memorial Foundation College");
+      expect(educations[1].title).toContain("Higher Secondary (Science)");
+
+      expect(educations[2].organization).toContain("St. Francis School");
+      expect(educations[2].title).toContain("ICSE (10th Grade)");
+
+      // 4. Projects: Hangout App is separated from NyaayaAI
+      const projects = sections.filter((s) => s.entryType === "project");
+      expect(projects.length).toBeGreaterThanOrEqual(4);
+      const projectTitles = projects.map((p) => p.title);
+      expect(projectTitles.some((t) => t.includes("Hangout App"))).toBe(true);
+      expect(projectTitles.some((t) => t.includes("NyaayaAI"))).toBe(true);
+      expect(projectTitles.some((t) => t.includes("BotShield") || t.includes("Bot Detection"))).toBe(true);
+      expect(projectTitles.some((t) => t.includes("Strike Engine"))).toBe(true);
+
+      // 5. Certifications & Achievements: parsed as certifications and award
+      const certs = sections.filter((s) => s.entryType === "certification");
+      expect(certs.length).toBeGreaterThanOrEqual(4);
+      expect(certs.some((c) => c.title.includes("AWS Certified"))).toBe(true);
+      expect(certs.some((c) => c.title.includes("Google Associate Cloud Engineer"))).toBe(true);
+
+      const awards = sections.filter((s) => s.entryType === "award");
+      expect(awards.length).toBeGreaterThanOrEqual(1);
+      expect(awards.some((a) => a.title.includes("PKP Mumbai Hackathon"))).toBe(true);
+    });
+
+    it("should accurately segment Scarlett Menezes's resume with clean personal details, distinct skills, separated experience/education, and decoupled achievements", () => {
+      const scarlettResume = `
+SCARLETT MENEZES • Third Year Computer Science and Engineering Student • Mumbai, India • +91 9921758998 • scarlettmenezes29@gmail.com • github.com/scarlettmenezes • linkedin.com/in/scarlett- menezes777 ABOUT ME  Passionate about building practical technology solutions for real-world problems.  Full-stack developer with experience in mobile apps, backend development, and AI / ML integration.  Quick learner, continuously exploring new technologies and frameworks
+
+Projects & Production Builds
+VyaparGuard — AI-Powered GST Assistant for Indian MSMEs  Built a voice-first GST assistant enabling MSMEs to ask tax queries in Hinglish, automate invoice filing via WhatsApp (image/PDF extraction), find correct HSN codes, and detect invalid bills to avoid wrongful ITC claims.
+
+Aqua Setu — Offline-Capable Fish Identification & Quality App  Engineered an offline Android app for fishermen and inspectors to identify Indian fish species using on- device AI, assess freshness (Excellent/Good/Fair), estimate weight via image analysis, and maintain geotagged catch records with export support.
+
+NourishNet — SaaS Platform for Urban Tiffin Services  Designed a dual-sided SaaS platform with a vendor dashboard and customer mobile app, featuring real- time delivery tracking, AI-powered route optimization (OR-Tools + Mapbox), predictive delay forecasting, and analytics for operations and customer feedback. ACHIEVEMENTS  Smart India Hackathon (SIH) 2025 — National Finalist out of 50,000+ registered teams.  Participated in 4+ hackathons early on, building full-stack & AI-based solutions under 24 — 36 hours constraints.  Won an 8-Hour hackathon conducted as a part of Pixels 2026, at SIES Nerul.
+
+Technical & Core Skills
+Languages
+Python
+JavaScript
+TypeScript
+Java
+C / C++ Frontend / Mobile: React Native (Expo)
+Flutter
+HTML5
+CSS3
+Tailwind CSS
+Next.js Backend / APIs: NestJS
+FastAPI
+Node.js
+REST APIs
+WebSockets
+BullMQ + Redis Databases & Cloud: PostgreSQL
+Firebase / Firestore
+Prisma ORM
+Google Cloud Run
+Vercel Tools & Others: Git
+GitHub
+Figma
+Twilio / WhatsApp Business API
+
+Education
+Fr. Conceicao Rodrigues College of Engineering (Fr. CRCE) B.Tech. in Computer Science & Engineering | 3 r d Y e a r | 2024 — Present EXPERIENCE PR & Media Lead - GDG CRCE May 2026 - Present  Creating and managing reels, promotional content, and social media campaigns for GDG CRCE events and initiatives.  Planning and executing event PR campaigns, including announcements, registration promotions, reminders, and post-event content.  Producing sponsor-focused reels and promotional creatives to highlight sponsors, partnerships, and event collaborations.  Coordinating with the technical, marketing, and organising teams to maintain consistent event branding and communication across platforms.  Managing event coverage and creating real-time content around workshops, hackathons, and chapter activities.
+      `.trim();
+
+      const sections = ResumeStructuringService.structureResumeText(scarlettResume, "Scarlett Resume");
+
+      // 1. Personal Details: Extracted with phone, email, links, headline, and name
+      const personalDetails = sections.find((s) => s.entryType === "profile" && s.title === "Personal Details");
+      expect(personalDetails).toBeDefined();
+      expect(personalDetails!.organization).toBe("SCARLETT MENEZES");
+      expect(personalDetails!.location).toBe("Mumbai, India");
+      expect(personalDetails!.bullets.some((b) => b.includes("scarlettmenezes29@gmail.com"))).toBe(true);
+      expect(personalDetails!.bullets.some((b) => b.includes("9921758998"))).toBe(true);
+      expect(personalDetails!.bullets.some((b) => b.includes("github.com/scarlettmenezes"))).toBe(true);
+      expect(personalDetails!.bullets.some((b) => b.includes("linkedin.com/in/scarlett-menezes777"))).toBe(true);
+
+      // 2. Professional Summary: Clean summary bullets WITHOUT candidate contact details
+      const summaryProfile = sections.find((s) => s.entryType === "profile" && s.title === "Professional Summary");
+      expect(summaryProfile).toBeDefined();
+      expect(summaryProfile!.bullets.some((b) => b.includes("Passionate about building"))).toBe(true);
+      expect(summaryProfile!.bullets.some((b) => b.includes("Full-stack developer"))).toBe(true);
+      expect(summaryProfile!.bullets.some((b) => b.includes("Quick learner"))).toBe(true);
+      for (const bullet of summaryProfile!.bullets) {
+        expect(bullet).not.toContain("scarlettmenezes29@gmail.com");
+        expect(bullet).not.toContain("9921758998");
+        expect(bullet).not.toContain("github.com");
+        expect(bullet).not.toContain("linkedin.com");
+      }
+
+      // 3. Work Experience: GDG CRCE role decoupled from Education
+      const experiences = sections.filter((s) => s.entryType === "experience");
+      expect(experiences.length).toBeGreaterThanOrEqual(1);
+      const gdgRole = experiences.find((e) => e.organization?.includes("GDG CRCE") || e.title.includes("PR & Media Lead"));
+      expect(gdgRole).toBeDefined();
+      expect(gdgRole!.title).toContain("PR & Media Lead");
+      expect(gdgRole!.bullets.length).toBeGreaterThanOrEqual(3);
+      expect(gdgRole!.bullets.some((b) => b.includes("Creating and managing reels"))).toBe(true);
+
+      // 4. Education: Fr. CRCE degree decoupled from Experience
+      const educations = sections.filter((s) => s.entryType === "education");
+      expect(educations.length).toBeGreaterThanOrEqual(1);
+      const frcrce = educations.find((e) => e.organization?.includes("Fr. Conceicao Rodrigues") || e.title.includes("B.Tech"));
+      expect(frcrce).toBeDefined();
+      expect(frcrce!.title).toContain("B.Tech");
+      expect(frcrce!.startDate).toBe("2024");
+      expect(frcrce!.isCurrent).toBe(true);
+
+      // 5. Technical & Core Skills: Separated into distinct skill groups instead of lumping into Languages
+      const skillGroups = sections.filter((s) => s.entryType === "skill_group");
+      expect(skillGroups.length).toBeGreaterThanOrEqual(4);
+      const skillTitles = skillGroups.map((g) => g.title.toLowerCase());
+      expect(skillTitles.some((t) => t.includes("languages"))).toBe(true);
+      expect(skillTitles.some((t) => t.includes("frontend") || t.includes("mobile"))).toBe(true);
+      expect(skillTitles.some((t) => t.includes("backend") || t.includes("api"))).toBe(true);
+      expect(skillTitles.some((t) => t.includes("database") || t.includes("cloud"))).toBe(true);
+
+      const langGroup = skillGroups.find((g) => g.title.toLowerCase().includes("languages"));
+      expect(langGroup!.bullets).toContain("Python");
+      expect(langGroup!.bullets).not.toContain("React Native (Expo)");
+
+      const feGroup = skillGroups.find((g) => g.title.toLowerCase().includes("frontend"));
+      expect(feGroup!.bullets.some((b) => b.includes("React Native"))).toBe(true);
+
+      // 6. Projects & Production Builds: Exactly 3 projects with clean titles
+      const projects = sections.filter((s) => s.entryType === "project");
+      expect(projects.length).toBe(3);
+      const projTitles = projects.map((p) => p.title);
+      expect(projTitles.some((t) => t.includes("VyaparGuard"))).toBe(true);
+      expect(projTitles.some((t) => t.includes("Aqua Setu"))).toBe(true);
+      expect(projTitles.some((t) => t.includes("NourishNet"))).toBe(true);
+
+      // NourishNet project does NOT swallow ACHIEVEMENTS
+      const nourishNet = projects.find((p) => p.title.includes("NourishNet"));
+      expect(nourishNet).toBeDefined();
+      expect(nourishNet!.title).not.toContain("ACHIEVEMENTS");
+      expect(nourishNet!.bullets.every((b) => !b.includes("Smart India Hackathon"))).toBe(true);
+
+      // 7. Achievements & Awards: Decoupled into distinct award items
+      const awards = sections.filter((s) => s.entryType === "award");
+      expect(awards.length).toBeGreaterThanOrEqual(2);
+      expect(awards.some((a) => a.title.includes("Smart India Hackathon"))).toBe(true);
+      expect(awards.some((a) => a.title.includes("Pixels 2026") || a.title.includes("8-Hour hackathon"))).toBe(true);
+    });
   });
 });
 

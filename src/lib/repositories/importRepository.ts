@@ -8,6 +8,7 @@ import {
   bankEntries,
   achievementBullets,
   bulletFacts,
+  users,
 } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { assertValidUserId } from "../db/tenant";
@@ -171,6 +172,27 @@ export class ImportRepository {
         const entryId = `entry_${crypto.randomUUID()}`;
         newEntryIds.push(entryId);
         statusUpdates.push(row.id);
+
+        if (row.entryType === "profile" && /personal\s*details|contact/i.test(data.title)) {
+          const emailBullet = (data.bullets || []).find((b) => /^email:\s*/i.test(b))?.replace(/^email:\s*/i, "").trim();
+          const phoneBullet = (data.bullets || []).find((b) => /^phone:\s*/i.test(b))?.replace(/^phone:\s*/i, "").trim();
+          const githubBullet = (data.bullets || []).find((b) => /github\.com/i.test(b))?.replace(/^(?:link|github):\s*/i, "").trim();
+          const linkedinBullet = (data.bullets || []).find((b) => /linkedin\.com/i.test(b))?.replace(/^(?:link|linkedin):\s*/i, "").trim();
+
+          const userUpdates: Record<string, any> = {};
+          if (data.organization) userUpdates.displayName = data.organization;
+          if (emailBullet) userUpdates.contactEmail = emailBullet;
+          if (phoneBullet) userUpdates.phone = phoneBullet;
+          if (data.location) userUpdates.location = data.location;
+          if (data.descriptionContext) userUpdates.headline = data.descriptionContext;
+          if (githubBullet) userUpdates.githubUrl = githubBullet.startsWith("http") ? githubBullet : `https://${githubBullet}`;
+          if (linkedinBullet) userUpdates.linkedinUrl = linkedinBullet.startsWith("http") ? linkedinBullet : `https://${linkedinBullet}`;
+
+          if (Object.keys(userUpdates).length > 0) {
+            userUpdates.updatedAt = new Date();
+            await tx.update(users).set(userUpdates).where(eq(users.id, userId));
+          }
+        }
 
         let evidenceId: string | null = null;
         if (sourceId) {

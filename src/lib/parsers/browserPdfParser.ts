@@ -52,9 +52,29 @@ export async function parsePdfBuffer(
   for (let i = 1; i <= pageCount; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item: any) => ("str" in item ? item.str : ""))
-      .join(" ");
+    let pageText = "";
+    let lastY: number | null = null;
+
+    for (const item of content.items) {
+      if (!("str" in item)) continue;
+      const str = item.str;
+      if (!str) continue;
+
+      const y = Array.isArray(item.transform) ? item.transform[5] : null;
+
+      // When the vertical baseline drops or PDF.js reports an EOL, emit a newline
+      if (lastY !== null && y !== null && Math.abs(y - lastY) > 3) {
+        pageText += "\n";
+      } else if (item.hasEOL) {
+        pageText += "\n";
+      } else if (pageText.length > 0 && !pageText.endsWith("\n") && !pageText.endsWith(" ")) {
+        pageText += " ";
+      }
+
+      pageText += str;
+      lastY = y;
+    }
+
     pages.push(pageText.trim());
   }
 

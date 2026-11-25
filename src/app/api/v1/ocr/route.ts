@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { auditEvents } from "@/lib/db/schema";
 import { checkAndConsumeOcrRateLimit } from "@/lib/security/ocrRateLimiter";
 import { OcrConsentService } from "@/lib/security/ocrConsentService";
+import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get("content-type") || "";
     let extractedText = "";
     let processedFileSize = 0;
+    let documentLabel = "Scanned Document";
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
       }
 
       processedFileSize = file.size;
+      documentLabel = file.name;
 
       if (file.size > MAX_FILE_SIZE) {
         return apiError(
@@ -132,6 +135,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const isPdf = Boolean(
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+      );
+
       // Forward to OCR.space
       const ocrFormData = new FormData();
       ocrFormData.append("file", file, file.name);
@@ -140,7 +147,11 @@ export async function POST(req: NextRequest) {
       ocrFormData.append("isOverlayRequired", "false");
       ocrFormData.append("detectOrientation", "true");
       ocrFormData.append("scale", "true");
-      ocrFormData.append("OCREngine", "2");
+      // Engine 1 is standard and robust for multi-page documents and PDFs
+      ocrFormData.append("OCREngine", isPdf ? "1" : "2");
+      if (isPdf) {
+        ocrFormData.append("filetype", "PDF");
+      }
 
       const response = await fetch(OCR_SPACE_ENDPOINT, {
         method: "POST",
@@ -165,6 +176,13 @@ export async function POST(req: NextRequest) {
         extractedText = result.ParsedResults.map(
           (r: { ParsedText?: string }) => r.ParsedText || ""
         ).join("\n\n");
+      }
+
+      if (!extractedText.trim()) {
+        const firstErr = result.ParsedResults?.[0]?.ErrorMessage || result.ErrorMessage?.join?.(", ");
+        if (firstErr) {
+          throw new Error(`OCR processing error: ${firstErr}`);
+        }
       }
     } else {
       const body = await req.json();
@@ -248,6 +266,13 @@ export async function POST(req: NextRequest) {
           (r: { ParsedText?: string }) => r.ParsedText || ""
         ).join("\n\n");
       }
+
+      if (!extractedText.trim()) {
+        const firstErr = result.ParsedResults?.[0]?.ErrorMessage || result.ErrorMessage?.join?.(", ");
+        if (firstErr) {
+          throw new Error(`OCR processing error: ${firstErr}`);
+        }
+      }
     }
 
     const cleanedText = extractedText.replace(/\r\n/g, "\n").trim();
@@ -256,20 +281,32 @@ export async function POST(req: NextRequest) {
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
 
-    // Normalised extracted items structured for staging review
-    const candidateBullets = lines.filter((l) => l.length > 5);
-    const items = [
-      {
-        entryType: "experience",
-        rawSnippet: `Scanned Document / OCR Extracted (${lines.length} lines detected)`,
-        parsedDataJson: {
-          title: candidateBullets[0] || "Scanned Career Entry",
-          organization: "Imported via OCR.space External Engine",
-          bullets: candidateBullets.slice(1, 25),
+    if (cleanedText.length === 0) {
+      throw new Error(
+        "No readable text could be extracted from this document. Please ensure the scan is legible and uncorrupted."
+      );
+    }
+
+    // Normalised extracted items structured into typed Data Bank entries
+    const structuredSections = ResumeStructuringService.structureResumeText(cleanedText, documentLabel);
+    let items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+
+    // Fallback if automatic structuring yielded 0 items but raw lines exist
+    if (items.length === 0 && lines.length > 0) {
+      const candidateBullets = lines.filter((l) => l.length > 5);
+      items = [
+        {
+          entryType: "experience",
+          rawSnippet: `Scanned Document / OCR Extracted (${lines.length} lines detected)`,
+          parsedDataJson: {
+            title: candidateBullets[0] || "Scanned Career Entry",
+            organization: "Imported via OCR Engine",
+            bullets: candidateBullets.slice(1, 25),
+          },
+          confidence: 0.85,
         },
-        confidence: 0.85,
-      },
-    ];
+      ];
+    }
 
     // Log audit event
     await db
@@ -284,7 +321,7 @@ export async function POST(req: NextRequest) {
           itemCount: items.length,
           fileSize: processedFileSize,
           userConsentGranted: true,
-          engine: "ocr_space_engine_2",
+          engine: "ocr_space_engine_1",
         },
       })
       .catch((err) => console.warn("Failed to record OCR audit event:", err));

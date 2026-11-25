@@ -32,7 +32,10 @@ interface StagingReviewTableProps {
   onRejectItems: (itemIds: string[]) => Promise<void>;
 }
 
-function getBadgeStyle(entryType: string) {
+function getBadgeStyle(entryType: string, title?: string) {
+  if (entryType === "profile" && /personal\s*details|contact/i.test(title || "")) {
+    return "bg-[#d8c49b] text-[#10241c] border-[#c4b087]";
+  }
   switch (entryType) {
     case "experience":
       return "bg-[#dce5df] text-[#10241c] border-[#becbbf]";
@@ -50,15 +53,16 @@ function getBadgeStyle(entryType: string) {
 const CATEGORY_CONFIG: Array<{
   key: string;
   label: string;
-  match: (type: string) => boolean;
+  match: (item: StagedItemView) => boolean;
 }> = [
-  { key: "profile", label: "Professional Summary", match: (t) => t === "profile" },
-  { key: "experience", label: "Work Experience", match: (t) => t === "experience" || t === "volunteer" },
-  { key: "project", label: "Projects & Production Builds", match: (t) => t === "project" },
-  { key: "skill_group", label: "Technical & Core Skills", match: (t) => t === "skill_group" || t === "skill" },
-  { key: "education", label: "Education", match: (t) => t === "education" },
-  { key: "certification", label: "Certifications", match: (t) => t === "certification" },
-  { key: "award", label: "Awards & Honors", match: (t) => t === "award" || t === "publication" },
+  { key: "personal_details", label: "Personal Details", match: (i) => i.entryType === "profile" && /personal\s*details|contact/i.test(i.parsedDataJson?.title || "") },
+  { key: "profile", label: "Professional Summary", match: (i) => i.entryType === "profile" && !/personal\s*details|contact/i.test(i.parsedDataJson?.title || "") },
+  { key: "experience", label: "Work Experience", match: (i) => i.entryType === "experience" || i.entryType === "volunteer" },
+  { key: "project", label: "Projects & Production Builds", match: (i) => i.entryType === "project" },
+  { key: "skill_group", label: "Technical & Core Skills", match: (i) => i.entryType === "skill_group" || i.entryType === "skill" },
+  { key: "education", label: "Education", match: (i) => i.entryType === "education" },
+  { key: "certification", label: "Certifications", match: (i) => i.entryType === "certification" },
+  { key: "award", label: "Awards & Honors", match: (i) => i.entryType === "award" || i.entryType === "publication" },
 ];
 
 export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: StagingReviewTableProps) {
@@ -83,7 +87,7 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
     const seen = new Set<string>();
 
     for (const cat of CATEGORY_CONFIG) {
-      const catItems = items.filter((item) => cat.match(item.entryType));
+      const catItems = items.filter((item) => cat.match(item));
       if (catItems.length > 0) {
         catItems.forEach((i) => seen.add(i.id));
         groups.push({
@@ -302,8 +306,8 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${getBadgeStyle(item.entryType)}`}>
-                        {item.entryType.replaceAll("_", " ")}
+                      <span className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${getBadgeStyle(item.entryType, data.title)}`}>
+                        {item.entryType === "profile" && /personal\s*details|contact/i.test(data.title) ? "personal details" : item.entryType.replaceAll("_", " ")}
                       </span>
                       <span className="rounded bg-[#dce5df] px-2 py-0.5 font-mono text-[10.5px] font-bold text-[#315849]">
                         {Math.round(item.confidence * 100)}% match

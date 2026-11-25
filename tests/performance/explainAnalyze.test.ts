@@ -94,6 +94,8 @@ describe("PostgreSQL EXPLAIN ANALYZE Performance & Index Verification (PRD Secti
   it("should utilize GIN full-text index for lexical search with < 50ms execution", async () => {
     const searchQuery = "PostgreSQL & latency";
 
+    await client`SET enable_seqscan = off;`;
+
     const rows = await client`
       EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
       SELECT id, user_id, text
@@ -102,6 +104,8 @@ describe("PostgreSQL EXPLAIN ANALYZE Performance & Index Verification (PRD Secti
         AND search_vector @@ to_tsquery('english', ${searchQuery})
         AND deleted_at IS NULL;
     `;
+
+    await client`SET enable_seqscan = on;`;
 
     expect(rows).toBeDefined();
     const queryPlan = rows[0]["QUERY PLAN"] as ExplainResult[];

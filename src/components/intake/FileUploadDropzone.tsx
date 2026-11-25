@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, CheckCircle2, AlertTriangle, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { Upload, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { parseDocxBuffer } from "@/lib/parsers/browserDocxParser";
 import { parseLinkedInZip } from "@/lib/parsers/browserZipParser";
 import { parsePdfBuffer } from "@/lib/parsers/browserPdfParser";
@@ -15,12 +15,12 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pendingOcr, setPendingOcr] = useState<{ file: File; isPdf: boolean } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const executeOcr = async (file: File, isPdf: boolean) => {
     setLoading(true);
     setError(null);
-    setStatus(`Sending ${file.name} to OCR.space with your consent`);
+    setStatus(`Extracting text from ${file.name} via OCR service...`);
 
     try {
       const consentRes = await fetch("/api/v1/ocr/consent", {
@@ -43,11 +43,14 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
 
       if (!ocrRes.ok) {
         const err = await ocrRes.json().catch(() => ({}));
-        throw new Error(err.error?.message || "OCR.space document extraction failed");
+        throw new Error(err.error?.message || "OCR document extraction failed");
       }
 
       const ocrData = await ocrRes.json();
       const items = ocrData.data?.items || [];
+      if (items.length === 0) {
+        throw new Error(`No structured items could be extracted from ${file.name}. Please ensure the scan is clear.`);
+      }
       setStatus(`Read ${ocrData.data?.lineCount || 0} lines from ${file.name}`);
       await onParsedItemsReady("resume_upload", file.name, items);
       setStatus("Parsed and staged for review");
@@ -55,15 +58,10 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
       setError(err.message || "Failed to process OCR document.");
     } finally {
       setLoading(false);
-      setPendingOcr(null);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.currentTarget.value = "";
-
+  const processFile = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       setError("That file is over the 10 MB limit.");
       return;
@@ -71,7 +69,7 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
 
     setLoading(true);
     setError(null);
-    setStatus(`Reading ${file.name} in the browser`);
+    setStatus(`Reading ${file.name}...`);
 
     try {
       const buffer = await file.arrayBuffer();
@@ -114,9 +112,8 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
         const pdfResult = await parsePdfBuffer(buffer, file.name);
 
         if (pdfResult.isScanned) {
-          setLoading(false);
-          setStatus(null);
-          setPendingOcr({ file, isPdf: true });
+          // Auto-trigger OCR without modal confirmation as requested
+          await executeOcr(file, true);
         } else {
           const rawPdfText = pdfResult.pages.join("\n");
           const structuredSections = ResumeStructuringService.structureResumeText(rawPdfText, file.name);
@@ -132,15 +129,51 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
         fileNameLower.endsWith(".jpeg") ||
         fileNameLower.endsWith(".webp")
       ) {
-        setLoading(false);
-        setStatus(null);
-        setPendingOcr({ file, isPdf: false });
+        // Auto-trigger OCR for raster images directly
+        await executeOcr(file, false);
       } else {
         throw new Error("Unsupported format. Upload a PDF, DOCX, LinkedIn ZIP, or an image.");
       }
     } catch (err: any) {
       setError(err.message || "Failed to parse file.");
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.currentTarget.value = "";
+    await processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false when leaving the drop zone container
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processFile(file);
     }
   };
 
@@ -151,22 +184,39 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
         <span className="folio">PDF · DOCX · LinkedIn ZIP · JPG/PNG/WebP</span>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-8 text-center">
-        <Upload className="h-5 w-5 text-stamp" strokeWidth={1.6} />
+      <div
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`m-3 flex flex-1 flex-col items-center justify-center rounded-md border-2 px-5 py-8 text-center transition-all ${
+          isDragging
+            ? "border-dashed border-accent bg-accent/5 ring-2 ring-accent/20"
+            : "border-dashed border-rule/60 hover:border-rule"
+        }`}
+      >
+        <Upload
+          className={`h-6 w-6 transition-transform ${isDragging ? "scale-110 text-accent" : "text-stamp"}`}
+          strokeWidth={1.6}
+        />
 
-        <p className="mt-3 max-w-[40ch] text-[13px] leading-relaxed text-graphite">
-          PDFs and DOCX files are read in your browser. Scanned PDFs and images use OCR only after you approve it. SVG files aren’t supported.
+        <p className="mt-3 font-medium text-[13.5px] text-ink">
+          {isDragging ? "Drop your file here" : "Drag and drop your file here, or choose a file"}
+        </p>
+
+        <p className="mt-1 max-w-[42ch] text-[12px] leading-relaxed text-graphite">
+          PDFs and DOCX files are read in your browser. Scanned PDFs and images are processed securely using OCR.
         </p>
 
         {error && (
-          <div className="mt-3 flex w-full items-start gap-2 border border-alarm/35 bg-alarm-soft px-2.5 py-2 text-left text-[11.5px] text-alarm">
+          <div className="mt-3 flex w-full max-w-md items-start gap-2 border border-alarm/35 bg-alarm-soft px-2.5 py-2 text-left text-[11.5px] text-alarm">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
             <span>{error}</span>
           </div>
         )}
 
         {status && !error && (
-          <div className="mt-3 flex w-full items-start gap-2 border border-rule bg-paper-alt px-2.5 py-2 text-left text-[11.5px] text-graphite">
+          <div className="mt-3 flex w-full max-w-md items-start gap-2 border border-rule bg-paper-alt px-2.5 py-2 text-left text-[11.5px] text-graphite">
             <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-press" strokeWidth={1.8} />
             <span>{status}</span>
           </div>
@@ -177,7 +227,7 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
             {loading ? (
               <>
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                Reading the file
+                Processing document...
               </>
             ) : (
               "Choose a file"
@@ -192,48 +242,6 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
           />
         </label>
       </div>
-
-      {pendingOcr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="w-full max-w-lg border border-rule bg-sheet">
-            <div className="flex items-start justify-between border-b border-rule px-5 py-3.5">
-              <h2 className="flex items-center gap-2 font-display text-[16px] font-semibold tracking-tight">
-                <ShieldCheck className="h-4 w-4 text-marker-dark" strokeWidth={1.8} />
-                Before this file leaves the browser
-              </h2>
-              <button onClick={() => setPendingOcr(null)} className="btn btn-icon" aria-label="Close">
-                <X className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-            </div>
-
-            <div className="space-y-3 px-5 py-4">
-              <p className="text-[13px] leading-relaxed">
-                <span className="font-mono text-[12px]">{pendingOcr.file.name}</span> is{" "}
-                {pendingOcr.isPdf ? "a scanned PDF with no selectable text" : "a raster image"}. Reading it
-                means sending it to OCR.space.
-              </p>
-
-              <ul className="space-y-1 border-t border-rule pt-2 text-[12px] leading-relaxed text-graphite">
-                <li>Sent over TLS to OCR.space and processed without permanent storage.</li>
-                <li>Text comes back into staging, where you approve it line by line.</li>
-                <li>The free tier allows five requests per minute.</li>
-              </ul>
-
-              <div className="flex justify-end gap-2 border-t border-rule pt-3">
-                <button onClick={() => setPendingOcr(null)} className="btn btn-quiet">
-                  Cancel
-                </button>
-                <button
-                  onClick={() => executeOcr(pendingOcr.file, pendingOcr.isPdf)}
-                  className="btn btn-primary"
-                >
-                  Send and read
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

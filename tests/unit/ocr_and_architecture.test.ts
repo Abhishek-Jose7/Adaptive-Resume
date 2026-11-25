@@ -75,7 +75,7 @@ describe("Document Intake Architecture & OCR.space Integration", () => {
       expect(json.items).toHaveLength(1);
       expect(json.items[0].entryType).toBe("experience");
       expect(json.items[0].parsedDataJson.title).toBe("Senior Software Engineer");
-      expect(json.items[0].parsedDataJson.bullets).toContain("- Built high-performance microservices");
+      expect(json.items[0].parsedDataJson.bullets).toContain("Built high-performance microservices");
     } finally {
       global.fetch = originalFetch;
     }
