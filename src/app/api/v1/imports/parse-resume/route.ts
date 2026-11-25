@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Save any newly extracted Personal Details into empty user profile fields directly
+    await ImportRepository.syncPersonalDetailsToProfile(user.userId, parseResult.stagedItems, {
+      overwriteExisting: false,
+    }).catch((err) => console.warn("Failed to auto-sync personal details to profile:", err));
+
     let stagedIds: string[] = [];
     if (validated.batchId) {
       stagedIds = await ImportRepository.addStagedItems(

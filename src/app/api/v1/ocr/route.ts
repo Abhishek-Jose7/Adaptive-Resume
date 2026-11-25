@@ -6,6 +6,7 @@ import { auditEvents } from "@/lib/db/schema";
 import { checkAndConsumeOcrRateLimit } from "@/lib/security/ocrRateLimiter";
 import { OcrConsentService } from "@/lib/security/ocrConsentService";
 import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
+import { ImportRepository } from "@/lib/repositories/importRepository";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -15,6 +16,188 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
 ]);
 const OCR_SPACE_ENDPOINT = "https://api.ocr.space/parse/image";
+
+interface OcrWordBox {
+  WordText?: string;
+  Left?: number;
+  Top?: number;
+  Height?: number;
+  Width?: number;
+}
+
+interface OcrLineBox {
+  LineText?: string;
+  MinTop?: number;
+  MaxHeight?: number;
+  Words?: OcrWordBox[];
+}
+
+/**
+ * Reconstructs clean reading order (including two-column Canva/design PDFs) from OCR.space
+ * TextOverlay bounding boxes so left and right columns do not mix horizontally.
+ * Falls back to `ParsedText` when TextOverlay is unavailable.
+ */
+function reconstructOcrPageText(parsedResult: {
+  ParsedText?: string;
+  TextOverlay?: { Lines?: OcrLineBox[] };
+}): string {
+  const overlayLines = parsedResult.TextOverlay?.Lines;
+  if (!Array.isArray(overlayLines) || overlayLines.length === 0) {
+    return parsedResult.ParsedText || "";
+  }
+
+  // Group OCR words into visual lines by vertical Top center and inspect horizontal spans
+  interface WordSpan {
+    text: string;
+    left: number;
+    right: number;
+    top: number;
+    height: number;
+  }
+
+  const allWords: WordSpan[] = [];
+  for (const line of overlayLines) {
+    if (Array.isArray(line.Words) && line.Words.length > 0) {
+      for (const w of line.Words) {
+        const txt = (w.WordText || "").trim();
+        if (!txt) continue;
+        const left = Number(w.Left ?? 0);
+        const width = Number(w.Width ?? Math.max(10, txt.length * 8));
+        const top = Number(w.Top ?? line.MinTop ?? 0);
+        const height = Number(w.Height ?? line.MaxHeight ?? 14);
+        allWords.push({ text: txt, left, right: left + width, top, height });
+      }
+    } else if (line.LineText?.trim()) {
+      allWords.push({
+        text: line.LineText.trim(),
+        left: 0,
+        right: 500,
+        top: Number(line.MinTop ?? 0),
+        height: Number(line.MaxHeight ?? 14),
+      });
+    }
+  }
+
+  if (allWords.length === 0) {
+    return parsedResult.ParsedText || "";
+  }
+
+  const joinWordsAsLines = (words: WordSpan[]): Array<{ top: number; text: string; minLeft: number; maxRight: number; segments: Array<{ minL: number; maxR: number; words: number }> }> => {
+    const sorted = [...words].sort((a, b) => a.top - b.top || a.left - b.left);
+    const groups: Array<{ top: number; height: number; words: WordSpan[] }> = [];
+
+    for (const w of sorted) {
+      const g = groups.find((grp) => Math.abs(grp.top - w.top) <= Math.max(6, Math.max(grp.height, w.height) * 0.55));
+      if (g) {
+        g.words.push(w);
+        g.height = Math.max(g.height, w.height);
+      } else {
+        groups.push({ top: w.top, height: w.height, words: [w] });
+      }
+    }
+
+    return groups
+      .sort((a, b) => a.top - b.top)
+      .map((g) => {
+        const rowWords = [...g.words].sort((a, b) => a.left - b.left);
+        const segments: Array<{ minL: number; maxR: number; words: number; parts: string[] }> = [];
+        for (const w of rowWords) {
+          const last = segments[segments.length - 1];
+          const gapThreshold = Math.max(22, g.height * 1.9);
+          if (last && w.left - last.maxR < gapThreshold) {
+            last.parts.push(w.text);
+            last.maxR = Math.max(last.maxR, w.right);
+            last.words += 1;
+          } else {
+            segments.push({ minL: w.left, maxR: w.right, words: 1, parts: [w.text] });
+          }
+        }
+        return {
+          top: g.top,
+          text: segments.map((s) => s.parts.join(" ")).join("   "),
+          minLeft: rowWords[0].left,
+          maxRight: Math.max(...rowWords.map((w) => w.right)),
+          segments: segments.map(({ minL, maxR, words: wc }) => ({ minL, maxR, words: wc })),
+        };
+      });
+  };
+
+  const rows = joinWordsAsLines(allWords);
+  if (rows.length < 8) {
+    return rows.map((r) => r.text).join("\n");
+  }
+
+  const pageMinX = Math.min(...rows.map((r) => r.minLeft));
+  const pageMaxX = Math.max(...rows.map((r) => r.maxRight));
+  const span = pageMaxX - pageMinX;
+
+  let bestGutter: number | null = null;
+  let bestScore = -1;
+  let bestHeaderCount = 0;
+
+  if (span >= 300) {
+    for (let frac = 0.28; frac <= 0.62; frac += 0.03) {
+      const gutterX = pageMinX + span * frac;
+      let headerCount = 0;
+      for (let h = 0; h < Math.min(4, rows.length); h++) {
+        if (rows[h].segments.some((s) => s.minL < gutterX - 8 && s.maxR > gutterX + 8)) {
+          headerCount = h + 1;
+        }
+      }
+
+      const body = rows.slice(headerCount);
+      if (body.length < 6) continue;
+
+      let crossing = 0;
+      let leftLines = 0;
+      let rightLines = 0;
+      let leftWords = 0;
+      let rightWords = 0;
+
+      for (const r of body) {
+        let hasL = false;
+        let hasR = false;
+        for (const s of r.segments) {
+          if (s.minL < gutterX - 8 && s.maxR > gutterX + 8) {
+            crossing++;
+          } else if (s.maxR <= gutterX + 6) {
+            hasL = true;
+            leftWords += s.words;
+          } else if (s.minL >= gutterX - 6) {
+            hasR = true;
+            rightWords += s.words;
+          }
+        }
+        if (hasL) leftLines++;
+        if (hasR) rightLines++;
+      }
+
+      const totalW = leftWords + rightWords;
+      if (crossing <= 2 && leftLines >= 4 && rightLines >= 4 && leftWords >= 14 && rightWords >= 14 && totalW > 0 && Math.min(leftWords, rightWords) / totalW >= 0.15) {
+        const score = leftLines + rightLines - crossing * 4;
+        if (score > bestScore) {
+          bestScore = score;
+          bestGutter = gutterX;
+          bestHeaderCount = headerCount;
+        }
+      }
+    }
+  }
+
+  if (bestGutter === null) {
+    return rows.map((r) => r.text).join("\n");
+  }
+
+  const headerText = rows.slice(0, bestHeaderCount).map((r) => r.text);
+  const bodyWords = allWords.filter((w) => w.top >= (rows[bestHeaderCount]?.top ?? 0) - 2);
+  const leftWordsArr = bodyWords.filter((w) => (w.left + w.right) / 2 < bestGutter!);
+  const rightWordsArr = bodyWords.filter((w) => (w.left + w.right) / 2 >= bestGutter!);
+
+  const leftRows = joinWordsAsLines(leftWordsArr).map((r) => r.text);
+  const rightRows = joinWordsAsLines(rightWordsArr).map((r) => r.text);
+
+  return [...headerText, ...leftRows, ...rightRows].filter(Boolean).join("\n");
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -101,6 +284,10 @@ export async function POST(req: NextRequest) {
             file.name
           );
 
+          await ImportRepository.syncPersonalDetailsToProfile(userId, visionResult.stagedItems, {
+            overwriteExisting: false,
+          }).catch((err) => console.warn("Failed to auto-sync vision personal details:", err));
+
           await db
             .insert(auditEvents)
             .values({
@@ -139,15 +326,15 @@ export async function POST(req: NextRequest) {
         file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
       );
 
-      // Forward to OCR.space
+      // Forward to OCR.space with TextOverlay coordinates enabled so two-column PDFs stay unscrambled
       const ocrFormData = new FormData();
       ocrFormData.append("file", file, file.name);
       ocrFormData.append("apikey", apiKey || "");
       ocrFormData.append("language", "eng");
-      ocrFormData.append("isOverlayRequired", "false");
+      ocrFormData.append("isOverlayRequired", "true");
       ocrFormData.append("detectOrientation", "true");
       ocrFormData.append("scale", "true");
-      // Engine 1 is standard and robust for multi-page documents and PDFs
+      // Engine 2 generally yields higher accuracy on modern fonts/Canva PDFs, with Engine 1 for multi-page
       ocrFormData.append("OCREngine", isPdf ? "1" : "2");
       if (isPdf) {
         ocrFormData.append("filetype", "PDF");
@@ -174,7 +361,8 @@ export async function POST(req: NextRequest) {
 
       if (result.ParsedResults && Array.isArray(result.ParsedResults)) {
         extractedText = result.ParsedResults.map(
-          (r: { ParsedText?: string }) => r.ParsedText || ""
+          (r: { ParsedText?: string; TextOverlay?: { Lines?: OcrLineBox[] } }) =>
+            reconstructOcrPageText(r)
         ).join("\n\n");
       }
 
@@ -216,6 +404,10 @@ export async function POST(req: NextRequest) {
             "Scanned Resume"
           );
 
+          await ImportRepository.syncPersonalDetailsToProfile(userId, visionResult.stagedItems, {
+            overwriteExisting: false,
+          }).catch((err) => console.warn("Failed to auto-sync vision personal details:", err));
+
           return apiSuccess({
             text: visionResult.structuredSections.map((s) => s.bullets.join("\n")).join("\n\n"),
             lineCount: visionResult.structuredSections.length,
@@ -236,7 +428,7 @@ export async function POST(req: NextRequest) {
       const ocrFormData = new FormData();
       ocrFormData.append("apikey", apiKey || "");
       ocrFormData.append("language", "eng");
-      ocrFormData.append("isOverlayRequired", "false");
+      ocrFormData.append("isOverlayRequired", "true");
       ocrFormData.append("detectOrientation", "true");
       ocrFormData.append("scale", "true");
       ocrFormData.append("OCREngine", "2");
@@ -263,7 +455,8 @@ export async function POST(req: NextRequest) {
 
       if (result.ParsedResults && Array.isArray(result.ParsedResults)) {
         extractedText = result.ParsedResults.map(
-          (r: { ParsedText?: string }) => r.ParsedText || ""
+          (r: { ParsedText?: string; TextOverlay?: { Lines?: OcrLineBox[] } }) =>
+            reconstructOcrPageText(r)
         ).join("\n\n");
       }
 
@@ -287,9 +480,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Normalised extracted items structured into typed Data Bank entries
-    const structuredSections = ResumeStructuringService.structureResumeText(cleanedText, documentLabel);
-    let items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+    // Use hybrid AI Pipeline A when configured outside mocked unit tests, falling back to deterministic structuring
+    const hasAiParserKey = Boolean(
+      process.env.GROQ_API_KEY ||
+      process.env.GROQ_API_KEY_FALLBACK ||
+      process.env.OPENROUTER_API_KEY_PARSER ||
+      process.env.OPENROUTER_API_KEY
+    );
+    let items: any[] = [];
+    let engineUsed = "ocr_space_deterministic";
+
+    if (process.env.VITEST !== "true" && hasAiParserKey) {
+      try {
+        const { AiResumeParserService } = await import("@/lib/ai/services/aiResumeParserService");
+        const aiResult = await AiResumeParserService.parseFromText(cleanedText, documentLabel);
+        if (aiResult.stagedItems.length > 0) {
+          items = aiResult.stagedItems;
+          engineUsed = `ocr_space+${aiResult.parserModel}`;
+        }
+      } catch (aiErr: any) {
+        console.warn("AI structuring on OCR text failed, using deterministic structuring:", aiErr.message);
+      }
+    }
+
+    if (items.length === 0) {
+      const structuredSections = ResumeStructuringService.structureResumeText(cleanedText, documentLabel);
+      items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+    }
 
     // Fallback if automatic structuring yielded 0 items but raw lines exist
     if (items.length === 0 && lines.length > 0) {
@@ -308,6 +525,11 @@ export async function POST(req: NextRequest) {
       ];
     }
 
+    // Auto-sync extracted Personal Details directly to blank fields on user profile
+    await ImportRepository.syncPersonalDetailsToProfile(userId, items, {
+      overwriteExisting: false,
+    }).catch((err) => console.warn("Failed to auto-sync OCR personal details:", err));
+
     // Log audit event
     await db
       .insert(auditEvents)
@@ -321,7 +543,7 @@ export async function POST(req: NextRequest) {
           itemCount: items.length,
           fileSize: processedFileSize,
           userConsentGranted: true,
-          engine: "ocr_space_engine_1",
+          engine: engineUsed,
         },
       })
       .catch((err) => console.warn("Failed to record OCR audit event:", err));

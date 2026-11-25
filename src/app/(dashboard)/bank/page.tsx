@@ -15,6 +15,7 @@ import { Tabs } from "@/components/ui/Tabs";
 export default function DataBankPage() {
   const [viewMode, setViewMode] = useState<"facts" | "graph">("facts");
   const [entries, setEntries] = useState<BankEntry[]>([]);
+  const [vaultEntries, setVaultEntries] = useState<BankEntry[]>([]);
   const [completeness, setCompleteness] = useState<CompletenessReport>();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,7 +43,19 @@ export default function DataBankPage() {
       const res = await fetch(`/api/v1/bank/entries?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load entries");
       const data = await res.json();
-      setEntries(data.items || []);
+      const items = data.items || [];
+      setEntries(items);
+      if (selectedType === "all" && !searchQuery.trim()) {
+        setVaultEntries(items);
+      } else if (vaultEntries.length === 0) {
+        // Ensure suggestions still have access to full vault entries when starting from a filtered view
+        fetch("/api/v1/bank/entries")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((allData) => {
+            if (allData?.items) setVaultEntries(allData.items);
+          })
+          .catch(() => {});
+      }
       setCompleteness(data.completeness);
     } catch (err: any) {
       console.error(err);
@@ -267,6 +280,7 @@ export default function DataBankPage() {
                 <BankEntryCard
                   key={entry.id}
                   entry={entry}
+                  allEntries={vaultEntries.length > 0 ? vaultEntries : entries}
                   onEdit={(e) => {
                     setEntryToEdit(e);
                     setIsModalOpen(true);
@@ -291,6 +305,7 @@ export default function DataBankPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         entryToEdit={entryToEdit}
+        existingEntries={vaultEntries.length > 0 ? vaultEntries : entries}
         onSave={handleSaveEntry}
       />
 

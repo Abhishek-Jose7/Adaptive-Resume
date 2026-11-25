@@ -409,5 +409,123 @@ UC Berkeley
       expect(edu).toBeDefined();
       expect(edu!.title).toContain("B.S.");
     });
+
+    it("deduplicates overlapping experience/positionsOfResponsibility and skillGroups/skills.soft", async () => {
+      const mockDuplicatePayload = {
+        name: "JOHANN JOSEPH",
+        contact: { email: "johann@example.com", phone: "9969394238", location: "Mumbai, India", links: [] },
+        summary: "Cloud security engineer.",
+        experience: [
+          {
+            role: "Senior Marketing Head",
+            organization: "Google Developer Group On Campus, FRCRCE",
+            startDate: "May 2026",
+            endDate: "Present",
+            isCurrent: true,
+            bullets: ["Led marketing for 800+ member community."],
+          },
+        ],
+        positionsOfResponsibility: [
+          {
+            title: "Senior Marketing Head",
+            organization: "Google Developer Group On Campus, FRCRCE",
+            duration: "May 2026 - Present",
+            description: "Lead marketing and promotional strategy.",
+          },
+          {
+            title: "Volunteer",
+            organization: "Heart & Sole Run",
+            duration: "Feb 2025",
+            description: "Coordinated event registrations.",
+          },
+        ],
+        skillGroups: [
+          { category: "Soft Skills", skills: ["Public Speaking", "Event Management"] },
+          { category: "Cloud Security", skills: ["AWS IAM"] },
+        ],
+        skills: {
+          technical: ["AWS IAM"],
+          soft: ["Public Speaking", "Event Management"],
+        },
+      };
+
+      global.fetch = vi.fn().mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: JSON.stringify(mockDuplicatePayload) } }],
+          }),
+          { status: 200 }
+        )
+      );
+
+      const res = await AiResumeParserService.parseFromText(
+        "JOHANN JOSEPH\njohann@example.com\nEXPERIENCE\nSenior Marketing Head",
+        "Johann.pdf",
+        { apiKey: "sk-test-key", model: "inclusionai/ling-3.2-flash:free" }
+      );
+
+      // Should keep experience role once and NOT duplicate it as volunteer, while preserving genuine non-overlapping volunteer role
+      const volunteerRoles = res.structuredSections.filter((s) => s.entryType === "volunteer");
+      expect(volunteerRoles.length).toBe(1);
+      expect(volunteerRoles[0].title).toBe("Volunteer");
+
+      // Soft Skills should only appear once!
+      const softGroups = res.structuredSections.filter(
+        (s) => s.entryType === "skill_group" && /soft/i.test(s.title)
+      );
+      expect(softGroups.length).toBe(1);
+    });
+
+    it("handles dash-bulleted roles, standalone PROFILE sections, Project Work, Internshala wrapped projects, and standalone cert issuers", () => {
+      const realWorldText = `
+KEVIN SYNET
+synetkevin@gmail.com | 8446858648
+PROFILE
+B.Tech Computer Engineering student with a strong interest in Al and Machine Learning.
+LEADERSHIP & ORGANISING EXPERIENCE
+Technical Associate — Google Developer Groups, FRCRCE | 2025–2026
+– Organised Bit n Build across multiple colleges.
+– Built event infrastructure in Next.js + Prisma.
+Project Work
+1. Disabledin ↗
+Nov 2025
+The Disabledin platform is an accessibility-focused job portal designed to
+support candidates with disabilities by automating resume matching and
+providing inclusive company filters.
+2. Culture Connect ↗
+Dec 2025
+Created a web platform connecting users through cultural events.
+RELEVANT SKILL
+Web Development: HTML, CSS, React.js
+CERTIFICATIONS
+Supervised ML: Regression & Classification
+DeepLearning.AI / Coursera
+      `.trim();
+
+      const sections = ResumeStructuringService.structureResumeText(realWorldText, "CombinedEdge.pdf");
+
+      const summary = sections.find((s) => s.entryType === "profile" && s.title === "Professional Summary");
+      expect(summary).toBeDefined();
+      expect(summary!.descriptionContext).toContain("AI and Machine Learning");
+
+      const exps = sections.filter((s) => s.entryType === "experience");
+      expect(exps.length).toBe(1);
+      expect(exps[0].title).toBe("Technical Associate");
+      expect(exps[0].bullets.length).toBe(2);
+      expect(exps[0].bullets[0]).toContain("Organised Bit n Build");
+
+      const projs = sections.filter((s) => s.entryType === "project");
+      expect(projs.length).toBe(2);
+      expect(projs[0].title).toBe("Disabledin");
+      expect(projs[0].endDate).toBe("Nov 2025");
+      expect(projs[1].title).toBe("Culture Connect");
+
+      const skills = sections.filter((s) => s.entryType === "skill_group");
+      expect(skills.some((s) => s.title === "Web Development" && s.bullets.includes("React.js"))).toBe(true);
+
+      const certs = sections.filter((s) => s.entryType === "certification");
+      expect(certs.length).toBe(1);
+      expect(certs[0].organization).toContain("DeepLearning.AI");
+    });
   });
 });

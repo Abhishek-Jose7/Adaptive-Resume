@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { BankEntry, AchievementBullet } from "@/types/bank";
 import { BulletEditor } from "./BulletEditor";
-import { Plus, Trash2, Edit, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Edit, AlertTriangle, Sparkles } from "lucide-react";
+import { getBulletSuggestions } from "@/lib/services/vaultSuggestionService";
 
 interface BankEntryCardProps {
   entry: BankEntry;
+  allEntries?: BankEntry[];
   onEdit: (entry: BankEntry) => void;
   onDelete: (id: string) => Promise<void>;
   onAddBullet: (entryId: string, text: string) => Promise<void>;
@@ -29,6 +31,7 @@ const typeLabel: Record<string, string> = {
 
 export function BankEntryCard({
   entry,
+  allEntries,
   onEdit,
   onDelete,
   onAddBullet,
@@ -39,6 +42,26 @@ export function BankEntryCard({
   const [isAddingBullet, setIsAddingBullet] = useState(false);
   const [newBulletText, setNewBulletText] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const bulletSuggestions = useMemo(() => {
+    if (!isAddingBullet) return null;
+    return getBulletSuggestions({
+      targetEntry: entry,
+      draftText: newBulletText,
+      existingEntries: allEntries || [entry],
+    });
+  }, [isAddingBullet, entry, newBulletText, allEntries]);
+
+  const appendSuggestedToken = (token: string) => {
+    setNewBulletText((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return token;
+      if (entry.entryType === "skill_group") {
+        return trimmed.endsWith(",") ? `${trimmed} ${token}` : `${trimmed}, ${token}`;
+      }
+      return `${trimmed} ${token}`;
+    });
+  };
 
   const handleAddBulletSubmit = async () => {
     if (!newBulletText.trim()) return;
@@ -144,6 +167,8 @@ export function BankEntryCard({
               <BulletEditor
                 key={bullet.id}
                 bullet={bullet}
+                entry={entry}
+                allEntries={allEntries}
                 onUpdate={(updated) => onUpdateBullet(bullet.id, updated)}
                 onDelete={() => onDeleteBullet(bullet.id)}
                 onQuantify={onQuantifyBullet ? () => onQuantifyBullet(entry, bullet) : undefined}
@@ -159,22 +184,91 @@ export function BankEntryCard({
         )}
 
         {isAddingBullet && (
-          <div className="mt-2.5 border border-rule bg-paper-alt p-3">
+          <div className="mt-2.5 border border-rule bg-paper-alt p-3 space-y-2.5">
             <textarea
               value={newBulletText}
               onChange={(e) => setNewBulletText(e.target.value)}
-              placeholder="Led the migration of the billing worker to a queue, cutting retry failures from 4% to 0.3%"
-              rows={3}
+              placeholder={
+                entry.entryType === "skill_group"
+                  ? "e.g., TypeScript, FastAPI, PostgreSQL"
+                  : "Led the migration of the billing worker to a queue, cutting retry failures from 4% to 0.3%"
+              }
+              rows={entry.entryType === "skill_group" ? 2 : 3}
               className="textarea"
               autoFocus
             />
-            <div className="mt-2 flex gap-2">
+
+            {bulletSuggestions &&
+              (bulletSuggestions.evidencedSkillsToAdd.length > 0 ||
+                bulletSuggestions.draftSuggestions.length > 0 ||
+                bulletSuggestions.vaultContextTools.length > 0 ||
+                bulletSuggestions.metricHint) && (
+                <div className="rounded border border-rule bg-paper px-2.5 py-2 space-y-1.5">
+                  {bulletSuggestions.evidencedSkillsToAdd.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-graphite">
+                        <Sparkles className="h-3 w-3 text-stamp" />
+                        From your existing roles & projects:
+                      </span>
+                      {bulletSuggestions.evidencedSkillsToAdd.map((skill) => (
+                        <button
+                          key={skill}
+                          type="button"
+                          onClick={() => appendSuggestedToken(skill)}
+                          className="rounded border border-rule bg-paper-alt px-1.5 py-0.5 text-[11px] text-ink hover:border-stamp hover:text-stamp"
+                        >
+                          + {skill}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {bulletSuggestions.draftSuggestions.map((sug, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className="text-graphite">
+                        <strong className="text-ink">{sug.label}:</strong> {sug.text}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNewBulletText(sug.text)}
+                        className="font-medium text-stamp hover:underline shrink-0"
+                      >
+                        Use template
+                      </button>
+                    </div>
+                  ))}
+
+                  {bulletSuggestions.vaultContextTools.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-graphite">
+                        Tools in your vault:
+                      </span>
+                      {bulletSuggestions.vaultContextTools.slice(0, 6).map((tool) => (
+                        <button
+                          key={tool}
+                          type="button"
+                          onClick={() => appendSuggestedToken(tool)}
+                          className="rounded border border-rule bg-paper-alt px-1.5 py-0.5 text-[11px] text-ink hover:border-stamp hover:text-stamp"
+                        >
+                          + {tool}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {bulletSuggestions.metricHint && (
+                    <p className="text-[11px] text-marker-dark">{bulletSuggestions.metricHint}</p>
+                  )}
+                </div>
+              )}
+
+            <div className="flex gap-2">
               <button
                 onClick={handleAddBulletSubmit}
                 disabled={loading || !newBulletText.trim()}
                 className="btn btn-primary btn-sm"
               >
-                {loading ? "Saving" : "Save bullet"}
+                {loading ? "Saving" : entry.entryType === "skill_group" ? "Save skill" : "Save bullet"}
               </button>
               <button
                 onClick={() => {

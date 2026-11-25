@@ -69,6 +69,92 @@ export class ImportRepository {
   }
 
   /**
+   * Syncs parsed Personal Details directly into the candidate's `users` profile row.
+   * - When `overwriteExisting` is false (auto-sync on parse/stage), only populates blank/null fields.
+   * - When `overwriteExisting` is true (on explicit commit), updates all extracted profile fields.
+   */
+  static async syncPersonalDetailsToProfile(
+    userId: string,
+    items: Array<{ entryType: string; parsedDataJson: StagedItemInput["parsedDataJson"] }>,
+    options: { overwriteExisting?: boolean } = {}
+  ): Promise<void> {
+    assertValidUserId(userId);
+    const personalItem = items.find(
+      (item) =>
+        item.entryType === "profile" &&
+        /personal\s*details|contact/i.test(item.parsedDataJson?.title || "")
+    );
+    if (!personalItem) return;
+
+    const data = personalItem.parsedDataJson;
+    const bullets = data.bullets || [];
+    const emailBullet = bullets.find((b) => /^email:\s*/i.test(b))?.replace(/^email:\s*/i, "").trim();
+    const phoneBullet = bullets.find((b) => /^phone:\s*/i.test(b))?.replace(/^phone:\s*/i, "").trim();
+    const headlineBullet = bullets.find((b) => /^headline:\s*/i.test(b))?.replace(/^headline:\s*/i, "").trim();
+    const linkBullets = bullets
+      .filter((b) => /^(?:link|github|linkedin|portfolio|website):\s*/i.test(b) || /(?:https?:\/\/|github\.com|linkedin\.com)/i.test(b))
+      .map((b) => b.replace(/^(?:link|github|linkedin|portfolio|website):\s*/i, "").trim())
+      .filter(Boolean);
+
+    const normalizeHttp = (url: string) =>
+      /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
+
+    const githubLink = linkBullets.find((l) => /github\.com/i.test(l));
+    const linkedinLink = linkBullets.find((l) => /linkedin\.com/i.test(l));
+    const portfolioLink = linkBullets.find((l) => !/github\.com|linkedin\.com/i.test(l));
+
+    const candidateFields: Record<string, string | undefined> = {
+      displayName: data.organization?.trim() || undefined,
+      contactEmail: emailBullet || undefined,
+      phone: phoneBullet || undefined,
+      location: data.location?.trim() || undefined,
+      headline: (data.descriptionContext || headlineBullet || "").trim().slice(0, 160) || undefined,
+      githubUrl: githubLink ? normalizeHttp(githubLink).slice(0, 500) : undefined,
+      linkedinUrl: linkedinLink ? normalizeHttp(linkedinLink).slice(0, 500) : undefined,
+      portfolioUrl: portfolioLink ? normalizeHttp(portfolioLink).slice(0, 500) : undefined,
+    };
+
+    const nonEmptyKeys = Object.keys(candidateFields).filter((k) => Boolean(candidateFields[k]));
+    if (nonEmptyKeys.length === 0) return;
+
+    const userUpdates: Record<string, any> = {};
+
+    if (options.overwriteExisting) {
+      for (const k of nonEmptyKeys) {
+        userUpdates[k] = candidateFields[k];
+      }
+    } else {
+      const [existing] = await db
+        .select({
+          displayName: users.displayName,
+          contactEmail: users.contactEmail,
+          phone: users.phone,
+          location: users.location,
+          headline: users.headline,
+          githubUrl: users.githubUrl,
+          linkedinUrl: users.linkedinUrl,
+          portfolioUrl: users.portfolioUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existing) return;
+      for (const k of nonEmptyKeys) {
+        const cur = (existing as Record<string, any>)[k];
+        if (!cur || (typeof cur === "string" && cur.trim().length === 0)) {
+          userUpdates[k] = candidateFields[k];
+        }
+      }
+    }
+
+    if (Object.keys(userUpdates).length > 0) {
+      userUpdates.updatedAt = new Date();
+      await db.update(users).set(userUpdates).where(eq(users.id, userId));
+    }
+  }
+
+  /**
    * Batch insert staged items (bounded round trips, no per-row loops)
    */
   static async addStagedItems(
@@ -174,19 +260,30 @@ export class ImportRepository {
         statusUpdates.push(row.id);
 
         if (row.entryType === "profile" && /personal\s*details|contact/i.test(data.title)) {
-          const emailBullet = (data.bullets || []).find((b) => /^email:\s*/i.test(b))?.replace(/^email:\s*/i, "").trim();
-          const phoneBullet = (data.bullets || []).find((b) => /^phone:\s*/i.test(b))?.replace(/^phone:\s*/i, "").trim();
-          const githubBullet = (data.bullets || []).find((b) => /github\.com/i.test(b))?.replace(/^(?:link|github):\s*/i, "").trim();
-          const linkedinBullet = (data.bullets || []).find((b) => /linkedin\.com/i.test(b))?.replace(/^(?:link|linkedin):\s*/i, "").trim();
+          const bullets = data.bullets || [];
+          const emailBullet = bullets.find((b) => /^email:\s*/i.test(b))?.replace(/^email:\s*/i, "").trim();
+          const phoneBullet = bullets.find((b) => /^phone:\s*/i.test(b))?.replace(/^phone:\s*/i, "").trim();
+          const headlineBullet = bullets.find((b) => /^headline:\s*/i.test(b))?.replace(/^headline:\s*/i, "").trim();
+          const linkBullets = bullets
+            .filter((b) => /^(?:link|github|linkedin|portfolio|website):\s*/i.test(b) || /(?:https?:\/\/|github\.com|linkedin\.com)/i.test(b))
+            .map((b) => b.replace(/^(?:link|github|linkedin|portfolio|website):\s*/i, "").trim())
+            .filter(Boolean);
+          const normalizeHttp = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
+          const githubBullet = linkBullets.find((b) => /github\.com/i.test(b));
+          const linkedinBullet = linkBullets.find((b) => /linkedin\.com/i.test(b));
+          const portfolioBullet = linkBullets.find((b) => !/github\.com|linkedin\.com/i.test(b));
 
           const userUpdates: Record<string, any> = {};
           if (data.organization) userUpdates.displayName = data.organization;
           if (emailBullet) userUpdates.contactEmail = emailBullet;
           if (phoneBullet) userUpdates.phone = phoneBullet;
           if (data.location) userUpdates.location = data.location;
-          if (data.descriptionContext) userUpdates.headline = data.descriptionContext;
-          if (githubBullet) userUpdates.githubUrl = githubBullet.startsWith("http") ? githubBullet : `https://${githubBullet}`;
-          if (linkedinBullet) userUpdates.linkedinUrl = linkedinBullet.startsWith("http") ? linkedinBullet : `https://${linkedinBullet}`;
+          if (data.descriptionContext || headlineBullet) {
+            userUpdates.headline = (data.descriptionContext || headlineBullet || "").slice(0, 160);
+          }
+          if (githubBullet) userUpdates.githubUrl = normalizeHttp(githubBullet);
+          if (linkedinBullet) userUpdates.linkedinUrl = normalizeHttp(linkedinBullet);
+          if (portfolioBullet) userUpdates.portfolioUrl = normalizeHttp(portfolioBullet);
 
           if (Object.keys(userUpdates).length > 0) {
             userUpdates.updatedAt = new Date();

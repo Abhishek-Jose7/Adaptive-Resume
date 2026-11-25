@@ -34,7 +34,7 @@ export class ResumeStructuringService {
    * - Month 'YY - Month 'YY
    */
   private static readonly DATE_RANGE_REGEX =
-    /(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?[ \t]+)?(?:(?:\d{1,2}[/.])?(?:19|20)\d{2}|'\d{2})[ \t]*(?:-|–|—|to)[ \t]*(?:(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?[ \t]+)?(?:(?:\d{1,2}[/.])?(?:19|20)\d{2}|'\d{2})|present|current|ongoing|now|till\s*date|to\s*date)/i;
+    /(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?[ \t]+)?(?:(?:\d{1,2}[/.])?(?:19|20)\d{2}|'\d{2})[ \t]*(?:-{1,2}|–|—|to)[ \t]*(?:(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?[ \t]+)?(?:(?:\d{1,2}[/.])?(?:19|20)\d{2}|'\d{2})|present|current|ongoing|now|till\s*date|to\s*date)/i;
 
   private static readonly ACTION_VERBS_LIST = [
     "Lead", "Leading", "Manage", "Managing", "Drive", "Driving", "Promote", "Promoting",
@@ -115,7 +115,7 @@ export class ResumeStructuringService {
     endDate: string | null;
     isCurrent: boolean;
   } {
-    const parts = rangeStr.split(/\s*(?:-|–|—|\bto\b)\s*/i).map((p) => p.trim()).filter(Boolean);
+    const parts = rangeStr.split(/\s*(?:-{1,2}|–|—|\bto\b)\s*/i).map((p) => p.trim()).filter(Boolean);
     const startRaw = parts[0] || null;
     const endRaw = parts.length > 1 ? parts[parts.length - 1] : null;
     const isCurrent = Boolean(endRaw && /^(?:present|current|ongoing|now|till\s*date|to\s*date)$/i.test(endRaw));
@@ -283,7 +283,7 @@ export class ResumeStructuringService {
     let currentLines: string[] = [];
 
     const sectionHeadingRegex =
-      /^(?:===SECTION:\s*([^=]+)===|(?:professional\s+summary|career\s+summary|executive\s+summary|career\s+objective|objective|overview|summary|profile|personal\s+profile|about\s*me|work\s*experience|work\s*history|professional\s*experience|relevant\s*experience|industry\s*experience|internship\s*experience|internships|experience|employment(?:\s*history)?|career\s+history|research\s*experience|education(?:\s*(?:&|and)\s*training)?|academic(?:\s*(?:history|background|qualifications|credentials))?|qualifications|projects\s*&\s*production\s*builds|projects\s*&\s*builds|technical\s*projects|personal\s*projects|key\s*projects|selected\s*projects|academic\s*projects|software\s*projects|side\s*projects|projects|open\s*source|technical\s*&\s*core\s*skills|technical\s*skills|core\s*skills|skills\s*(?:&|and)\s*expertise|skills\s*summary|skills|core\s+competencies|competencies|areas\s+of\s+expertise|tech(?:nology)?\s+stack|certifications?\s*(?:&|\/|and)\s*achievements?|achievements?\s*(?:&|\/|and)\s*certifications?|certifications?\s*(?:&|\/|and)\s*licenses?|certifications?\s*(?:&|\/|and)\s*courses?|professional\s*certifications?|certifications?|certificates?|licenses?|awards?\s*(?:&|\/|and)\s*honors?|honors?\s*(?:&|\/|and)\s*awards?|awards?\s*(?:\/|&|and)\s*activities|achievements?|accomplishments?|key\s*achievements?|awards?|honors?|hackathons?|publications?|research\s*(?:&|and)\s*publications?|patents?|volunteering|volunteer(?:\s*(?:work|experience))?|positions\s+of\s+responsibility|leadership\s*(?:&|and)?\s*(?:activities|experience)?|extra-?curricular\s+activities|co-?curricular\s+activities|additional\s+information|languages|spoken\s*languages)(?:\s*[:—–-])?)$/i;
+      /^(?:===SECTION:\s*([^=]+)===|(?:professional\s+summary|career\s+summary|executive\s+summary|career\s+objective|objective|overview|summary|profile|personal\s+profile|about\s*me|work\s*experience|work\s*history|professional\s*experience|relevant\s*experience|industry\s*experience|internship\s*experience|internships|experience|employment(?:\s*history)?|career\s+history|research\s*experience|education(?:\s*(?:&|and)\s*(?:training|academics))?|academic(?:\s*(?:history|background|qualifications|credentials))?|qualifications|projects\s*&\s*production\s*builds|projects\s*&\s*builds|technical\s*projects|personal\s*projects|key\s*projects|selected\s*projects|academic\s*projects|software\s*projects|side\s*projects|projects?\s+work|projects|open\s*source|technical\s*&\s*core\s*skills|technical\s*skills|core\s*skills|relevant\s*skills?|professional\s*skills?|skills\s*(?:&|and)\s*expertise|skills\s*summary|skills|core\s+competencies|competencies|areas\s+of\s+expertise|tech(?:nology)?\s+stack|certifications?\s*(?:&|\/|and)\s*achievements?|achievements?\s*(?:&|\/|and)\s*certifications?|certifications?\s*(?:&|\/|and)\s*licenses?|trainings?\s*(?:&|\/|and)\s*certifications?|certifications?\s*(?:&|\/|and)\s*courses?|professional\s*certifications?|certifications?|certificates?|licenses?|awards?\s*(?:&|\/|and)\s*honors?|honors?\s*(?:&|\/|and)\s*awards?|awards?\s*(?:\/|&|and)\s*activities|achievements?|accomplishments?|key\s*achievements?|awards?|honors?|hackathons?|publications?|research\s*(?:&|and)\s*publications?|patents?|volunteering|volunteer(?:\s*(?:work|experience))?|community\s+service|positions\s+of\s+responsibility|leadership\s*(?:&|and)?\s*(?:organis?ing|organizational|activities|experience)?(?:\s+experience)?|extra-?curricular\s+activities|co-?curricular\s+activities|additional\s+information|languages|spoken\s*languages)(?:\s*[:—–-])?)$/i;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -477,10 +477,10 @@ export class ResumeStructuringService {
             });
           }
         }
-      } else if (/VOLUNTEER|LEADERSHIP|POSITIONS\s+OF\s+RESPONSIBILITY|ACTIVITIES|CLUBS/i.test(heading)) {
+      } else if (/VOLUNTEER|LEADERSHIP|POSITIONS\s+OF\s+RESPONSIBILITY|ACTIVITIES|CLUBS|COMMUNITY\s+SERVICE/i.test(heading)) {
         const volEntries = this.parseExperienceBlocks(secLines).map((e) => ({
           ...e,
-          entryType: "volunteer" as const,
+          entryType: (/EXPERIENCE/i.test(heading) ? "experience" : "volunteer") as "experience" | "volunteer",
         }));
         if (volEntries.length > 0) {
           structuredResults.push(...volEntries);
@@ -596,9 +596,18 @@ export class ResumeStructuringService {
    * spaced-out headers, Unicode/PUA bullets, wrapped section titles, and inline headings.
    */
   static preNormalizeResumeText(text: string): string {
-    let cleaned = text.replace(/^(?:Professional Summary|profile|\d+%\s*match)\s*$/gim, "");
+    // Only remove StagingReviewTable copy-paste header blocks ("Professional Summary\nprofile\n95% match"),
+    // NOT real uppercase section headings like "PROFILE"!
+    let cleaned = text
+      .replace(/^Professional Summary\r?\nprofile\r?\n\d+%\s*match\s*$/gm, "")
+      .replace(/^profile(?=\r?\n\d+%\s*match)/gm, "")
+      .replace(/^\d+%\s*match\s*$/gim, "");
+
+    // Convert line-start en-dash / em-dash / hyphen bullets BEFORE dash normalization so "– Organised..." stays a bullet
+    cleaned = cleaned.replace(/(^|\n)[ \t]*[\u2013\u2014\-][ \t]+/g, "$1• ");
 
     cleaned = cleaned
+      .replace(/\u2197/g, " ")
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2013\u2014]/g, " — ")
@@ -698,6 +707,7 @@ export class ResumeStructuringService {
       .replace(/\bvul\s+nerability\b/gi, "vulnerability")
       .replace(/\bassess\s+ment\b/gi, "assessment")
       .replace(/\bidenti\s+fication\b/gi, "identification")
+      .replace(/\bAl\b(?=[ \t]*(?:and\b|\/|&|,|\bML\b|\bTools\b|\bAssistant\b|\bPlatform\b|\bpowered\b))/g, "AI")
       .replace(/\b([A-Za-z]{2,})[ \t]+(tion|sion|tions|sions|ment|ments|ness|ence|ance|ities|ity|ization|isation|ically|ative|ature|cture|tecture|gorithms|rithms|able|ible|ship|ships)\b/g, "$1$2");
 
     // Stitch wrapped multi-line section headings (e.g. "TECHNICAL\nSKILLS", "WORK\nEXPERIENCE")
@@ -718,7 +728,7 @@ export class ResumeStructuringService {
     cleaned = cleaned.replace(/\[([^\]\n|;]+)(?=\s*(?:\||;|\n|$))/g, (_match, p1) => `[ ${p1.trim()} ]`);
 
     // Standardize all Unicode bullets to newline bullet
-    cleaned = cleaned.replace(/\s*([•·▪●\uF0B7\uF0A7\u2022\u2023\u2043\u2219\u25CB\u25CF\u25AA\u25AB\u25B6\u25BA\u25C6➢➤‣])\s*/g, "\n• ");
+    cleaned = cleaned.replace(/\s*([•·▪●\uF0B7\uF0A7\u2022\u2023\u2043\u2219\u25CB\u25CF\u25AA\u25AB\u25B6\u25BA\u25C6\u25D7➢➤‣])\s*/g, "\n• ");
 
     // Break inline skill category headings onto new lines
     const knownSkillCategories =
@@ -761,6 +771,8 @@ export class ResumeStructuringService {
       "SIDE PROJECTS",
       "PROJECTS & PRODUCTION BUILDS",
       "PROJECTS & BUILDS",
+      "PROJECTS WORK",
+      "PROJECT WORK",
       "PROJECTS",
       "PROFESSIONAL SUMMARY",
       "CAREER SUMMARY",
@@ -776,6 +788,10 @@ export class ResumeStructuringService {
       "TECHNICAL SKILLS",
       "TECHNICAL & CORE SKILLS",
       "CORE SKILLS",
+      "RELEVANT SKILLS",
+      "RELEVANT SKILL",
+      "PROFESSIONAL SKILLS",
+      "PROFESSIONAL SKILL",
       "CORE COMPETENCIES",
       "AREAS OF EXPERTISE",
       "SKILLS & EXPERTISE",
@@ -784,6 +800,7 @@ export class ResumeStructuringService {
       "TECH STACK",
       "SKILLS",
       "EDUCATION & TRAINING",
+      "EDUCATION & ACADEMICS",
       "EDUCATION",
       "ACADEMIC HISTORY",
       "ACADEMIC BACKGROUND",
@@ -797,6 +814,8 @@ export class ResumeStructuringService {
       "ACHIEVEMENTS & CERTIFICATIONS",
       "CERTIFICATIONS & LICENSES",
       "LICENSES & CERTIFICATIONS",
+      "TRAININGS / CERTIFICATIONS",
+      "TRAININGS & CERTIFICATIONS",
       "CERTIFICATIONS & COURSES",
       "COURSES & CERTIFICATIONS",
       "PROFESSIONAL CERTIFICATIONS",
@@ -817,10 +836,14 @@ export class ResumeStructuringService {
       "CO-CURRICULAR ACTIVITIES",
       "EXTRA-CURRICULAR ACTIVITIES",
       "EXTRACURRICULAR ACTIVITIES",
+      "LEADERSHIP & ORGANISING EXPERIENCE",
+      "LEADERSHIP & ORGANIZING EXPERIENCE",
+      "LEADERSHIP & ORGANIZATIONAL EXPERIENCE",
       "LEADERSHIP EXPERIENCE",
       "LEADERSHIP & ACTIVITIES",
       "LEADERSHIP",
       "POSITIONS OF RESPONSIBILITY",
+      "COMMUNITY SERVICE",
       "ADDITIONAL INFORMATION",
       "RESEARCH & PUBLICATIONS",
       "PUBLICATIONS",
@@ -939,7 +962,7 @@ export class ResumeStructuringService {
         }
       }
 
-      const separatorMatch = headerText.match(/^(.+?)\s+(?:at|@|\||,|—|–)\s+(.+)$/i);
+      const separatorMatch = headerText.match(/^(.+?)(?:\s+(?:at|@|\||,|—|–|--)\s+|\s*(?:—|–)\s+)(.+)$/i);
       if (separatorMatch) {
         let partA = separatorMatch[1].trim();
         let partB = separatorMatch[2].trim();
@@ -1569,19 +1592,47 @@ export class ResumeStructuringService {
     };
 
     for (const line of lines) {
-      const isBullet = /^[•\-\*]\s+/.test(line);
-      const isTechMeta = /^(?:Tech\s*Stack|Technologies|Built\s*with|Stack|Tools|GitHub|Link|Live|Demo)\s*:/i.test(line);
-      const isActionSentence = actionStartRegex.test(line);
-      const looksLikeSentence = line.endsWith(".") && line.split(/\s+/).length >= 6;
+      const cleanLine = line.replace(/\u2197/g, "").trim();
+      if (!cleanLine) continue;
+
+      const isBullet = /^[•\-\*]\s+/.test(cleanLine);
+      const isTechMeta = /^(?:Tech\s*Stack|Technologies|Built\s*with|Stack|Tools|GitHub|Link|Live|Demo)\s*:/i.test(cleanLine);
+      const isSingleMonthDate = /^(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+)?(?:19|20)\d{2}(?:\s*(?:-{1,2}|–|—|to)\s*(?:(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+)?(?:19|20)\d{2}|present|current|ongoing))?$/i.test(cleanLine);
+
+      if (isSingleMonthDate && currentProj) {
+        if (this.DATE_RANGE_REGEX.test(cleanLine)) {
+          const parsed = this.parseDateRangeMatch(cleanLine);
+          currentProj.startDate = parsed.startDate;
+          currentProj.endDate = parsed.endDate;
+        } else {
+          currentProj.endDate = cleanLine;
+        }
+        currentProj.rawSnippet += "\n" + cleanLine;
+        continue;
+      }
+
+      const isActionSentence = actionStartRegex.test(cleanLine);
+      const isNumberedProjectTitle = /^\d+\.\s*[A-Z]/.test(cleanLine) && cleanLine.length < 70 && !cleanLine.endsWith(".");
+      const looksLikeProseLine =
+        cleanLine.endsWith(".") ||
+        /[,;]\s*$/.test(cleanLine) ||
+        /\b(?:to|and|for|of|with|by|the|a|an|that|which|in|on|as|is|are|into|from)\s*$/i.test(cleanLine) ||
+        /^(?:It|This|The|These|Those|They|With|Using|Through|Also|Additionally|Focused)\s+/i.test(cleanLine) ||
+        /\b(?:is\s+an?|assists|helps|enables|allows|supports|provides|simplifying|automating)\b/i.test(cleanLine) ||
+        (!isNumberedProjectTitle && cleanLine.split(/\s+/).length >= 6 && !/[|—–:]/.test(cleanLine));
+
       const isContinuation = Boolean(
         currentProj &&
-        currentProj.bullets.length > 0 &&
-        (/^[a-z]/.test(line) || /^(?:and|or|for|with|of|to|in|by|the|a|an)\b/i.test(line) || looksLikeSentence)
+        (
+          /^[a-z]/.test(cleanLine) ||
+          /^(?:and|or|for|with|of|to|in|by|the|a|an)\b/i.test(cleanLine) ||
+          looksLikeProseLine
+        )
       );
 
-      if (!isBullet && !isTechMeta && !isActionSentence && !isContinuation && !looksLikeSentence && line.length < 75) {
+      if (!isBullet && !isTechMeta && !isActionSentence && !isContinuation && !looksLikeProseLine && cleanLine.length < 75) {
         flushProj();
-        let projTitle = line;
+        let projTitle = cleanLine.replace(/^\d+\.\s*/, "").trim();
         let techLine: string | undefined;
         let startDate: string | null = null;
         let endDate: string | null = null;
@@ -1606,18 +1657,18 @@ export class ResumeStructuringService {
           startDate,
           endDate,
           bullets: [],
-          rawSnippet: line,
+          rawSnippet: cleanLine,
         };
       } else if (currentProj) {
         if (isTechMeta) {
-          currentProj.techLine = currentProj.techLine ? `${currentProj.techLine} | ${line}` : line;
-        } else if (!isBullet && isContinuation && currentProj.bullets.length > 0) {
+          currentProj.techLine = currentProj.techLine ? `${currentProj.techLine} | ${cleanLine}` : cleanLine;
+        } else if (!isBullet && isContinuation && currentProj.bullets.length > 0 && !/^(?:It|This|The)\s+/i.test(cleanLine) && !currentProj.bullets[currentProj.bullets.length - 1].endsWith(".")) {
           const lastIdx = currentProj.bullets.length - 1;
-          currentProj.bullets[lastIdx] = `${currentProj.bullets[lastIdx]} ${line}`.replace(/\s{2,}/g, " ").trim();
+          currentProj.bullets[lastIdx] = `${currentProj.bullets[lastIdx]} ${cleanLine}`.replace(/\s{2,}/g, " ").trim();
         } else {
-          currentProj.bullets.push(line.replace(/^[•\-\*]\s*/, "").trim());
+          currentProj.bullets.push(cleanLine.replace(/^[•\-\*]\s*/, "").trim());
         }
-        currentProj.rawSnippet += "\n" + line;
+        currentProj.rawSnippet += "\n" + cleanLine;
       }
     }
 
@@ -1706,10 +1757,13 @@ export class ResumeStructuringService {
       .replace(/\s*\|\s*/g, " | ")
       .replace(/[ \t]{2,}/g, " ");
 
-    // Step 1: Colon-delimited category marker (horizontal whitespace only)
+    // Step 1: Colon-delimited category marker (horizontal whitespace only, ignore URLs like https:)
     fullText = fullText.replace(
       /(?:^|\n|[|;])[ \t]*([A-Z][A-Za-z0-9 \t/&+,-]{1,35})[ \t]*:[ \t]*(?=[A-Za-z0-9\n])/g,
-      "\n===CAT:$1===\n"
+      (match, catName: string) => {
+        if (/^(?:https?|mailto|ftp)$/i.test(catName.trim())) return match;
+        return `\n===CAT:${catName}===\n`;
+      }
     );
 
     // Step 2: Category keywords without colons (at line start, delimiter, or inline)
@@ -1775,11 +1829,12 @@ export class ResumeStructuringService {
       if (results.length > 0) return results;
     }
 
-    // Fallback: line-by-line parsing
+    // Fallback: line-by-line parsing (skip standalone URLs / Page markers)
     const flatUncategorized: string[] = [];
     for (const line of lines) {
+      if (/^(?:https?:\/\/|Page\s*[-–—]?\s*\d*)/i.test(line.trim())) continue;
       const colonIdx = line.indexOf(":");
-      if (colonIdx > 0 && colonIdx < 40) {
+      if (colonIdx > 0 && colonIdx < 40 && !/^https?$/i.test(line.slice(0, colonIdx).trim())) {
         const cat = line.slice(0, colonIdx).replace(/^[•\-\*]\s*/, "").trim();
         const rest = line.slice(colonIdx + 1);
         const skills = this.splitRespectingParens(rest, false)
@@ -1827,12 +1882,12 @@ export class ResumeStructuringService {
     return results.length > 0
       ? results
       : [{
-          entryType: "skill_group",
-          title: "Technical Skills",
-          bullets: this.splitRespectingParens(lines.join(" "), false).map(cleanSkillItem).filter(Boolean),
-          confidence: 0.85,
-          rawSnippet: fullText.substring(0, 200),
-        }];
+        entryType: "skill_group",
+        title: "Technical Skills",
+        bullets: this.splitRespectingParens(lines.join(" "), false).map(cleanSkillItem).filter(Boolean),
+        confidence: 0.85,
+        rawSnippet: fullText.substring(0, 200),
+      }];
   }
 
   /**
@@ -1929,13 +1984,30 @@ export class ResumeStructuringService {
   }
 
   /**
-   * Parses certifications without falsely splitting ", Issuer (Year)"
+   * Parses certifications without falsely splitting ", Issuer (Year)" or standalone issuer lines
    */
   private static parseCertificationBlocks(lines: string[]): StructuredResumeSection[] {
     const results: StructuredResumeSection[] = [];
     const knownIssuers = /(?:Amazon\s+Web\s+Services|AWS|Google|Microsoft|IBM|Meta|Coursera|Udemy|edX|DeepLearning\.AI|Oracle|Cisco|CompTIA|NPTEL|Databricks|Snowflake|HashiCorp)/i;
+    const standaloneIssuerLine = /^(?:DeepLearning\.AI(?:\s*\/\s*Coursera)?|Coursera(?:,\s*Virtual)?|Udemy|edX|AWS|Amazon\s+Web\s+Services|Google(?:\s+Cloud)?|Microsoft|IBM|Meta|Oracle|Cisco|CompTIA|NPTEL)(?:\s*(?:—|–|-|\|)?\s*(?:19|20)\d{2})?$/i;
 
-    for (const line of lines) {
+    // Pre-merge wrapped certification titles (e.g. title wrapped across 2 lines) and standalone issuer lines
+    const normalizedLines: string[] = [];
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+      if (standaloneIssuerLine.test(trimmed) && normalizedLines.length > 0) {
+        normalizedLines[normalizedLines.length - 1] = `${normalizedLines[normalizedLines.length - 1]} — ${trimmed}`;
+        continue;
+      }
+      if (normalizedLines.length > 0 && !/^[•\-\*]\s+/.test(trimmed) && (/^(?:&|and|for|in|with|to|of)\b/i.test(trimmed) || /^[a-z]/.test(trimmed) || trimmed.split(/\s+/).length === 1 && !knownIssuers.test(trimmed))) {
+        normalizedLines[normalizedLines.length - 1] = `${normalizedLines[normalizedLines.length - 1]} ${trimmed}`;
+        continue;
+      }
+      normalizedLines.push(trimmed);
+    }
+
+    for (const line of normalizedLines) {
       // Only split on bullet/pipe/semicolon or comma when comma does NOT introduce a known issuer
       const rawItems = line.split(/[|•·;]\s*(?=[A-Z])|,\s*(?=[A-Z])/).map((s) => s.trim()).filter(Boolean);
       const mergedItems: string[] = [];

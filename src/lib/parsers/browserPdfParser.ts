@@ -424,7 +424,7 @@ function stripMultiPageChrome(pages: string[]): string[] {
   return pageLinesList.map((pLines, pageIdx) => {
     const cleaned = pLines.filter((line, lineIdx) => {
       const trimmed = line.trim();
-      if (/^(?:Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?|\d+\s*(?:of|\/)\s*\d+)$/i.test(trimmed)) {
+      if (/^(?:Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?|\d+\s*(?:of|\/)\s*\d+|Page\s*[-–—]?\s*)$/i.test(trimmed)) {
         return false;
       }
       // Standalone page number at very top or bottom of page
@@ -537,7 +537,8 @@ export async function parsePdfBuffer(
   const pages = stripMultiPageChrome(rawPages);
   let fullText = pages.join("\n\n").trim();
 
-  // Append any hyperlink annotation URLs missing from extracted selectable text
+  // Place any missing hyperlink annotation URLs right near the top contact header of page 1
+  // (after line 1) so Personal Details captures them without polluting Awards/Education at bottom.
   const missingLinks = Array.from(extractedLinks).filter((url) => {
     const normalized = url.replace(/^https?:\/\/(?:www\.)?/i, "").replace(/\/+$/, "").toLowerCase();
     return normalized.length > 4 && !fullText.toLowerCase().includes(normalized);
@@ -545,7 +546,10 @@ export async function parsePdfBuffer(
 
   if (missingLinks.length > 0 && pages.length > 0) {
     const linkLine = missingLinks.slice(0, 8).join(" | ");
-    pages[0] = `${pages[0]}\n${linkLine}`.trim();
+    const p0Lines = pages[0].split("\n");
+    const insertAt = Math.min(2, p0Lines.length);
+    p0Lines.splice(insertAt, 0, linkLine);
+    pages[0] = p0Lines.join("\n").trim();
     fullText = pages.join("\n\n").trim();
   }
 

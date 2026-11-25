@@ -41,6 +41,9 @@ export async function POST(
     const validated = ParseStagedItemsSchema.parse(body);
 
     if (validated.items && validated.items.length > 0) {
+      await ImportRepository.syncPersonalDetailsToProfile(user.userId, validated.items, {
+        overwriteExisting: false,
+      }).catch((err) => console.warn("Failed to auto-sync personal details to profile:", err));
       const stagedIds = await ImportRepository.addStagedItems(
         user.userId,
         batchId,
@@ -56,6 +59,9 @@ export async function POST(
         validated.mimeType || "image/png",
         validated.sourceLabel || "Scanned Resume"
       );
+      await ImportRepository.syncPersonalDetailsToProfile(user.userId, parseResult.stagedItems, {
+        overwriteExisting: false,
+      }).catch((err) => console.warn("Failed to auto-sync personal details to profile:", err));
       const stagedIds = await ImportRepository.addStagedItems(
         user.userId,
         batchId,
@@ -77,6 +83,9 @@ export async function POST(
         validated.rawText,
         validated.sourceLabel || "Uploaded Resume"
       );
+      await ImportRepository.syncPersonalDetailsToProfile(user.userId, parseResult.stagedItems, {
+        overwriteExisting: false,
+      }).catch((err) => console.warn("Failed to auto-sync personal details:", err));
       const stagedIds = await ImportRepository.addStagedItems(
         user.userId,
         batchId,

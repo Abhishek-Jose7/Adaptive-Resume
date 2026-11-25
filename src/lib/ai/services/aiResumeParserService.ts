@@ -173,10 +173,11 @@ JSON SCHEMA:
 STRICT ANTI-FABRICATION AND PARSING RULES:
 1. NEVER invent, extrapolate, or guess dates, metrics, percentages, institutions, grades, or employers.
 2. Separate Personal Details (name, email, phone, location, links) cleanly from summary.
-3. Preserve skill categories accurately in "skillGroups" (do NOT dump all skills into one Languages or Technical list if categories exist).
-4. Repair obvious PDF/OCR mid-word whitespace artifacts (e.g. "Engi neering" -> "Engineering", "scarlett- menezes" -> "scarlett-menezes") without altering facts.
-5. Keep Education strictly separate from Work Experience, and keep Achievements strictly separate from Projects.
-6. Return pure, valid JSON ONLY. No markdown, no preface, no trailing commentary.`;
+3. Preserve skill categories accurately in "skillGroups" (do NOT dump all skills into one Languages or Technical list if categories exist). NEVER repeat a category in both "skillGroups" and "skills.soft" or "skills.technical".
+4. NEVER duplicate the same role in both "experience" and "positionsOfResponsibility". Put roles from Work Experience / Professional Experience strictly in "experience", and use "positionsOfResponsibility" ONLY for separate Leadership / Extracurricular / Volunteer sections not already listed in "experience".
+5. Repair obvious PDF/OCR mid-word whitespace artifacts (e.g. "Engi neering" -> "Engineering", "scarlett- menezes" -> "scarlett-menezes") without altering facts.
+6. Keep Education strictly separate from Work Experience, and keep Achievements strictly separate from Projects.
+7. Return pure, valid JSON ONLY. No markdown, no preface, no trailing commentary.`;
 
   /**
    * Cleans PDF/OCR mid-word spaces and spaced URLs/emails before sending to LLM
@@ -403,11 +404,11 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       })) : [],
       skillGroups: Array.isArray(data.skillGroups)
         ? data.skillGroups
-            .filter((g: any) => g && typeof g === "object" && Array.isArray(g.skills) && g.skills.length > 0)
-            .map((g: any) => ({
-              category: String(g.category || "Technical Skills").trim(),
-              skills: g.skills.map(String).map((s: string) => s.trim()).filter(Boolean),
-            }))
+          .filter((g: any) => g && typeof g === "object" && Array.isArray(g.skills) && g.skills.length > 0)
+          .map((g: any) => ({
+            category: String(g.category || "Technical Skills").trim(),
+            skills: g.skills.map(String).map((s: string) => s.trim()).filter(Boolean),
+          }))
         : [],
       skills: {
         technical: Array.isArray(data.skills?.technical) ? data.skills.technical.map(String).filter(Boolean) : [],
@@ -595,14 +596,17 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       });
     }
 
-    // 6. Skills (prefer structured skillGroups; otherwise classify flat technical list into canonical groups)
+    // 6. Skills (prefer structured skillGroups; deduplicate by category name; otherwise classify flat technical list)
+    const seenSkillCategories = new Set<string>();
     if (norm.skillGroups && norm.skillGroups.length > 0) {
       for (const group of norm.skillGroups) {
-        if (group.skills.length > 0) {
+        const catKey = group.category.trim().toLowerCase();
+        if (group.skills.length > 0 && !seenSkillCategories.has(catKey)) {
+          seenSkillCategories.add(catKey);
           sections.push({
             entryType: "skill_group",
             title: group.category,
-            bullets: group.skills,
+            bullets: Array.from(new Set(group.skills)),
             confidence: 0.95,
             rawSnippet: `${group.category}: ${group.skills.join(", ")}`,
           });
@@ -612,6 +616,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       if (norm.skills.technical.length > 6) {
         const classified = classifySkills(norm.skills.technical);
         for (const group of classified) {
+          seenSkillCategories.add(group.category.toLowerCase());
           sections.push({
             entryType: "skill_group",
             title: group.category,
@@ -621,6 +626,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
           });
         }
       } else {
+        seenSkillCategories.add("technical skills");
         sections.push({
           entryType: "skill_group",
           title: "Technical Skills",
@@ -631,11 +637,12 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       }
     }
 
-    if (norm.skills?.soft && norm.skills.soft.length > 0) {
+    if (norm.skills?.soft && norm.skills.soft.length > 0 && !seenSkillCategories.has("soft skills") && !seenSkillCategories.has("soft")) {
+      seenSkillCategories.add("soft skills");
       sections.push({
         entryType: "skill_group",
         title: "Soft Skills",
-        bullets: norm.skills.soft,
+        bullets: Array.from(new Set(norm.skills.soft)),
         confidence: 0.95,
         rawSnippet: norm.skills.soft.join(", "),
       });
@@ -667,8 +674,22 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       });
     }
 
-    // 9. Positions of Responsibility
+    // 9. Positions of Responsibility (skip if already represented under Experience)
+    const expSignatures = (norm.experience || []).map((e) => ({
+      role: e.role.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+      org: e.organization.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+    }));
+
     for (const pos of norm.positionsOfResponsibility || []) {
+      const posRole = pos.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const posOrg = (pos.organization || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const isDuplicateOfExp = expSignatures.some(
+        (exp) =>
+          (exp.role === posRole || exp.role.includes(posRole) || posRole.includes(exp.role)) &&
+          (!posOrg || !exp.org || exp.org === posOrg || exp.org.includes(posOrg) || posOrg.includes(exp.org))
+      );
+      if (isDuplicateOfExp) continue;
+
       const bullets = pos.description
         ? pos.description.split(/\r?\n|•/).map((b) => b.trim()).filter((b) => b.length > 3)
         : [pos.title];
