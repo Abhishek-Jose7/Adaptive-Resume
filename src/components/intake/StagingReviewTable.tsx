@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CircleCheck, CircleAlert, Pencil, Save, X, CheckSquare, Square, ChevronDown } from "lucide-react";
 
 type ParsedResumeData = {
@@ -73,6 +73,13 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const itemIdsSignature = items.map((i) => i.id).join("|");
+  useEffect(() => {
+    setSelectedIds(new Set(items.filter((item) => item.status === "pending").map((item) => item.id)));
+    setEdits({});
+    setEditingId(null);
+  }, [itemIdsSignature]);
 
   const pendingItems = items.filter((item) => item.status === "pending");
   const allSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.has(item.id));

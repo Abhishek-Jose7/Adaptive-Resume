@@ -320,7 +320,11 @@ SUMMARY I am a third - year Computer Engineering student who likes building thin
       const sections = ResumeStructuringService.structureResumeText(messyResumeText, "Messy Paste");
       expect(sections.length).toBeGreaterThanOrEqual(8);
 
-      const profile = sections.find((s) => s.entryType === "profile");
+      const personalDetails = sections.find((s) => s.entryType === "profile" && s.title === "Personal Details");
+      expect(personalDetails).toBeDefined();
+      expect(personalDetails!.bullets.some((b) => b.includes("abhishekjose780@gmail.com"))).toBe(true);
+
+      const profile = sections.find((s) => s.entryType === "profile" && s.title === "Professional Summary");
       expect(profile).toBeDefined();
       expect(profile!.bullets[0]).toContain("Computer Engineering student");
 

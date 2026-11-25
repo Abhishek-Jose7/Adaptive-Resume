@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { validateFileBuffer } from "./fileValidator";
 
 export interface LinkedInParsedItem {
-  entryType: "experience" | "education" | "skill_group" | "project";
+  entryType: "profile" | "experience" | "education" | "skill_group" | "project" | "certification" | "award";
   title: string;
   organization?: string;
   location?: string;
@@ -162,13 +162,148 @@ export async function parseLinkedInZip(
   if (skillsFile) {
     const content = await skillsFile.async("string");
     const rows = parseCsv(content);
-    const skillNames = rows.map((r) => r["Name"] || r["name"]).filter(Boolean);
+    const skillNames = Array.from(new Set(rows.map((r) => (r["Name"] || r["name"] || "").trim()).filter(Boolean)));
 
     if (skillNames.length > 0) {
       items.push({
         entryType: "skill_group",
         title: "Imported Skills",
         bullets: skillNames,
+      });
+    }
+  }
+
+  // 4. Parse Profile.csv (Personal Details & Summary)
+  const profileFile = Object.values(zip.files).find((f) =>
+    /profile\.csv$/i.test(f.name)
+  );
+  if (profileFile) {
+    const content = await profileFile.async("string");
+    const rows = parseCsv(content);
+    if (rows[0]) {
+      const p = rows[0];
+      const fullName = [p["First Name"] || "", p["Last Name"] || ""].filter(Boolean).join(" ").trim();
+      const headline = (p["Headline"] || "").trim();
+      const summary = (p["Summary"] || "").trim();
+      const location = (p["Geo Location"] || p["Address"] || "").trim();
+
+      if (fullName || headline || location) {
+        const bullets = [
+          headline ? `Headline: ${headline}` : "",
+        ].filter(Boolean);
+        items.push({
+          entryType: "profile",
+          title: "Personal Details",
+          organization: fullName || undefined,
+          location: location || undefined,
+          descriptionContext: headline || undefined,
+          bullets: bullets.length > 0 ? bullets : [fullName || location],
+        });
+      }
+      if (summary && summary.length > 20) {
+        items.push({
+          entryType: "profile",
+          title: "Professional Summary",
+          descriptionContext: summary,
+          bullets: [summary],
+        });
+      }
+    }
+  }
+
+  // 5. Parse Projects.csv
+  const projectsFile = Object.values(zip.files).find((f) =>
+    /projects\.csv$/i.test(f.name)
+  );
+  if (projectsFile) {
+    const content = await projectsFile.async("string");
+    const rows = parseCsv(content);
+    for (const r of rows) {
+      const title = (r["Title"] || "").trim();
+      if (!title) continue;
+      const desc = (r["Description"] || "").trim();
+      const url = (r["Url"] || "").trim();
+      const startDate = (r["Started On"] || "").trim() || undefined;
+      const endDate = (r["Finished On"] || "").trim() || undefined;
+      const bullets = desc
+        ? desc.split(/\r?\n|•/).map((b) => b.trim()).filter((b) => b.length > 5)
+        : [title];
+      if (url) bullets.push(`Link: ${url}`);
+      items.push({
+        entryType: "project",
+        title,
+        startDate,
+        endDate,
+        descriptionContext: url || undefined,
+        bullets,
+      });
+    }
+  }
+
+  // 6. Parse Certifications.csv
+  const certsFile = Object.values(zip.files).find((f) =>
+    /certifications\.csv$/i.test(f.name)
+  );
+  if (certsFile) {
+    const content = await certsFile.async("string");
+    const rows = parseCsv(content);
+    for (const r of rows) {
+      const name = (r["Name"] || "").trim();
+      if (!name) continue;
+      const authority = (r["Authority"] || "").trim() || undefined;
+      const startDate = (r["Started On"] || "").trim() || undefined;
+      const endDate = (r["Finished On"] || "").trim() || undefined;
+      items.push({
+        entryType: "certification",
+        title: name,
+        organization: authority,
+        startDate,
+        endDate,
+        bullets: [authority ? `${name} — ${authority}` : name],
+      });
+    }
+  }
+
+  // 7. Parse Honors.csv
+  const honorsFile = Object.values(zip.files).find((f) =>
+    /honors\.csv$/i.test(f.name)
+  );
+  if (honorsFile) {
+    const content = await honorsFile.async("string");
+    const rows = parseCsv(content);
+    for (const r of rows) {
+      const title = (r["Title"] || "").trim();
+      if (!title) continue;
+      const desc = (r["Description"] || "").trim();
+      const issuedOn = (r["Issued On"] || "").trim() || undefined;
+      items.push({
+        entryType: "award",
+        title,
+        endDate: issuedOn,
+        bullets: desc ? [title, desc] : [title],
+      });
+    }
+  }
+
+  // 8. Parse Languages.csv
+  const langsFile = Object.values(zip.files).find((f) =>
+    /languages\.csv$/i.test(f.name)
+  );
+  if (langsFile) {
+    const content = await langsFile.async("string");
+    const rows = parseCsv(content);
+    const langs = rows
+      .map((r) => {
+        const name = (r["Name"] || "").trim();
+        const prof = (r["Proficiency"] || "").trim();
+        return name ? (prof ? `${name} (${prof})` : name) : "";
+      })
+      .filter(Boolean);
+    if (langs.length > 0) {
+      items.push({
+        entryType: "skill_group",
+        title: "Languages (Spoken)",
+        bullets: langs,
       });
     }
   }

@@ -16,8 +16,9 @@ export class LocalDeterministicAdapter implements LlmProvider {
 
     if (input.task === "parse_resume") {
       const { ResumeStructuringService } = await import("../../parsers/resumeStructuringService");
-      const rawText = payload.rawText || payload.text || "";
-      const sections = ResumeStructuringService.structureResumeText(rawText);
+      const rawText = payload.rawText || payload.resumeContent || payload.text || "";
+      const sourceLabel = payload.sourceLabel || "Uploaded Resume";
+      const sections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
       return {
         data: sections as unknown as T,
         model: "deterministic-v1",

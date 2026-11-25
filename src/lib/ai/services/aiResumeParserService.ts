@@ -1,5 +1,5 @@
 import { ProviderFactory } from "../providerFactory";
-import { ResumeStructuringService, StructuredResumeSection } from "@/lib/parsers/resumeStructuringService";
+import { ResumeStructuringService, StructuredResumeSection, classifySkills } from "@/lib/parsers/resumeStructuringService";
 import { StagedItemInput } from "@/lib/repositories/importRepository";
 
 export interface NormalizedResumeJson {
@@ -8,6 +8,7 @@ export interface NormalizedResumeJson {
     email?: string | null;
     phone?: string | null;
     location?: string | null;
+    headline?: string | null;
     links?: string[];
   } | null;
   summary?: string | null;
@@ -39,6 +40,10 @@ export interface NormalizedResumeJson {
     url?: string | null;
     startDate?: string | null;
     endDate?: string | null;
+  }>;
+  skillGroups?: Array<{
+    category: string;
+    skills: string[];
   }>;
   skills?: {
     technical?: string[];
@@ -80,7 +85,7 @@ export class AiResumeParserService {
    * 3. Flag ambiguous or incomplete information.
    */
   private static readonly SYSTEM_PROMPT = `You are a dedicated AI Resume Parser operating as Pipeline A.
-Your goal is to parse the uploaded resume and extract all career data into the NormalizedResumeJson schema.
+Your goal is to parse the uploaded resume (whether clean, multi-page, two-column, OCR-noisy, or jumbled) and extract ALL career data cleanly into the NormalizedResumeJson schema.
 
 JSON SCHEMA:
 {
@@ -88,20 +93,21 @@ JSON SCHEMA:
   "contact": {
     "email": "string or null",
     "phone": "string or null",
-    "location": "string or null",
-    "links": ["https://..."]
+    "location": "City, State/Country or null",
+    "headline": "Brief role/student headline from header or null",
+    "links": ["https://github.com/...", "https://linkedin.com/in/..."]
   },
-  "summary": "string or null",
+  "summary": "Professional narrative ONLY — NEVER include candidate name, email, phone, location, or links in summary. null if absent.",
   "education": [
     {
       "institution": "University / School",
-      "degree": "B.E. / B.S. / Master / etc or null",
-      "fieldOfStudy": "Computer Engineering / etc or null",
+      "degree": "B.Tech / B.E. / B.S. / Master / Higher Secondary / etc or null",
+      "fieldOfStudy": "Computer Science / Engineering / etc or null",
       "grades": "GPA / Percentage / CGPA only if explicitly written, otherwise null",
       "location": "City, Country or null",
       "startDate": "YYYY or Month YYYY or null",
-      "endDate": "YYYY or Month YYYY or null",
-      "highlights": ["Relevant coursework, thesis, or academic honors"]
+      "endDate": "YYYY or Month YYYY or Present or null",
+      "highlights": ["Relevant coursework, thesis, or academic honors — NEVER split grades/coursework into separate education entries"]
     }
   ],
   "experience": [
@@ -110,36 +116,42 @@ JSON SCHEMA:
       "organization": "Company or Organization",
       "location": "City, State or Remote or null",
       "startDate": "YYYY or Month YYYY or null",
-      "endDate": "YYYY or Present or null",
+      "endDate": "YYYY or Month YYYY or Present or null",
       "isCurrent": false,
-      "bullets": ["Action-oriented responsibility or accomplishment statements"],
+      "bullets": ["Clean, atomic action statements (fix mid-word OCR spaces; strip repeated page headers/contact info)"],
       "descriptionContext": "Optional brief team or division description"
     }
   ],
   "projects": [
     {
-      "title": "Project Name",
+      "title": "Project Name (keep awards/achievements OUT of project titles and bullets)",
       "description": "Short overview or null",
       "technologies": ["Tech1", "Tech2"],
       "bullets": ["Detail bullets"],
       "url": "Project link or null",
-      "startDate": "null",
-      "endDate": "null"
+      "startDate": "YYYY or Month YYYY or null",
+      "endDate": "YYYY or Month YYYY or null"
+    }
+  ],
+  "skillGroups": [
+    {
+      "category": "Exact skill category heading from resume (e.g. Languages, Frontend / Mobile, Backend / APIs, Databases & Cloud, AI & GenAI, Tools & Others)",
+      "skills": ["Skill1", "Skill2"]
     }
   ],
   "skills": {
-    "technical": ["Languages, frameworks, databases, tools, cloud platforms"],
+    "technical": ["All technical skills if not already grouped"],
     "soft": ["Communication, leadership, collaboration, problem solving"]
   },
   "certifications": [
     {
       "title": "Certification Name",
-      "issuer": "Issuing Entity or null",
-      "issueDate": "Date or null"
+      "issuer": "Issuing Entity (AWS, Google, Coursera, IBM, etc.) or null",
+      "issueDate": "Year or Date or null"
     }
   ],
   "achievements": [
-    "Hackathon wins, awards, scholarships, competitive rankings explicitly stated"
+    "Hackathon wins, awards, scholarships, competitive rankings explicitly stated — NEVER merge into projects"
   ],
   "positionsOfResponsibility": [
     {
@@ -160,14 +172,34 @@ JSON SCHEMA:
 
 STRICT ANTI-FABRICATION AND PARSING RULES:
 1. NEVER invent, extrapolate, or guess dates, metrics, percentages, institutions, grades, or employers.
-2. If any piece of information is missing, leave it as null or omit it.
-3. If information is ambiguous, contradictory, or hard to read, record it in "ambiguousOrFlagged" for human review.
-4. Separate technical skills from soft skills accurately.
-5. If the resume contains positions of responsibility (e.g. Lead, Technical Associate in clubs/societies), place them in positionsOfResponsibility or experience.
+2. Separate Personal Details (name, email, phone, location, links) cleanly from summary.
+3. Preserve skill categories accurately in "skillGroups" (do NOT dump all skills into one Languages or Technical list if categories exist).
+4. Repair obvious PDF/OCR mid-word whitespace artifacts (e.g. "Engi neering" -> "Engineering", "scarlett- menezes" -> "scarlett-menezes") without altering facts.
+5. Keep Education strictly separate from Work Experience, and keep Achievements strictly separate from Projects.
 6. Return pure, valid JSON ONLY. No markdown, no preface, no trailing commentary.`;
 
   /**
-   * Parses resume from raw text using Pipeline A (OpenRouter ling-3.2-flash:free or local fallback)
+   * Cleans PDF/OCR mid-word spaces and spaced URLs/emails before sending to LLM
+   * while preserving natural resume structure (no synthetic section markers).
+   */
+  private static cleanTextBeforeAi(rawText: string): string {
+    return rawText
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u00A0\u200B-\u200D\uFEFF]/g, " ")
+      .replace(/[\uE000-\uF0A6\uF0A8-\uF0B6\uF0B8-\uF8FF]/g, " ")
+      .replace(/([a-zA-Z0-9_%+-]+(?:[ \t]*\.[ \t]*[a-zA-Z0-9_%+-]+)*)[ \t]*@[ \t]*([a-zA-Z0-9-]+(?:[ \t]*\.[ \t]*[a-zA-Z0-9-]+)*)[ \t]*\.[ \t]*([a-zA-Z]{2,})/g, (m) =>
+        m.replace(/[ \t]+/g, "")
+      )
+      .replace(/https?[ \t]*:[ \t]*\/\/[ \t]*/gi, "https://")
+      .replace(/((?:github|linkedin)\.com\/[^\s]+?)[ \t]*-[ \t]+([^\s]+)/gi, "$1-$2")
+      .replace(/\s*([•·▪●\uF0B7\uF0A7\u2022\u25AA\u25CF\u25BA➢➤‣])\s*/g, "\n• ")
+      .replace(/\b([A-Za-z]{2,})[ \t]+(tion|sion|tions|sions|ment|ments|ness|ence|ance|ities|ity|ization|isation)\b/g, "$1$2")
+      .trim();
+  }
+
+  /**
+   * Parses resume from raw text using Pipeline A (Groq / OpenRouter or local fallback)
    */
   static async parseFromText(
     rawText: string,
@@ -178,7 +210,6 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       throw new Error("Cannot parse empty resume text.");
     }
 
-    // If local mode is requested or no OpenRouter key is configured, use deterministic structuring
     const provider = ProviderFactory.getParserProvider(options?.apiKey, options?.model, options?.userEmail);
 
     if (options?.forceLocal || provider.name === "local-deterministic") {
@@ -197,20 +228,39 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
     }
 
     try {
+      const cleanedForAi = this.cleanTextBeforeAi(rawText);
       const response = await provider.generateStructured<NormalizedResumeJson>({
         task: "parse_resume",
         systemPrompt: this.SYSTEM_PROMPT,
         userPayload: {
           sourceLabel,
-          resumeContent: rawText,
+          resumeContent: cleanedForAi,
         },
         schema: {},
         maxOutputTokens: 4096,
         temperature: 0.1,
       });
 
+      // Handle case where Groq/OpenRouter cascaded internally to LocalDeterministicAdapter
+      if (response.model === "deterministic-v1" || Array.isArray(response.data)) {
+        const localSections = Array.isArray(response.data) && response.data.length > 0
+          ? (response.data as unknown as StructuredResumeSection[])
+          : ResumeStructuringService.structureResumeText(rawText, sourceLabel);
+        const normalized = this.convertStructuredSectionsToNormalized(localSections, sourceLabel);
+        const stagedItems = ResumeStructuringService.toStagedItemInputs(localSections);
+        return {
+          normalized,
+          structuredSections: localSections,
+          stagedItems,
+          parserModel: "local-deterministic-fallback",
+          isVision: false,
+          ambiguousCount: normalized.ambiguousOrFlagged?.length || 0,
+        };
+      }
+
       const normalized = this.sanitizeNormalizedJson(response.data);
-      const structuredSections = this.convertNormalizedToStructuredSections(normalized, sourceLabel);
+      const aiSections = this.convertNormalizedToStructuredSections(normalized, sourceLabel);
+      const structuredSections = this.crossCheckAndSupplement(aiSections, rawText, sourceLabel);
       const stagedItems = ResumeStructuringService.toStagedItemInputs(structuredSections);
 
       return {
@@ -222,8 +272,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         ambiguousCount: normalized.ambiguousOrFlagged?.length || 0,
       };
     } catch (err: any) {
-      console.warn("Pipeline A OpenRouter parsing failed; falling back to local deterministic structuring:", err.message);
-      // Graceful local fallback
+      console.warn("Pipeline A parsing failed; falling back to local deterministic structuring:", err.message);
       const structuredSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
       const normalized = this.convertStructuredSectionsToNormalized(structuredSections, sourceLabel);
       const stagedItems = ResumeStructuringService.toStagedItemInputs(structuredSections);
@@ -296,7 +345,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
    * and no undefined values cause downstream breakage.
    */
   static sanitizeNormalizedJson(data: any): NormalizedResumeJson {
-    if (!data || typeof data !== "object") {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
       return {
         name: null,
         contact: null,
@@ -304,6 +353,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         education: [],
         experience: [],
         projects: [],
+        skillGroups: [],
         skills: { technical: [], soft: [] },
         certifications: [],
         achievements: [],
@@ -318,7 +368,8 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         email: typeof data.contact.email === "string" ? data.contact.email.trim() : null,
         phone: typeof data.contact.phone === "string" ? data.contact.phone.trim() : null,
         location: typeof data.contact.location === "string" ? data.contact.location.trim() : null,
-        links: Array.isArray(data.contact.links) ? data.contact.links.filter((l: any) => typeof l === "string") : [],
+        headline: typeof data.contact.headline === "string" ? data.contact.headline.trim() : null,
+        links: Array.isArray(data.contact.links) ? data.contact.links.filter((l: any) => typeof l === "string" && l.trim().length > 0).map((l: string) => l.trim()) : [],
       } : null,
       summary: typeof data.summary === "string" ? data.summary.trim() : null,
       education: Array.isArray(data.education) ? data.education.map((e: any) => ({
@@ -329,7 +380,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         location: e.location ? String(e.location) : null,
         startDate: e.startDate ? String(e.startDate) : null,
         endDate: e.endDate ? String(e.endDate) : null,
-        highlights: Array.isArray(e.highlights) ? e.highlights.map(String) : [],
+        highlights: Array.isArray(e.highlights) ? e.highlights.map(String).filter(Boolean) : [],
       })) : [],
       experience: Array.isArray(data.experience) ? data.experience.map((exp: any) => ({
         role: String(exp.role || "Role"),
@@ -344,15 +395,23 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       projects: Array.isArray(data.projects) ? data.projects.map((p: any) => ({
         title: String(p.title || "Project"),
         description: p.description ? String(p.description) : null,
-        technologies: Array.isArray(p.technologies) ? p.technologies.map(String) : [],
+        technologies: Array.isArray(p.technologies) ? p.technologies.map(String).filter(Boolean) : [],
         bullets: Array.isArray(p.bullets) ? p.bullets.map(String).filter(Boolean) : [],
         url: p.url ? String(p.url) : null,
-        startDate: p.startDate ? String(p.startDate) : null,
-        endDate: p.endDate ? String(p.endDate) : null,
+        startDate: p.startDate && String(p.startDate) !== "null" ? String(p.startDate) : null,
+        endDate: p.endDate && String(p.endDate) !== "null" ? String(p.endDate) : null,
       })) : [],
+      skillGroups: Array.isArray(data.skillGroups)
+        ? data.skillGroups
+            .filter((g: any) => g && typeof g === "object" && Array.isArray(g.skills) && g.skills.length > 0)
+            .map((g: any) => ({
+              category: String(g.category || "Technical Skills").trim(),
+              skills: g.skills.map(String).map((s: string) => s.trim()).filter(Boolean),
+            }))
+        : [],
       skills: {
-        technical: Array.isArray(data.skills?.technical) ? data.skills.technical.map(String) : [],
-        soft: Array.isArray(data.skills?.soft) ? data.skills.soft.map(String) : [],
+        technical: Array.isArray(data.skills?.technical) ? data.skills.technical.map(String).filter(Boolean) : [],
+        soft: Array.isArray(data.skills?.soft) ? data.skills.soft.map(String).filter(Boolean) : [],
       },
       certifications: Array.isArray(data.certifications) ? data.certifications.map((c: any) => ({
         title: String(c.title || "Certification"),
@@ -375,6 +434,45 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
   }
 
   /**
+   * Cross-checks AI output against deterministic local extraction and supplements
+   * any entire section types that an LLM accidentally dropped on multi-page resumes.
+   */
+  private static crossCheckAndSupplement(
+    aiSections: StructuredResumeSection[],
+    rawText: string,
+    sourceLabel: string
+  ): StructuredResumeSection[] {
+    const localSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
+    const merged = [...aiSections];
+
+    const hasPersonal = merged.some((s) => s.entryType === "profile" && s.title === "Personal Details");
+    if (!hasPersonal) {
+      const localPersonal = localSections.find((s) => s.entryType === "profile" && s.title === "Personal Details");
+      if (localPersonal) merged.unshift(localPersonal);
+    }
+
+    const coreTypes: Array<StructuredResumeSection["entryType"]> = [
+      "experience",
+      "education",
+      "project",
+      "skill_group",
+      "certification",
+      "award",
+    ];
+
+    for (const t of coreTypes) {
+      if (!merged.some((s) => s.entryType === t)) {
+        const localForType = localSections.filter((s) => s.entryType === t);
+        if (localForType.length > 0) {
+          merged.push(...localForType);
+        }
+      }
+    }
+
+    return merged;
+  }
+
+  /**
    * Converts NormalizedResumeJson to StructuredResumeSection array
    */
   static convertNormalizedToStructuredSections(
@@ -383,84 +481,156 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
   ): StructuredResumeSection[] {
     const sections: StructuredResumeSection[] = [];
 
-    // 1. Profile / Summary
-    if (norm.summary) {
+    // 1. Personal Details (emitted cleanly as its own profile entry)
+    const contactBullets = [
+      norm.contact?.email ? `Email: ${norm.contact.email}` : "",
+      norm.contact?.phone ? `Phone: ${norm.contact.phone}` : "",
+      norm.contact?.headline ? `Headline: ${norm.contact.headline}` : "",
+      ...(norm.contact?.links || []).map((l) => `Link: ${l}`),
+    ].filter(Boolean);
+
+    if (norm.name || contactBullets.length > 0 || norm.contact?.location) {
       sections.push({
         entryType: "profile",
-        title: norm.name ? `${norm.name} - Summary` : "Professional Summary",
-        organization: null,
-        descriptionContext: norm.summary,
-        bullets: [norm.summary],
-        confidence: 0.95,
-        rawSnippet: norm.summary.substring(0, 300),
+        title: "Personal Details",
+        organization: norm.name || null,
+        location: norm.contact?.location || null,
+        descriptionContext: norm.contact?.headline || null,
+        bullets: contactBullets.length > 0 ? contactBullets : [norm.name || norm.contact?.location || sourceLabel],
+        confidence: 0.98,
+        rawSnippet: [norm.name, norm.contact?.location, ...contactBullets].filter(Boolean).join(" | "),
       });
     }
 
-    // 2. Experience
+    // 2. Professional Summary (strip leaked contact URLs/emails/phones)
+    if (norm.summary) {
+      const cleanedSummary = norm.summary
+        .replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, "")
+        .replace(/(?:https?:\/\/)?(?:www\.)?(?:github|linkedin)\.com\/\S+/gi, "")
+        .replace(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{3,5}\)?[\s.-]?\d{3,5}[\s.-]?\d{4}\b/g, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      if (cleanedSummary.length > 10) {
+        sections.push({
+          entryType: "profile",
+          title: "Professional Summary",
+          organization: null,
+          descriptionContext: cleanedSummary,
+          bullets: [cleanedSummary],
+          confidence: 0.95,
+          rawSnippet: cleanedSummary.substring(0, 300),
+        });
+      }
+    }
+
+    // 3. Experience
     for (const exp of norm.experience || []) {
+      const cleanBullets = exp.bullets
+        .map((b) => ResumeStructuringService.balanceBrackets(b.replace(/^[•\-\*]\s*/, "").trim()))
+        .filter(Boolean);
+      const isCurrent = Boolean(exp.isCurrent || (exp.endDate && /^(present|current|ongoing)$/i.test(exp.endDate)));
       sections.push({
         entryType: "experience",
         title: exp.role,
         organization: exp.organization,
-        location: exp.location,
-        startDate: exp.startDate,
-        endDate: exp.endDate,
-        isCurrent: exp.isCurrent,
-        descriptionContext: exp.descriptionContext,
-        bullets: exp.bullets,
+        location: exp.location || null,
+        startDate: exp.startDate || null,
+        endDate: isCurrent ? null : (exp.endDate || null),
+        isCurrent,
+        descriptionContext: exp.descriptionContext || null,
+        bullets: cleanBullets.length > 0 ? cleanBullets : [exp.role],
         confidence: 0.95,
         rawSnippet: `${exp.role} at ${exp.organization} (${exp.startDate || ""} - ${exp.endDate || ""})`,
       });
     }
 
-    // 3. Education
+    // 4. Education
     for (const edu of norm.education || []) {
       const bullets = [...(edu.highlights || [])];
       if (edu.grades) {
         bullets.unshift(`Grades / Performance: ${edu.grades}`);
       }
+      const degreeTitle = [edu.degree, edu.fieldOfStudy && !edu.degree?.toLowerCase().includes(edu.fieldOfStudy.toLowerCase()) ? `in ${edu.fieldOfStudy}` : ""]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const isCurrent = Boolean(edu.endDate && /^(present|current|ongoing|expected)$/i.test(edu.endDate));
       sections.push({
         entryType: "education",
-        title: edu.degree || edu.fieldOfStudy || "Academic Degree",
+        title: degreeTitle || "Academic Degree",
         organization: edu.institution,
-        location: edu.location,
-        startDate: edu.startDate,
-        endDate: edu.endDate,
+        location: edu.location || null,
+        startDate: edu.startDate || null,
+        endDate: isCurrent ? null : (edu.endDate || null),
+        isCurrent,
         bullets,
         confidence: 0.95,
-        rawSnippet: `${edu.degree || ""} at ${edu.institution}`,
+        rawSnippet: `${degreeTitle} at ${edu.institution}`,
       });
     }
 
-    // 4. Projects
+    // 5. Projects
     for (const proj of norm.projects || []) {
       const bullets = [...(proj.bullets || [])];
-      if (proj.technologies && proj.technologies.length > 0) {
+      if (proj.url) {
+        bullets.push(`Link: ${proj.url}`);
+      }
+      const techContext = proj.technologies && proj.technologies.length > 0
+        ? proj.technologies.join(" | ")
+        : proj.description || null;
+      if (proj.technologies && proj.technologies.length > 0 && bullets.length === 0) {
         bullets.unshift(`Technologies: ${proj.technologies.join(", ")}`);
       }
       sections.push({
         entryType: "project",
         title: proj.title,
         organization: null,
-        descriptionContext: proj.description,
-        startDate: proj.startDate,
-        endDate: proj.endDate,
-        bullets,
+        descriptionContext: techContext,
+        startDate: proj.startDate || null,
+        endDate: proj.endDate || null,
+        bullets: bullets.length > 0 ? bullets : [proj.title],
         confidence: 0.95,
         rawSnippet: proj.title,
       });
     }
 
-    // 5. Skills
-    if (norm.skills?.technical && norm.skills.technical.length > 0) {
-      sections.push({
-        entryType: "skill_group",
-        title: "Technical Skills",
-        bullets: norm.skills.technical,
-        confidence: 0.95,
-        rawSnippet: norm.skills.technical.join(", "),
-      });
+    // 6. Skills (prefer structured skillGroups; otherwise classify flat technical list into canonical groups)
+    if (norm.skillGroups && norm.skillGroups.length > 0) {
+      for (const group of norm.skillGroups) {
+        if (group.skills.length > 0) {
+          sections.push({
+            entryType: "skill_group",
+            title: group.category,
+            bullets: group.skills,
+            confidence: 0.95,
+            rawSnippet: `${group.category}: ${group.skills.join(", ")}`,
+          });
+        }
+      }
+    } else if (norm.skills?.technical && norm.skills.technical.length > 0) {
+      if (norm.skills.technical.length > 6) {
+        const classified = classifySkills(norm.skills.technical);
+        for (const group of classified) {
+          sections.push({
+            entryType: "skill_group",
+            title: group.category,
+            bullets: group.skills,
+            confidence: 0.92,
+            rawSnippet: `${group.category}: ${group.skills.join(", ")}`,
+          });
+        }
+      } else {
+        sections.push({
+          entryType: "skill_group",
+          title: "Technical Skills",
+          bullets: norm.skills.technical,
+          confidence: 0.95,
+          rawSnippet: norm.skills.technical.join(", "),
+        });
+      }
     }
+
     if (norm.skills?.soft && norm.skills.soft.length > 0) {
       sections.push({
         entryType: "skill_group",
@@ -471,38 +641,56 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       });
     }
 
-    // 6. Certifications
+    // 7. Certifications
     for (const cert of norm.certifications || []) {
+      const cleanTitle = ResumeStructuringService.balanceBrackets(cert.title);
       sections.push({
         entryType: "certification",
-        title: cert.title,
-        organization: cert.issuer,
-        endDate: cert.issueDate,
-        bullets: [cert.title],
+        title: cleanTitle,
+        organization: cert.issuer || null,
+        endDate: cert.issueDate || null,
+        bullets: [cert.issuer ? `${cleanTitle} — ${cert.issuer}` : cleanTitle],
         confidence: 0.95,
-        rawSnippet: cert.title,
+        rawSnippet: cleanTitle,
       });
     }
 
-    // 7. Achievements
+    // 8. Achievements
     for (const ach of norm.achievements || []) {
+      const cleanAch = ResumeStructuringService.balanceBrackets(ach);
       sections.push({
         entryType: "award",
-        title: ach,
-        bullets: [ach],
+        title: cleanAch,
+        bullets: [cleanAch],
         confidence: 0.95,
-        rawSnippet: ach,
+        rawSnippet: cleanAch,
       });
     }
 
-    // 8. Positions of Responsibility
+    // 9. Positions of Responsibility
     for (const pos of norm.positionsOfResponsibility || []) {
+      const bullets = pos.description
+        ? pos.description.split(/\r?\n|•/).map((b) => b.trim()).filter((b) => b.length > 3)
+        : [pos.title];
+      let startDate: string | null = null;
+      let endDate: string | null = null;
+      let isCurrent = false;
+      if (pos.duration) {
+        const parts = pos.duration.split(/\s*(?:-|–|—|\bto\b)\s*/i).map((p) => p.trim()).filter(Boolean);
+        startDate = parts[0] || null;
+        const endRaw = parts.length > 1 ? parts[parts.length - 1] : null;
+        isCurrent = Boolean(endRaw && /^(present|current|ongoing)$/i.test(endRaw));
+        endDate = isCurrent ? null : endRaw;
+      }
       sections.push({
         entryType: "volunteer",
         title: pos.title,
-        organization: pos.organization,
-        descriptionContext: pos.duration,
-        bullets: pos.description ? [pos.description] : [pos.title],
+        organization: pos.organization || null,
+        startDate,
+        endDate,
+        isCurrent,
+        descriptionContext: pos.duration || null,
+        bullets: bullets.length > 0 ? bullets : [pos.title],
         confidence: 0.95,
         rawSnippet: `${pos.title} - ${pos.organization || ""}`,
       });

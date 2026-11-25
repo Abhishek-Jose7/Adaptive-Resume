@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { FileEdit, Sparkles, AlertTriangle } from "lucide-react";
 import { MAX_PASTED_TEXT_LENGTH } from "@/lib/parsers/fileValidator";
 
-import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
+import { parseResumeTextWithFallback } from "@/lib/parsers/clientIntakeParser";
 
 interface PasteTextInputProps {
   onParsedItemsReady: (sourceType: string, sourceLabel: string, items: any[]) => Promise<void>;
@@ -28,9 +28,8 @@ export function PasteTextInput({ onParsedItemsReady }: PasteTextInputProps) {
     setError(null);
 
     try {
-      // Parse pasted text into structured candidates across profile, experiences, education, skills, projects
-      const structuredSections = ResumeStructuringService.structureResumeText(text, "Pasted Career Text");
-      const items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+      // Parse pasted text into structured candidates via hybrid AI + deterministic engine
+      const items = await parseResumeTextWithFallback(text, "Pasted Career Text");
 
       await onParsedItemsReady("free_text", "Pasted Career Text", items);
       setText("");

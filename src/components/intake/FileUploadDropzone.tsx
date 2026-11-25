@@ -5,7 +5,7 @@ import { Upload, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { parseDocxBuffer } from "@/lib/parsers/browserDocxParser";
 import { parseLinkedInZip } from "@/lib/parsers/browserZipParser";
 import { parsePdfBuffer } from "@/lib/parsers/browserPdfParser";
-import { ResumeStructuringService } from "@/lib/parsers/resumeStructuringService";
+import { parseResumeTextWithFallback } from "@/lib/parsers/clientIntakeParser";
 
 interface FileUploadDropzoneProps {
   onParsedItemsReady: (sourceType: string, sourceLabel: string, items: any[]) => Promise<void>;
@@ -47,11 +47,12 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
       }
 
       const ocrData = await ocrRes.json();
-      const items = ocrData.data?.items || [];
+      const items = ocrData.items || ocrData.data?.items || [];
+      const lineCount = ocrData.lineCount ?? ocrData.data?.lineCount ?? 0;
       if (items.length === 0) {
         throw new Error(`No structured items could be extracted from ${file.name}. Please ensure the scan is clear.`);
       }
-      setStatus(`Read ${ocrData.data?.lineCount || 0} lines from ${file.name}`);
+      setStatus(`Read ${lineCount} lines from ${file.name}`);
       await onParsedItemsReady("resume_upload", file.name, items);
       setStatus("Parsed and staged for review");
     } catch (err: any) {
@@ -77,9 +78,8 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
 
       if (fileNameLower.endsWith(".docx")) {
         const result = await parseDocxBuffer(buffer, file.name);
-        const rawDocxText = result.lines.join("\n");
-        const structuredSections = ResumeStructuringService.structureResumeText(rawDocxText, file.name);
-        const items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+        setStatus("Structuring resume sections...");
+        const items = await parseResumeTextWithFallback(result.text, file.name);
 
         await onParsedItemsReady("resume_upload", file.name, items);
         setStatus("Parsed and staged for review");
@@ -115,9 +115,8 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
           // Auto-trigger OCR without modal confirmation as requested
           await executeOcr(file, true);
         } else {
-          const rawPdfText = pdfResult.pages.join("\n");
-          const structuredSections = ResumeStructuringService.structureResumeText(rawPdfText, file.name);
-          const items = ResumeStructuringService.toStagedItemInputs(structuredSections);
+          setStatus("Structuring resume sections...");
+          const items = await parseResumeTextWithFallback(pdfResult.text, file.name);
 
           await onParsedItemsReady("resume_upload", file.name, items);
           setStatus("Parsed and staged for review");
