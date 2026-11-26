@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
             "Rules:",
             "1. Only claim strengths that are genuinely evidenced in the candidate's Career Vault entries/bullets below. Never invent experience.",
             "2. Distinguish hands-on bullet evidence from mere skill-tag mentions: if a required skill (for example, Embeddings, LLM Evals, Docker, etc.) is missing or only appears as a tag without a bullet explaining hands-on work, point that out clearly (e.g., 'Your experience with X isn't clear from your bullets yet').",
-            "3. Write summaryInsight in 2-3 natural, direct, specific sentences naming relevant projects/roles (e.g., 'Your LLM and agent work in Nyaaya AI looks relevant to the role. Your experience with embeddings isn't clear from your resume, so that's worth bearing in mind.').",
+            "3. Write summaryInsight in 2-3 natural, direct, specific sentences naming relevant projects/roles from the candidate's Career Vault (e.g., 'Your LLM and agent work in Project Alpha looks relevant to the role. Your experience with embeddings isn't clear from your resume, so that's worth bearing in mind.').",
             "4. Return strict JSON matching the schema with matchScore (0-100 integer) calibrated fairly to evidenced skills + domain depth vs role requirements.",
           ].join("\n"),
           userPayload: {

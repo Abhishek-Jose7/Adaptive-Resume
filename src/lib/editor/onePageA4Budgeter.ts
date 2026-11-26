@@ -1,5 +1,6 @@
 import { ResumeDoc, ResumeProject, ResumeExperience, ResumeCertification } from "@/types/resume";
 import { sortResumeDocChronologically } from "@/lib/utils/resumeOrderUtils";
+import { confidenceRankToBonus } from "@/lib/tailoring/projectAngleSelector";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -115,19 +116,22 @@ export function budgetResumeForOnePageA4(
     bullets: [...(e.bullets || [])],
   }));
 
-  // Rank projects by JD keyword overlap while preserving tie order
+  // Rank projects by JD keyword overlap + user confidence rank while preserving tie order
   const rawProjects = (ordered.projects || []).map((p, idx) => {
     const blob = [p.name, p.role || "", p.description || "", ...(p.bullets || []).map((b) => b.text)].join(" ");
+    const relevanceScore = scoreTextRelevance(blob, jdKeywords) * 10;
+    const confidenceBonus = confidenceRankToBonus(p.confidenceRank);
     return {
       proj: {
         ...p,
         bullets: [...(p.bullets || [])],
       },
-      score: scoreTextRelevance(blob, jdKeywords),
+      score: relevanceScore + confidenceBonus,
+      hasConfidenceRank: typeof p.confidenceRank === "number",
       idx,
     };
   });
-  if (jdKeywords.length > 0) {
+  if (jdKeywords.length > 0 || rawProjects.some((r) => r.hasConfidenceRank)) {
     rawProjects.sort((a, b) => b.score - a.score || a.idx - b.idx);
   }
   let projects: ResumeProject[] = rawProjects.slice(0, 3).map((r) => r.proj);

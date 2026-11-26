@@ -348,6 +348,25 @@ export class BankRepository {
       (data.endDate && /^(present|current|now|ongoing)$/i.test(data.endDate.trim()))
     );
 
+    let resolvedSortOrder = data.sortOrder;
+    if (typeof resolvedSortOrder !== "number") {
+      const [maxRow] = await db
+        .select({ maxOrder: sql<number | string | null>`max(${bankEntries.sortOrder})` })
+        .from(bankEntries)
+        .where(
+          and(
+            eq(bankEntries.userId, userId),
+            eq(bankEntries.entryType, data.entryType),
+            isNull(bankEntries.deletedAt)
+          )
+        );
+      const parsedMax =
+        maxRow?.maxOrder !== null && maxRow?.maxOrder !== undefined
+          ? Number(maxRow.maxOrder)
+          : NaN;
+      resolvedSortOrder = Number.isFinite(parsedMax) ? parsedMax + 1 : 0;
+    }
+
     await db.insert(bankEntries).values({
       id,
       userId,
@@ -361,7 +380,7 @@ export class BankRepository {
       descriptionContext: data.descriptionContext || null,
       visibility: data.visibility || "private",
       verificationStatus: data.verificationStatus || "unverified",
-      sortOrder: data.sortOrder || 0,
+      sortOrder: resolvedSortOrder,
       rowVersion: 1,
     });
 

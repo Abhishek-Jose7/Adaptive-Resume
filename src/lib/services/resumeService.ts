@@ -16,6 +16,10 @@ import { DocxGenerator } from "../export/docxGenerator";
 import { UsageLimitService } from "./usageLimitService";
 import { SettingsService } from "./settingsService";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
+import {
+  selectProjectAnglePoints,
+  sortProjectsByConfidenceAndRelevance,
+} from "../tailoring/projectAngleSelector";
 import { compareReverseChronological, sortResumeDocChronologically } from "../utils/resumeOrderUtils";
 import { budgetResumeForOnePageA4 } from "../editor/onePageA4Budgeter";
 import { JDAnalysis } from "@/types/job";
@@ -116,6 +120,13 @@ export class ResumeService {
     }));
 
     const jdAnalysis = jdRows[0]?.analysisJson as unknown as JDAnalysis | undefined;
+    const jdKeywords = jdAnalysis
+      ? [
+          ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
+          ...(jdAnalysis.role?.domain || []),
+        ].filter(Boolean)
+      : [];
+    const jdTitle = jdAnalysis?.role?.title || undefined;
     const relevanceMap = new Map<string, number>();
 
     if (jdAnalysis) {
@@ -168,23 +179,56 @@ export class ResumeService {
         })),
       }));
 
-    const projects = fullEntries
-      .filter((e) => e.entryType === "project")
-      .slice(0, 3)
-      .map((e) => ({
-        id: e.id,
-        name: e.title,
-        role: e.organization || undefined,
-        description: e.descriptionContext || undefined,
-        bullets: selectBulletsForEntry(e, 2).map((b) => ({
-          id: b.id,
-          text: b.text,
-          provenance: "bank" as const,
-          sourceBulletIds: [b.id],
-          sourceFactIds: [],
-          validatorStatus: "not_applicable" as const,
+    const sortedProjectEntries = sortProjectsByConfidenceAndRelevance(
+      fullEntries
+        .filter((e) => e.entryType === "project")
+        .map((e) => ({
+          ...e,
+          bullets: (e.bullets || []).filter((b) => b.usagePolicy !== "never_use"),
         })),
-      }));
+      jdKeywords,
+      jdTitle
+    );
+
+    const projects = sortedProjectEntries
+      .slice(0, 4)
+      .map((e, idx) => {
+        const eligibleBullets = e.bullets || [];
+        const bulletByText = new Map(eligibleBullets.map((b) => [b.text.trim(), b]));
+        const angleSelection = selectProjectAnglePoints({
+          title: e.title,
+          descriptionContext: e.descriptionContext,
+          bullets: eligibleBullets.map((b) => ({
+            id: b.id,
+            text: b.text,
+            sortOrder: b.sortOrder,
+            relevanceScore: relevanceMap.get(b.id) ?? 0,
+          })),
+          jdKeywords,
+          jdTitle,
+          confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
+          maxBullets: 2,
+        });
+
+        return {
+          id: e.id,
+          name: e.title,
+          role: e.organization || undefined,
+          description: e.descriptionContext || undefined,
+          confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
+          bullets: angleSelection.bullets.map((text, bIdx) => {
+            const matchedBullet = bulletByText.get(text.trim());
+            return {
+              id: matchedBullet?.id || `${e.id}_ctx_${bIdx}`,
+              text,
+              provenance: "bank" as const,
+              sourceBulletIds: matchedBullet ? [matchedBullet.id] : [],
+              sourceFactIds: [],
+              validatorStatus: "not_applicable" as const,
+            };
+          }),
+        };
+      });
 
     const education = fullEntries
       .filter((e) => e.entryType === "education")
@@ -262,9 +306,28 @@ export class ResumeService {
   ) {
     const docId = `res_${crypto.randomUUID()}`;
     const versionId = `ver_${crypto.randomUUID()}`;
-    const userDefaults = await SettingsService.getUserSettings(userId);
-    const resolvedDocSeed =
-      initialDoc || (jobId ? await this.assembleInitialDocFromVault(userId, jobId) : undefined);
+    const [userDefaults, resolvedDocSeed, jdRows] = await Promise.all([
+      SettingsService.getUserSettings(userId),
+      initialDoc
+        ? Promise.resolve(initialDoc)
+        : jobId
+          ? this.assembleInitialDocFromVault(userId, jobId)
+          : Promise.resolve(undefined),
+      jobId
+        ? db
+            .select()
+            .from(jdAnalyses)
+            .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+    const jdAnalysis = jdRows[0]?.analysisJson as unknown as JDAnalysis | undefined;
+    const jdKeywords = jdAnalysis
+      ? [
+          ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
+          ...(jdAnalysis.role?.domain || []),
+        ].filter(Boolean)
+      : [];
     const resolvedTemplateId = resolvedDocSeed?.template?.id || userDefaults.defaultTemplateId || "classic-ats";
     const resolvedPageSize = resolvedDocSeed?.page?.size || userDefaults.defaultPageSize || "A4";
 
@@ -312,7 +375,8 @@ export class ResumeService {
         projects: resolvedDocSeed?.projects || [],
         certifications: resolvedDocSeed?.certifications || [],
         awards: resolvedDocSeed?.awards || [],
-      })
+      }),
+      { jdKeywords }
     );
 
     const docJsonString = JSON.stringify(canonicalDoc);

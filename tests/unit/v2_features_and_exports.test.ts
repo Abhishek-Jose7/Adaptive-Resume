@@ -13,6 +13,10 @@ import { countIndividualSkills } from "@/lib/cache/vaultClientCache";
 import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
 import { budgetResumeForOnePageA4, estimateA4DensityUnits } from "@/lib/editor/onePageA4Budgeter";
+import {
+  selectProjectAnglePoints,
+  sortProjectsByConfidenceAndRelevance,
+} from "@/lib/tailoring/projectAngleSelector";
 import { ResumeDoc } from "@/types/resume";
 
 describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () => {
@@ -508,5 +512,98 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     const zip = await JSZip.loadAsync(await docxBlob.arrayBuffer());
     const docXml = await zip.file("word/document.xml")!.async("string");
     expect(docXml).toContain("2x Hackathon Winner [PKP Hacks]");
+  });
+
+  it("selects distinct role angles from project descriptionContext and honors confidence ranking", () => {
+    const multiAngleProject = {
+      title: "Telemetry Cloud Hub",
+      descriptionContext: [
+        "Designed PostgreSQL partitioning and Redis caching pipelines sustaining 1,200 writes/sec.",
+        "Built semantic vector search with embeddings and LLM tool-calling agents for log triage.",
+        "Implemented responsive React and Tailwind dashboards for live alert inspection.",
+      ].join(" "),
+      bullets: [
+        { id: "b_stack", text: "Next.js | PostgreSQL | Redis | Embeddings", sortOrder: 0 },
+        { id: "b_gen", text: "Delivered telemetry portal for developer teams.", sortOrder: 1 },
+      ],
+    };
+
+    const backendAngle = selectProjectAnglePoints({
+      ...multiAngleProject,
+      jdKeywords: ["PostgreSQL", "Redis", "Backend", "API"],
+      jdTitle: "Backend Engineer",
+      maxBullets: 2,
+    });
+    expect(backendAngle.bullets[0]).toBe("Next.js | PostgreSQL | Redis | Embeddings");
+    expect(backendAngle.bullets.some((b) => b.includes("PostgreSQL partitioning"))).toBe(true);
+    expect(backendAngle.usedSummaryPointsCount).toBeGreaterThanOrEqual(1);
+
+    const aiAngle = selectProjectAnglePoints({
+      ...multiAngleProject,
+      jdKeywords: ["LLM", "Embeddings", "Agents", "Semantic Search"],
+      jdTitle: "AI Engineer",
+      maxBullets: 2,
+    });
+    expect(aiAngle.bullets.some((b) => b.includes("semantic vector search"))).toBe(true);
+
+    const frontendAngle = selectProjectAnglePoints({
+      ...multiAngleProject,
+      jdKeywords: ["React", "Tailwind", "Frontend", "UI"],
+      jdTitle: "Frontend Engineer",
+      maxBullets: 2,
+    });
+    expect(frontendAngle.bullets.some((b) => b.includes("React and Tailwind dashboards"))).toBe(true);
+
+    const rankedProjects = sortProjectsByConfidenceAndRelevance(
+      [
+        {
+          id: "proj_low_conf",
+          title: "SQL Helper CLI",
+          sortOrder: 3,
+          descriptionContext: "Built SQLite helper script.",
+          bullets: [{ id: "pb1", text: "Built SQLite query runner in Python." }],
+        },
+        {
+          id: "proj_high_conf",
+          title: "Query Engine Studio",
+          sortOrder: 0,
+          descriptionContext: "Built SQLite query runner in Python.",
+          bullets: [{ id: "pb2", text: "Built SQLite query runner in Python." }],
+        },
+      ],
+      ["Python", "SQLite"],
+      "Backend Intern"
+    );
+    expect(rankedProjects[0].id).toBe("proj_high_conf");
+
+    const confDoc: ResumeDoc = {
+      schemaVersion: 1,
+      documentId: "res_conf",
+      versionId: "ver_conf",
+      profile: { name: "Alex", fullName: "Alex", links: [] },
+      sections: [],
+      template: { id: "classic-ats", version: "1.0", theme: {} },
+      page: { size: "A4", targetPages: 1 },
+      metadata: { createdAt: new Date().toISOString() },
+      experience: [],
+      projects: [
+        {
+          id: "p_low",
+          name: "Low Confidence Project",
+          confidenceRank: 3,
+          bullets: [{ id: "pl1", text: "Built Python API service.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" }],
+        },
+        {
+          id: "p_high",
+          name: "High Confidence Project",
+          confidenceRank: 0,
+          bullets: [{ id: "ph1", text: "Built Python API service.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" }],
+        },
+      ],
+      education: [],
+      skills: [],
+    };
+    const budgeted = budgetResumeForOnePageA4(confDoc, { jdKeywords: ["Python", "API"] });
+    expect(budgeted.projects?.[0].id).toBe("p_high");
   });
 });

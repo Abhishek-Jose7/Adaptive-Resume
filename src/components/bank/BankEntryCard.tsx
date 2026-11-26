@@ -3,18 +3,22 @@
 import React, { useState, useMemo } from "react";
 import { BankEntry, AchievementBullet } from "@/types/bank";
 import { BulletEditor } from "./BulletEditor";
-import { Plus, Trash2, Edit, AlertTriangle, Sparkles } from "lucide-react";
+import { Plus, Trash2, Edit, AlertTriangle, Sparkles, ArrowUp, ArrowDown } from "lucide-react";
 import { getBulletSuggestions } from "@/lib/services/vaultSuggestionService";
 
 interface BankEntryCardProps {
   entry: BankEntry;
   allEntries?: BankEntry[];
+  confidenceRank?: number;
+  totalProjectsCount?: number;
   onEdit: (entry: BankEntry) => void;
   onDelete: (id: string) => Promise<void>;
   onAddBullet: (entryId: string, text: string) => Promise<void>;
   onUpdateBullet: (bulletId: string, updated: Partial<AchievementBullet>) => Promise<void>;
   onDeleteBullet: (bulletId: string) => Promise<void>;
   onReorderBullets?: (entryId: string, bulletIds: string[]) => Promise<void>;
+  onMoveProjectUp?: (entryId: string) => Promise<void>;
+  onMoveProjectDown?: (entryId: string) => Promise<void>;
   onQuantifyBullet?: (entry: BankEntry, bullet: AchievementBullet) => void;
 }
 
@@ -33,12 +37,16 @@ const typeLabel: Record<string, string> = {
 export function BankEntryCard({
   entry,
   allEntries,
+  confidenceRank,
+  totalProjectsCount,
   onEdit,
   onDelete,
   onAddBullet,
   onUpdateBullet,
   onDeleteBullet,
   onReorderBullets,
+  onMoveProjectUp,
+  onMoveProjectDown,
   onQuantifyBullet,
 }: BankEntryCardProps) {
   const [isAddingBullet, setIsAddingBullet] = useState(false);
@@ -93,6 +101,14 @@ export function BankEntryCard({
             <span className="border border-rule px-1.5 py-0.5 font-mono text-[10px] text-graphite">
               {typeLabel[entry.entryType] || entry.entryType.replace("_", " ")}
             </span>
+            {entry.entryType === "project" && typeof confidenceRank === "number" && (
+              <span
+                className="border border-stamp/40 bg-stamp-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-stamp"
+                title="Projects with higher confidence (#1 highest) are prioritized when tailoring for roles."
+              >
+                Confidence #{confidenceRank}
+              </span>
+            )}
           </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-graphite">
@@ -127,6 +143,29 @@ export function BankEntryCard({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
+          {entry.entryType === "project" &&
+            typeof confidenceRank === "number" &&
+            onMoveProjectUp &&
+            onMoveProjectDown && (
+              <>
+                <button
+                  onClick={() => void onMoveProjectUp(entry.id)}
+                  disabled={confidenceRank <= 1}
+                  className="btn btn-icon disabled:opacity-35"
+                  title="Increase project confidence rank"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.7} />
+                </button>
+                <button
+                  onClick={() => void onMoveProjectDown(entry.id)}
+                  disabled={confidenceRank >= (totalProjectsCount ?? confidenceRank)}
+                  className="btn btn-icon disabled:opacity-35"
+                  title="Decrease project confidence rank"
+                >
+                  <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.7} />
+                </button>
+              </>
+            )}
           <button onClick={() => onEdit(entry)} className="btn btn-icon" title="Edit entry">
             <Edit className="h-3.5 w-3.5" strokeWidth={1.7} />
           </button>

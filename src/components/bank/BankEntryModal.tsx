@@ -55,7 +55,7 @@ const ENTRY_FORM_CONFIG: Record<EntryType, EntryFieldConfig> = {
   project: {
     noun: "Project",
     titleLabel: "Project Name *",
-    titlePlaceholder: "e.g., ideOS — Cross-IDE Development Continuity Layer",
+    titlePlaceholder: "e.g., Real-Time Collaborative Code Editor",
     orgLabel: "Your Role / Team (optional)",
     orgPlaceholder: "e.g., Solo Builder, Team Lead, Open Source",
     suggestOrgFromVault: false,
@@ -67,7 +67,7 @@ const ENTRY_FORM_CONFIG: Record<EntryType, EntryFieldConfig> = {
     techStackPlaceholder: "e.g., TypeScript, Next.js, PostgreSQL, Redis",
     bulletsLabel: "Project Highlights & Outcomes (one per line)",
     bulletsPlaceholder:
-      "Designed cross-IDE state sync cutting context-switching overhead across sessions\nImplemented incremental indexing over 50k+ files with sub-100ms query latency",
+      "Built collaborative document sync with WebSockets supporting 200+ concurrent sessions\nIndexed 50k+ code snippets with full-text search under 80ms p95 latency",
     contextLabel: "Project Overview / Architecture Notes (optional)",
     contextPlaceholder: "Problem solved, architecture decisions, constraints, or live link.",
   },
@@ -122,7 +122,7 @@ const ENTRY_FORM_CONFIG: Record<EntryType, EntryFieldConfig> = {
     dateMode: "single",
     singleDateLabel: "Date Received",
     bulletsLabel: "What You Built / Recognition Details (optional, one per line)",
-    bulletsPlaceholder: "Ranked 1st out of 150 teams for building an AI legal assistant in 24 hours",
+    bulletsPlaceholder: "Ranked 1st out of 150 teams for building an AI healthcare triage prototype in 24 hours",
     contextLabel: "Competition Context (optional)",
     contextPlaceholder: "Team size, prize category, or project built.",
   },

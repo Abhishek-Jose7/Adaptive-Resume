@@ -85,6 +85,7 @@ export interface ResumeProject {
   role?: string;
   url?: string;
   description?: string;
+  confidenceRank?: number;
   bullets: ResumeBulletDoc[];
 }
 

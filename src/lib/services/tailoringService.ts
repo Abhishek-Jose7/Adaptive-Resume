@@ -134,86 +134,86 @@ export class TailoringService {
           .where(eq(bulletFacts.userId, userId)),
       ]);
 
-    // Assemble hierarchical entries
-    const factsByBullet = new Map<string, StructuredFact[]>();
-    for (const f of userFacts) {
-      if (f.bulletId) {
-        const list = factsByBullet.get(f.bulletId) || [];
-        list.push(f as unknown as StructuredFact);
-        factsByBullet.set(f.bulletId, list);
-      }
-    }
-
-    const bulletsByEntry = new Map<string, AchievementBullet[]>();
-    for (const b of userBullets) {
-      const bObj: AchievementBullet = {
-        ...(b as unknown as AchievementBullet),
-        facts: factsByBullet.get(b.id) || [],
-      };
-      const list = bulletsByEntry.get(b.entryId) || [];
-      list.push(bObj);
-      bulletsByEntry.set(b.entryId, list);
-    }
-
-    const fullEntries: BankEntry[] = userEntries.map((e) => ({
-      ...(e as unknown as BankEntry),
-      bullets: bulletsByEntry.get(e.id) || [],
-    }));
-
-    // 3. Candidate Retrieval & Budgeting (Section 10.3)
-    const retrieval = BulletRetriever.retrieveCandidates(fullEntries, jdAnalysis);
-    let candidates = retrieval.candidates;
-
-    // Filter by mode (PRD Section 10 & T1)
-    if (options?.mode === "single_bullet" && options?.targetBulletId) {
-      candidates = candidates.filter((c) => c.bullet.id === options.targetBulletId);
-      if (candidates.length === 0) {
-        for (const ent of fullEntries) {
-          const b = (ent.bullets || []).find((bul) => bul.id === options.targetBulletId);
-          if (b) {
-            candidates = [{
-              bullet: b,
-              parentEntry: ent,
-              facts: b.facts || [],
-              scoreBreakdown: {
-                bulletId: b.id,
-                totalScore: 50,
-                mustHaveScore: 15,
-                responsibilityScore: 10,
-                outcomeScore: 10,
-                domainScore: 5,
-                recencyScore: 5,
-                seniorityScore: 5,
-                importanceScore: 0,
-                matchedKeywords: jdAnalysis.keywords.slice(0, 5).map((k) => k.canonical),
-                isExcluded: false,
-              },
-            }];
-            break;
-          }
+      // Assemble hierarchical entries
+      const factsByBullet = new Map<string, StructuredFact[]>();
+      for (const f of userFacts) {
+        if (f.bulletId) {
+          const list = factsByBullet.get(f.bulletId) || [];
+          list.push(f as unknown as StructuredFact);
+          factsByBullet.set(f.bulletId, list);
         }
       }
-    } else if (options?.mode === "single_section" && options?.targetSectionType) {
-      candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
-    }
 
-    const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
-    let totalTokensIn = 0;
-    let totalTokensOut = 0;
-    const modelsUsed = new Set<string>();
-    const tailoredResults: TailoredBulletResult[] = [];
+      const bulletsByEntry = new Map<string, AchievementBullet[]>();
+      for (const b of userBullets) {
+        const bObj: AchievementBullet = {
+          ...(b as unknown as AchievementBullet),
+          facts: factsByBullet.get(b.id) || [],
+        };
+        const list = bulletsByEntry.get(b.entryId) || [];
+        list.push(bObj);
+        bulletsByEntry.set(b.entryId, list);
+      }
 
-    // Run Canary Trap Detection on target job raw text
-    const canaryScan = CanaryDetector.detectCanaryTraps(jobList[0].rawText || "");
-    const quarantinedKeywords = canaryScan.quarantinedKeywords;
-    const allJdKeywords = (jdAnalysis.keywords || []).map((k) => k.canonical);
+      const fullEntries: BankEntry[] = userEntries.map((e) => ({
+        ...(e as unknown as BankEntry),
+        bullets: bulletsByEntry.get(e.id) || [],
+      }));
 
-    // System prompt enforcing Section 10.4 truth-grounded rules & Google XYZ methodology
-    const systemPrompt = `You are a Truth-Bound Resume Tailoring Assistant implementing Google's XYZ Achievement-Writing Methodology:
+      // 3. Candidate Retrieval & Budgeting (Section 10.3)
+      const retrieval = BulletRetriever.retrieveCandidates(fullEntries, jdAnalysis);
+      let candidates = retrieval.candidates;
+
+      // Filter by mode (PRD Section 10 & T1)
+      if (options?.mode === "single_bullet" && options?.targetBulletId) {
+        candidates = candidates.filter((c) => c.bullet.id === options.targetBulletId);
+        if (candidates.length === 0) {
+          for (const ent of fullEntries) {
+            const b = (ent.bullets || []).find((bul) => bul.id === options.targetBulletId);
+            if (b) {
+              candidates = [{
+                bullet: b,
+                parentEntry: ent,
+                facts: b.facts || [],
+                scoreBreakdown: {
+                  bulletId: b.id,
+                  totalScore: 50,
+                  mustHaveScore: 15,
+                  responsibilityScore: 10,
+                  outcomeScore: 10,
+                  domainScore: 5,
+                  recencyScore: 5,
+                  seniorityScore: 5,
+                  importanceScore: 0,
+                  matchedKeywords: jdAnalysis.keywords.slice(0, 5).map((k) => k.canonical),
+                  isExcluded: false,
+                },
+              }];
+              break;
+            }
+          }
+        }
+      } else if (options?.mode === "single_section" && options?.targetSectionType) {
+        candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
+      }
+
+      const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
+      let totalTokensIn = 0;
+      let totalTokensOut = 0;
+      const modelsUsed = new Set<string>();
+      const tailoredResults: TailoredBulletResult[] = [];
+
+      // Run Canary Trap Detection on target job raw text
+      const canaryScan = CanaryDetector.detectCanaryTraps(jobList[0].rawText || "");
+      const quarantinedKeywords = canaryScan.quarantinedKeywords;
+      const allJdKeywords = (jdAnalysis.keywords || []).map((k) => k.canonical);
+
+      // System prompt enforcing Section 10.4 truth-grounded rules & Google XYZ methodology
+      const systemPrompt = `You are a Truth-Bound Resume Tailoring Assistant implementing Google's XYZ Achievement-Writing Methodology:
 "Accomplished [X], as measured by [Y], by doing [Z]"
 
 CRITICAL INTEGRITY AND WRITING RULES:
-1. Every factual claim MUST be explicitly entailed by the provided source bullet and structured facts.
+1. Every factual claim MUST be explicitly entailed by the provided source bullet, parentEntry descriptionContext, or structured facts. When parentEntry.descriptionContext contains verified details aligning with jdTarget (e.g., system architecture, backend, AI/embeddings, or frontend focus), emphasize that role-relevant angle honestly.
 2. NEVER invent, extrapolate, or hallucinate metrics, percentages, tools, employers, or outcomes.
 3. If verified metrics exist in the source bullet or facts, format with measurable evidence [Y].
 4. If metric [Y] is unavailable in source evidence:
@@ -222,7 +222,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
 5. Do NOT promote scope (e.g. do not turn "assisted" or "contributed" into "led", "architected", or "owned").
 6. RECRUITER HONEY-POT & CANARY TRAP PROTECTION:
    Recruiters intentionally plant fake skills and trap technologies (e.g. "Cribbage programming language", made-up frameworks/databases) to catch and auto-reject AI resumes.
-   - NEVER adopt, mirror, or insert ANY technology, language, library, or tool from the job description unless that exact tool is explicitly evidenced in the candidate's provided source bullet or verified facts.
+   - NEVER adopt, mirror, or insert ANY technology, language, library, or tool from the job description unless that exact tool is explicitly evidenced in the candidate's provided source bullet, parentEntry descriptionContext, or verified facts.
    - If the job description requires a tool the candidate has not used, completely omit it. Never claim familiarity.
 7. Return a structured JSON object matching RewrittenBullet:
    - text: string (concise, active achievement bullet)
@@ -232,31 +232,37 @@ CRITICAL INTEGRITY AND WRITING RULES:
    - suggestedMetricQuestion?: string | null
    - xyzStructure?: { accomplishedX: string; measuredByY: string | null; byDoingZ: string } | null`;
 
-    const allCandidateBullets = candidates.map((c) => c.bullet);
-    const allCandidateFacts = userFacts as unknown as StructuredFact[];
+      const allCandidateBullets = candidates.map((c) => c.bullet);
+      const allCandidateFacts = userFacts as unknown as StructuredFact[];
 
     // 4. Tailor candidate bullets in bounded concurrent chunks for maximum speed
     const tailorCandidate = async (item: typeof candidates[0]): Promise<TailoredBulletResult> => {
       const sourceBullet = item.bullet;
-      const relevantKeywords = item.scoreBreakdown.matchedKeywords;
+      const entryContextLower = `${item.parentEntry.title || ""} ${item.parentEntry.descriptionContext || ""}`.toLowerCase();
+      const contextMatchedKeywords = allJdKeywords.filter(
+        (kw) => kw && entryContextLower.includes(kw.toLowerCase())
+      );
+      const relevantKeywords = Array.from(
+        new Set([...item.scoreBreakdown.matchedKeywords, ...contextMatchedKeywords])
+      );
 
-      // Check if bullet is pinned (PRD Section 10.4 & T9)
-      const isPinned = options?.pinnedBulletIds?.includes(sourceBullet.id);
-      if (isPinned) {
-        return {
-          bulletId: sourceBullet.id,
-          originalText: sourceBullet.text,
-          rewrittenText: sourceBullet.text,
-          sourceBulletIds: [sourceBullet.id],
-          sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
-          claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
-          validatorStatus: "passed",
-          validationNotes: ["Preserved: bullet is pinned by candidate (PRD Section 10.4 & T9)"],
-          retryCount: 0,
-          status: "accepted",
-          diffChunks: [{ value: sourceBullet.text }],
-        };
-      }
+        // Check if bullet is pinned (PRD Section 10.4 & T9)
+        const isPinned = options?.pinnedBulletIds?.includes(sourceBullet.id);
+        if (isPinned) {
+          return {
+            bulletId: sourceBullet.id,
+            originalText: sourceBullet.text,
+            rewrittenText: sourceBullet.text,
+            sourceBulletIds: [sourceBullet.id],
+            sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+            claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+            validatorStatus: "passed",
+            validationNotes: ["Preserved: bullet is pinned by candidate (PRD Section 10.4 & T9)"],
+            retryCount: 0,
+            status: "accepted",
+            diffChunks: [{ value: sourceBullet.text }],
+          };
+        }
 
       const userPayload = {
         sourceBullet,
@@ -268,6 +274,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
         facts: item.facts,
         jdTarget: {
           title: jdAnalysis.role.title,
+          roleDomain: jdAnalysis.role.domain,
           targetKeywords: relevantKeywords,
         },
       };
@@ -288,198 +295,198 @@ CRITICAL INTEGRITY AND WRITING RULES:
           temperature: 0.1,
         };
 
-        const res = await provider.generateStructured<RewrittenBullet>(llmInput);
-        if (res.model) modelsUsed.add(res.model);
-        if (res.usage) {
-          totalTokensIn += res.usage.promptTokens;
-          totalTokensOut += res.usage.completionTokens;
-        }
-
-        let candidateRewrite: RewrittenBullet = res.data;
-        if (!candidateRewrite || typeof candidateRewrite !== "object") {
-          candidateRewrite = {
-            text: sourceBullet.text,
-            sourceBulletIds: [sourceBullet.id],
-            sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
-            claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
-            validatorStatus: "not_applicable",
-          };
-        } else {
-          if (!candidateRewrite.text || typeof candidateRewrite.text !== "string") {
-            candidateRewrite.text = sourceBullet.text;
+          const res = await provider.generateStructured<RewrittenBullet>(llmInput);
+          if (res.model) modelsUsed.add(res.model);
+          if (res.usage) {
+            totalTokensIn += res.usage.promptTokens;
+            totalTokensOut += res.usage.completionTokens;
           }
-          if (!Array.isArray(candidateRewrite.sourceBulletIds) || candidateRewrite.sourceBulletIds.length === 0) {
-            candidateRewrite.sourceBulletIds = [sourceBullet.id];
-          }
-          if (!Array.isArray(candidateRewrite.sourceFactIds)) {
-            candidateRewrite.sourceFactIds = (sourceBullet.facts || []).map((f) => f.id);
-          }
-          if (!Array.isArray(candidateRewrite.claimMap)) {
-            candidateRewrite.claimMap = [
-              { claim: candidateRewrite.text, evidenceIds: candidateRewrite.sourceBulletIds, claimType: "action" },
-            ];
-          }
-          if (!candidateRewrite.validatorStatus) {
-            candidateRewrite.validatorStatus = "not_applicable";
-          }
-        }
 
-        // Scope evidence strictly to the target entry being tailored (Experience Isolation & Truth Scoping)
-        const targetEntryBullets = allCandidateBullets.filter((b) => b.entryId === item.parentEntry.id);
-        const targetBulletIds = new Set(targetEntryBullets.map((b) => b.id));
-        const targetEntryFacts = allCandidateFacts.filter(
-          (f: any) => f.entryId === item.parentEntry.id || (f.bulletId && targetBulletIds.has(f.bulletId))
-        );
-        const targetEntries = fullEntries.filter((e) => e.id === item.parentEntry.id);
-
-        // Run Deterministic Truth-Bound Validation scoped strictly to target entry with Canary Shield
-        const validation = TruthBoundValidator.validate(
-          candidateRewrite,
-          targetEntryBullets,
-          targetEntryFacts,
-          targetEntries,
-          item.parentEntry.id,
-          {
-            quarantinedKeywords,
-            targetKeywords: relevantKeywords.length > 0 ? relevantKeywords : allJdKeywords,
-          }
-        );
-
-        // Run Experience Isolation Audit (Section 18.2)
-        const isolationCheck = ExperienceIsolationEngine.auditIsolation(
-          candidateRewrite.text,
-          item.parentEntry.id,
-          fullEntries,
-          allCandidateBullets,
-          allCandidateFacts as any
-        );
-
-        if (!isolationCheck.isIsolated) {
-          validation.isValid = false;
-          validation.failures.push({
-            rule: "UNGROUNDED_SCOPE",
-            message: isolationCheck.violationMessage || "Experience isolation violation",
-          });
-          validation.feedbackForRetry = isolationCheck.violationMessage;
-        }
-
-        if (validation.isValid) {
-          // Compute diff
-          const diff = diffWords(sourceBullet.text, candidateRewrite.text);
-          const diffChunks: DiffChunk[] = diff.map((part) => ({
-            value: part.value,
-            added: Boolean(part.added),
-            removed: Boolean(part.removed),
-          }));
-          const diffHtml = diff
-            .map((part) => {
-              const escaped = escapeHtml(part.value);
-              if (part.added) return `<ins class="bg-press text-press">${escaped}</ins>`;
-              if (part.removed) return `<del class="bg-alarm text-alarm line-through">${escaped}</del>`;
-              return escaped;
-            })
-            .join("");
-
-          return {
-            bulletId: sourceBullet.id,
-            originalText: sourceBullet.text,
-            rewrittenText: candidateRewrite.text,
-            sourceBulletIds: candidateRewrite.sourceBulletIds,
-            sourceFactIds: candidateRewrite.sourceFactIds,
-            claimMap: candidateRewrite.claimMap,
-            validatorStatus: "passed",
-            validationNotes: ["Passed all truth-bound validation checks."],
-            retryCount: attempt - 1,
-            status: "pending",
-            diffHtml,
-            diffChunks,
-            suggestedMetricQuestion:
-              candidateRewrite.suggestedMetricQuestion ||
-              (sourceBullet.facts && sourceBullet.facts.length > 0
-                ? null
-                : XyzRewriterService.generateMetricQuestion(sourceBullet.text)),
-            xyzStructure: candidateRewrite.xyzStructure || {
-              accomplishedX: candidateRewrite.text,
-              measuredByY: null,
-              byDoingZ: "Targeted implementation",
-            },
-          };
-        } else {
-          // If 1st attempt failed, set feedback and retry
-          if (attempt === 1) {
-            promptFeedback = validation.feedbackForRetry || "Validation failed";
+          let candidateRewrite: RewrittenBullet = res.data;
+          if (!candidateRewrite || typeof candidateRewrite !== "object") {
+            candidateRewrite = {
+              text: sourceBullet.text,
+              sourceBulletIds: [sourceBullet.id],
+              sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+              claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+              validatorStatus: "not_applicable",
+            };
           } else {
-            // Second attempt failed: Mandatory conservative fallback to source bullet (PRD 10.4 Rule 9)
+            if (!candidateRewrite.text || typeof candidateRewrite.text !== "string") {
+              candidateRewrite.text = sourceBullet.text;
+            }
+            if (!Array.isArray(candidateRewrite.sourceBulletIds) || candidateRewrite.sourceBulletIds.length === 0) {
+              candidateRewrite.sourceBulletIds = [sourceBullet.id];
+            }
+            if (!Array.isArray(candidateRewrite.sourceFactIds)) {
+              candidateRewrite.sourceFactIds = (sourceBullet.facts || []).map((f) => f.id);
+            }
+            if (!Array.isArray(candidateRewrite.claimMap)) {
+              candidateRewrite.claimMap = [
+                { claim: candidateRewrite.text, evidenceIds: candidateRewrite.sourceBulletIds, claimType: "action" },
+              ];
+            }
+            if (!candidateRewrite.validatorStatus) {
+              candidateRewrite.validatorStatus = "not_applicable";
+            }
+          }
+
+          // Scope evidence strictly to the target entry being tailored (Experience Isolation & Truth Scoping)
+          const targetEntryBullets = allCandidateBullets.filter((b) => b.entryId === item.parentEntry.id);
+          const targetBulletIds = new Set(targetEntryBullets.map((b) => b.id));
+          const targetEntryFacts = allCandidateFacts.filter(
+            (f: any) => f.entryId === item.parentEntry.id || (f.bulletId && targetBulletIds.has(f.bulletId))
+          );
+          const targetEntries = fullEntries.filter((e) => e.id === item.parentEntry.id);
+
+          // Run Deterministic Truth-Bound Validation scoped strictly to target entry with Canary Shield
+          const validation = TruthBoundValidator.validate(
+            candidateRewrite,
+            targetEntryBullets,
+            targetEntryFacts,
+            targetEntries,
+            item.parentEntry.id,
+            {
+              quarantinedKeywords,
+              targetKeywords: relevantKeywords.length > 0 ? relevantKeywords : allJdKeywords,
+            }
+          );
+
+          // Run Experience Isolation Audit (Section 18.2)
+          const isolationCheck = ExperienceIsolationEngine.auditIsolation(
+            candidateRewrite.text,
+            item.parentEntry.id,
+            fullEntries,
+            allCandidateBullets,
+            allCandidateFacts as any
+          );
+
+          if (!isolationCheck.isIsolated) {
+            validation.isValid = false;
+            validation.failures.push({
+              rule: "UNGROUNDED_SCOPE",
+              message: isolationCheck.violationMessage || "Experience isolation violation",
+            });
+            validation.feedbackForRetry = isolationCheck.violationMessage;
+          }
+
+          if (validation.isValid) {
+            // Compute diff
+            const diff = diffWords(sourceBullet.text, candidateRewrite.text);
+            const diffChunks: DiffChunk[] = diff.map((part) => ({
+              value: part.value,
+              added: Boolean(part.added),
+              removed: Boolean(part.removed),
+            }));
+            const diffHtml = diff
+              .map((part) => {
+                const escaped = escapeHtml(part.value);
+                if (part.added) return `<ins class="bg-press text-press">${escaped}</ins>`;
+                if (part.removed) return `<del class="bg-alarm text-alarm line-through">${escaped}</del>`;
+                return escaped;
+              })
+              .join("");
+
             return {
               bulletId: sourceBullet.id,
               originalText: sourceBullet.text,
-              rewrittenText: sourceBullet.text,
-              sourceBulletIds: [sourceBullet.id],
-              sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
-              claimMap: [
-                {
-                  claim: sourceBullet.text,
-                  evidenceIds: [sourceBullet.id],
-                  claimType: "action",
-                },
-              ],
-              validatorStatus: "fallback_to_source",
-              validationNotes: [
-                `AI rewrite rejected: ${validation.feedbackForRetry}`,
-                "Fell back to verified source bullet to guarantee zero hallucination.",
-              ],
+              rewrittenText: candidateRewrite.text,
+              sourceBulletIds: candidateRewrite.sourceBulletIds,
+              sourceFactIds: candidateRewrite.sourceFactIds,
+              claimMap: candidateRewrite.claimMap,
+              validatorStatus: "passed",
+              validationNotes: ["Passed all truth-bound validation checks."],
               retryCount: attempt - 1,
               status: "pending",
-              diffHtml: escapeHtml(sourceBullet.text),
-              diffChunks: [{ value: sourceBullet.text }],
-              suggestedMetricQuestion: XyzRewriterService.generateMetricQuestion(sourceBullet.text),
-              xyzStructure: null,
+              diffHtml,
+              diffChunks,
+              suggestedMetricQuestion:
+                candidateRewrite.suggestedMetricQuestion ||
+                (sourceBullet.facts && sourceBullet.facts.length > 0
+                  ? null
+                  : XyzRewriterService.generateMetricQuestion(sourceBullet.text)),
+              xyzStructure: candidateRewrite.xyzStructure || {
+                accomplishedX: candidateRewrite.text,
+                measuredByY: null,
+                byDoingZ: "Targeted implementation",
+              },
             };
+          } else {
+            // If 1st attempt failed, set feedback and retry
+            if (attempt === 1) {
+              promptFeedback = validation.feedbackForRetry || "Validation failed";
+            } else {
+              // Second attempt failed: Mandatory conservative fallback to source bullet (PRD 10.4 Rule 9)
+              return {
+                bulletId: sourceBullet.id,
+                originalText: sourceBullet.text,
+                rewrittenText: sourceBullet.text,
+                sourceBulletIds: [sourceBullet.id],
+                sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+                claimMap: [
+                  {
+                    claim: sourceBullet.text,
+                    evidenceIds: [sourceBullet.id],
+                    claimType: "action",
+                  },
+                ],
+                validatorStatus: "fallback_to_source",
+                validationNotes: [
+                  `AI rewrite rejected: ${validation.feedbackForRetry}`,
+                  "Fell back to verified source bullet to guarantee zero hallucination.",
+                ],
+                retryCount: attempt - 1,
+                status: "pending",
+                diffHtml: escapeHtml(sourceBullet.text),
+                diffChunks: [{ value: sourceBullet.text }],
+                suggestedMetricQuestion: XyzRewriterService.generateMetricQuestion(sourceBullet.text),
+                xyzStructure: null,
+              };
+            }
           }
         }
+
+        return {
+          bulletId: sourceBullet.id,
+          originalText: sourceBullet.text,
+          rewrittenText: sourceBullet.text,
+          sourceBulletIds: [sourceBullet.id],
+          sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+          claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
+          validatorStatus: "fallback_to_source",
+          validationNotes: ["Fell back to verified source bullet."],
+          retryCount: 0,
+          status: "pending",
+          diffChunks: [{ value: sourceBullet.text }],
+        };
+      };
+
+      // Run candidate rewrites in bounded concurrent chunks (3 at a time) for speed and rate-limit safety
+      const chunkSize = 3;
+      for (let i = 0; i < candidates.length; i += chunkSize) {
+        const chunk = candidates.slice(i, i + chunkSize);
+        const results = await Promise.all(chunk.map((item) => tailorCandidate(item)));
+        tailoredResults.push(...results);
       }
 
-      return {
-        bulletId: sourceBullet.id,
-        originalText: sourceBullet.text,
-        rewrittenText: sourceBullet.text,
-        sourceBulletIds: [sourceBullet.id],
-        sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
-        claimMap: [{ claim: sourceBullet.text, evidenceIds: [sourceBullet.id], claimType: "action" }],
-        validatorStatus: "fallback_to_source",
-        validationNotes: ["Fell back to verified source bullet."],
-        retryCount: 0,
-        status: "pending",
-        diffChunks: [{ value: sourceBullet.text }],
+      // 5. Store AI Run Record
+      const runId = crypto.randomUUID();
+      const resolvedProvider = provider.name;
+      const resolvedModel =
+        modelsUsed.size > 0 ? Array.from(modelsUsed).join(", ") : provider.name;
+      const newRun = {
+        id: runId,
+        userId,
+        taskType: "rewrite",
+        jobId,
+        resumeVersionId: null,
+        provider: resolvedProvider,
+        model: resolvedModel,
+        promptVersion: "v1.0",
+        tokensIn: totalTokensIn,
+        tokensOut: totalTokensOut,
+        validatorReportJson: { results: tailoredResults } as any,
       };
-    };
-
-    // Run candidate rewrites in bounded concurrent chunks (3 at a time) for speed and rate-limit safety
-    const chunkSize = 3;
-    for (let i = 0; i < candidates.length; i += chunkSize) {
-      const chunk = candidates.slice(i, i + chunkSize);
-      const results = await Promise.all(chunk.map((item) => tailorCandidate(item)));
-      tailoredResults.push(...results);
-    }
-
-    // 5. Store AI Run Record
-    const runId = crypto.randomUUID();
-    const resolvedProvider = provider.name;
-    const resolvedModel =
-      modelsUsed.size > 0 ? Array.from(modelsUsed).join(", ") : provider.name;
-    const newRun = {
-      id: runId,
-      userId,
-      taskType: "rewrite",
-      jobId,
-      resumeVersionId: null,
-      provider: resolvedProvider,
-      model: resolvedModel,
-      promptVersion: "v1.0",
-      tokensIn: totalTokensIn,
-      tokensOut: totalTokensOut,
-      validatorReportJson: { results: tailoredResults } as any,
-    };
 
       await db.insert(aiRuns).values(newRun);
       await UsageLimitService.recordAiTokens(userId, totalTokensIn + totalTokensOut);

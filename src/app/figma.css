@@ -1895,52 +1895,6 @@
 
 
 
-.trust-section {
-  background: var(--acid);
-  min-height: 800px;
-  padding: 12vw 7vw;
-  display: grid;
-  grid-template-columns: 0.35fr 1fr 1fr;
-  gap: 6vw;
-  align-items: center;
-  color: #201f18;
-}
-.trust-stamp {
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  width: 150px;
-  height: 150px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transform: rotate(-9deg);
-}
-.trust-stamp span {
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-  margin-top: 8px;
-}
-.trust-copy > p {
-  font-size: 18px;
-  line-height: 1.55;
-}
-.trust-copy > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  border-top: 1px solid rgba(0, 0, 0, 0.35);
-  padding-top: 20px;
-}
-.trust-copy span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-}
-
 .final-cta {
   min-height: 850px;
   display: flex;
@@ -2886,12 +2840,6 @@ footer > span {
     border-right: 0;
     border-bottom: 1px solid var(--ink);
   }
-  .trust-section {
-    grid-template-columns: auto 1fr;
-  }
-  .trust-copy {
-    grid-column: 2;
-  }
   .dashboard {
     grid-template-columns: 76px 1fr;
   }
@@ -3008,21 +2956,6 @@ footer > span {
   .step-card {
     padding: 24px 18px;
     min-height: auto;
-  }
-  .trust-section {
-    padding: 56px 16px;
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  .trust-copy {
-    grid-column: auto;
-  }
-  .trust-stamp {
-    width: 76px;
-    height: 76px;
-  }
-  .trust-section h2 {
-    font-size: clamp(28px, 7vw, 38px);
   }
   .final-cta {
     padding: 64px 16px;

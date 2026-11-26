@@ -19,6 +19,14 @@ import {
   setCachedVaultSnapshot,
 } from "@/lib/cache/vaultClientCache";
 
+function sortEntriesForVault(a: BankEntry, b: BankEntry): number {
+  if (a.entryType === "project" && b.entryType === "project") {
+    const orderDiff = (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
+    if (orderDiff !== 0) return orderDiff;
+  }
+  return compareReverseChronological(a, b);
+}
+
 export default function DataBankPage() {
   const [viewMode, setViewMode] = useState<"facts" | "graph">("facts");
   const [entries, setEntries] = useState<BankEntry[]>([]);
@@ -46,7 +54,7 @@ export default function DataBankPage() {
     if (isUnfiltered && !forceRefresh) {
       const cached = getCachedVaultSnapshot();
       if (cached?.items) {
-        const sortedCached = [...cached.items].sort((a, b) => compareReverseChronological(a, b));
+        const sortedCached = [...cached.items].sort(sortEntriesForVault);
         setEntries(sortedCached);
         setVaultEntries(sortedCached);
         if (cached.completeness) setCompleteness(cached.completeness);
@@ -77,7 +85,7 @@ export default function DataBankPage() {
         comp = data.completeness;
       }
 
-      const items = [...rawItems].sort((a, b) => compareReverseChronological(a, b));
+      const items = [...rawItems].sort(sortEntriesForVault);
       setEntries(items);
       if (isUnfiltered) {
         setVaultEntries(items);
@@ -216,6 +224,64 @@ export default function DataBankPage() {
       await fetchEntries(true);
     }
   };
+
+  const handleMoveProjectConfidence = async (entryId: string, direction: "up" | "down") => {
+    const sourceList = vaultEntries.length > 0 ? vaultEntries : entries;
+    const projectsOrdered = sourceList
+      .filter((e) => e.entryType === "project")
+      .sort(sortEntriesForVault);
+    const idx = projectsOrdered.findIndex((p) => p.id === entryId);
+    if (idx === -1) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= projectsOrdered.length) return;
+
+    const nextProjects = [...projectsOrdered];
+    const [moved] = nextProjects.splice(idx, 1);
+    nextProjects.splice(targetIdx, 0, moved);
+
+    const orderMap: Record<string, number> = {};
+    nextProjects.forEach((p, orderIdx) => {
+      orderMap[p.id] = orderIdx;
+    });
+
+    const applySortOrders = (list: BankEntry[]) =>
+      list
+        .map((item) =>
+          item.entryType === "project" && Object.prototype.hasOwnProperty.call(orderMap, item.id)
+            ? { ...item, sortOrder: orderMap[item.id] }
+            : item
+        )
+        .sort(sortEntriesForVault);
+
+    setEntries((prev) => applySortOrders(prev));
+    setVaultEntries((prev) => {
+      const updated = applySortOrders(prev);
+      setCachedVaultSnapshot({ items: updated, completeness, fetchedAt: Date.now() });
+      return updated;
+    });
+
+    const res = await fetch("/api/v1/bank/entries/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "reorder",
+        entryIds: Object.keys(orderMap),
+        orderMap,
+      }),
+    });
+    if (!res.ok) {
+      invalidateVaultCache();
+      await fetchEntries(true);
+    }
+  };
+
+  const allOrderedProjects = (vaultEntries.length > 0 ? vaultEntries : entries)
+    .filter((e) => e.entryType === "project")
+    .sort(sortEntriesForVault);
+  const projectConfidenceRankById = new Map<string, number>();
+  allOrderedProjects.forEach((p, idx) => {
+    projectConfidenceRankById.set(p.id, idx + 1);
+  });
 
   const handleDetectDuplicates = async () => {
     const res = await fetch("/api/v1/bank/entries/bulk", {
@@ -453,6 +519,10 @@ export default function DataBankPage() {
                     key={entry.id}
                     entry={entry}
                     allEntries={vaultEntries.length > 0 ? vaultEntries : entries}
+                    confidenceRank={projectConfidenceRankById.get(entry.id)}
+                    totalProjectsCount={allOrderedProjects.length}
+                    onMoveProjectUp={(id) => handleMoveProjectConfidence(id, "up")}
+                    onMoveProjectDown={(id) => handleMoveProjectConfidence(id, "down")}
                     onEdit={(e) => {
                       setEntryToEdit(e);
                       setIsModalOpen(true);

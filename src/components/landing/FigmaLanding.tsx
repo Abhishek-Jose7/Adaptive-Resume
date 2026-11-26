@@ -1450,43 +1450,6 @@ export function FigmaLanding() {
         </div>
       </section>
 
-      {/* Section 04 — Privacy Trust Section */}
-      <section className="trust-section" id="privacy">
-        <div className="trust-stamp">
-          <FigmaIcon name="lock" size={32} />
-          <span>
-            PRIVATE
-            <br />
-            BY DEFAULT
-          </span>
-        </div>
-        <div>
-          <span className="section-index">DATA PRIVACY &amp; SECURITY</span>
-          <h2>
-            Your career data is private.
-            <br />
-            Period.
-          </h2>
-        </div>
-        <div className="trust-copy">
-          <p>
-            Your work history is deeply personal. We use it only to generate the resumes you
-            request—never to train public models, never to sell ads, and never to share with recruiters.
-          </p>
-          <div>
-            <span>
-              <FigmaIcon name="check" size={16} /> AES-256 Encrypted
-            </span>
-            <span>
-              <FigmaIcon name="check" size={16} /> Export anytime
-            </span>
-            <span>
-              <FigmaIcon name="check" size={16} /> Delete in one click
-            </span>
-          </div>
-        </div>
-      </section>
-
       {/* Final CTA Section */}
       <section className="final-cta">
         <div className="cta-star">✦</div>

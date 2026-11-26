@@ -15,6 +15,10 @@ import {
 } from "@/lib/cache/vaultClientCache";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { analyzeRoleFitAgainstVault, extractRoleTitleFromJd } from "@/lib/scoring/roleFitInsight";
+import {
+  selectProjectAnglePoints,
+  sortProjectsByConfidenceAndRelevance,
+} from "@/lib/tailoring/projectAngleSelector";
 
 interface BankEntry {
   id: string;
@@ -25,9 +29,10 @@ interface BankEntry {
   startDate?: string | null;
   endDate?: string | null;
   isCurrent?: boolean;
+  sortOrder?: number;
   descriptionContext?: string | null;
   facts?: Array<{ factType: string; valueText: string }>;
-  bullets?: Array<{ id: string; text: string; facts?: Array<{ factType: string; valueText: string }> }>;
+  bullets?: Array<{ id: string; text: string; sortOrder?: number; facts?: Array<{ factType: string; valueText: string }> }>;
 }
 
 interface ResumeListItem {
@@ -211,7 +216,20 @@ export function FigmaDashboardView() {
       const { job } = jobPayload;
 
       // 2. Run & await structured JD analysis before tailoring so /tailor never hits a missing-analysis error
-      await fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" }).catch(() => null);
+      const analyzeData: any = await fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      const localFit = analyzeRoleFitAgainstVault(trimmedJd, bankEntries);
+      const jdKeywords = Array.from(
+        new Set([
+          ...((analyzeData?.analysis?.keywords || []).flatMap((k: any) =>
+            [k?.canonical, ...(k?.synonyms || [])].filter(Boolean)
+          ) as string[]),
+          ...((analyzeData?.analysis?.role?.domain || []) as string[]),
+          ...localFit.matchedSkills,
+          ...localFit.missingSkills,
+        ].filter(Boolean))
+      );
 
       // 3. Tailor bullets from Career Vault with an 8-second safety timeout
       let tailoredResults: any[] = [];
@@ -260,6 +278,44 @@ export function FigmaDashboardView() {
       const orderedExperience = bankEntries
         .filter((e) => e.entryType === "experience")
         .sort(compareReverseChronological);
+      const orderedProjects = sortProjectsByConfidenceAndRelevance(
+        bankEntries.filter((e) => e.entryType === "project").map((e) => ({ ...e, bullets: e.bullets || [] })),
+        jdKeywords,
+        roleTitle
+      ).map((e, idx) => {
+        const mappedBullets = (e.bullets || []).map(mapBullet);
+        const mappedByText = new Map(mappedBullets.map((b) => [b.text.trim(), b]));
+        const angleSelection = selectProjectAnglePoints({
+          title: e.title,
+          descriptionContext: e.descriptionContext,
+          bullets: mappedBullets.map((b, bIdx) => ({
+            id: b.id,
+            text: b.text,
+            sortOrder: bIdx,
+          })),
+          jdKeywords,
+          jdTitle: roleTitle,
+          confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
+          maxBullets: 2,
+        });
+        const selectedBullets = angleSelection.bullets.map((text, bIdx) => {
+          const existing = mappedByText.get(text.trim());
+          if (existing) return existing;
+          return {
+            id: `${e.id}_ctx_${bIdx}`,
+            text,
+            provenance: "bank" as const,
+            sourceBulletIds: [],
+            sourceFactIds: [],
+            validatorStatus: "not_applicable" as const,
+          };
+        });
+        return {
+          entry: e,
+          confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
+          selectedBullets,
+        };
+      });
       const orderedEducation = bankEntries
         .filter((e) => e.entryType === "education")
         .sort(compareReverseChronological);
@@ -287,18 +343,16 @@ export function FigmaDashboardView() {
           type: "projects",
           heading: "Projects",
           visible: true,
-          items: bankEntries
-            .filter((e) => e.entryType === "project")
-            .map((e) => ({
-              id: e.id,
-              sourceEntryId: e.id,
-              sourceBulletIds: (e.bullets || []).map((b) => b.id),
-              title: e.title,
-              organization: e.organization || undefined,
-              dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
-              location: e.location || undefined,
-              bullets: (e.bullets || []).map(mapBullet),
-            })),
+          items: orderedProjects.map(({ entry: e, selectedBullets }) => ({
+            id: e.id,
+            sourceEntryId: e.id,
+            sourceBulletIds: selectedBullets.flatMap((b) => b.sourceBulletIds),
+            title: e.title,
+            organization: e.organization || undefined,
+            dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
+            location: e.location || undefined,
+            bullets: selectedBullets,
+          })),
         },
         {
           id: "section-education",
@@ -398,15 +452,14 @@ export function FigmaDashboardView() {
           location: e.location || undefined,
           bullets: (e.bullets || []).map(mapBullet),
         })),
-        projects: bankEntries
-          .filter((e) => e.entryType === "project")
-          .map((e) => ({
-            id: e.id,
-            name: e.title,
-            role: e.organization || undefined,
-            description: shortenProjectDescription(e.descriptionContext),
-            bullets: (e.bullets || []).map(mapBullet),
-          })),
+        projects: orderedProjects.map(({ entry: e, confidenceRank, selectedBullets }) => ({
+          id: e.id,
+          name: e.title,
+          role: e.organization || undefined,
+          description: shortenProjectDescription(e.descriptionContext),
+          confidenceRank,
+          bullets: selectedBullets,
+        })),
         education: orderedEducation.map((e) => ({
           id: e.id,
           institution: e.organization || "Institution",

@@ -7,6 +7,11 @@ import { AlertCircle, ArrowUpRight, ClipboardPaste, FileText, LoaderCircle, Rota
 import type { ResumeDoc, ResumeBulletDoc, ResumeSectionDoc, ResumeItemDoc } from "@/types/resume";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
+import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
+import {
+  selectProjectAnglePoints,
+  sortProjectsByConfidenceAndRelevance,
+} from "@/lib/tailoring/projectAngleSelector";
 
 type WorkspaceTab = "write" | "history";
 type PreviewPane = "job" | "resume";
@@ -196,9 +201,61 @@ export function AdaptiveResumeWorkspace() {
       .filter((g) => sectionType(g.entry.entryType) === "experience")
       .sort((a, b) => compareReverseChronological(a.entry, b.entry));
 
-    const projGroups = [...groups.values()].filter(
-      (g) => sectionType(g.entry.entryType) === "projects"
+    const workspaceJdText = (job?.rawText || jobText || "").trim();
+    const workspaceJdFit = workspaceJdText
+      ? analyzeRoleFitAgainstVault(workspaceJdText, bankEntries)
+      : { matchedSkills: [], missingSkills: [] };
+    const workspaceJdKeywords = Array.from(
+      new Set([...workspaceJdFit.matchedSkills, ...workspaceJdFit.missingSkills].filter(Boolean))
     );
+    const workspaceRoleTitle = (job?.title || title || "").trim() || undefined;
+
+    const projGroupsRaw = [...groups.values()]
+      .filter((g) => sectionType(g.entry.entryType) === "projects")
+      .map((g) => ({
+        ...g,
+        title: g.entry.title,
+        descriptionContext: g.entry.descriptionContext,
+        sortOrder: g.entry.sortOrder,
+        orderedBullets: getOrderedGroupBullets(g.bullets),
+      }));
+
+    const projGroups = sortProjectsByConfidenceAndRelevance(
+      projGroupsRaw.map((g) => ({
+        ...g,
+        bullets: g.orderedBullets.map((b, idx) => ({ id: b.id, text: b.text, sortOrder: idx })),
+      })),
+      workspaceJdKeywords,
+      workspaceRoleTitle
+    ).map((g, idx) => {
+      const byText = new Map(g.orderedBullets.map((b) => [b.text.trim(), b]));
+      const angle = selectProjectAnglePoints({
+        title: g.entry.title,
+        descriptionContext: g.entry.descriptionContext,
+        bullets: g.orderedBullets.map((b, bIdx) => ({ id: b.id, text: b.text, sortOrder: bIdx })),
+        jdKeywords: workspaceJdKeywords,
+        jdTitle: workspaceRoleTitle,
+        confidenceRank: typeof g.entry.sortOrder === "number" ? g.entry.sortOrder : idx,
+        maxBullets: 2,
+      });
+      const selectedBullets: ResumeBulletDoc[] = angle.bullets.map((text, bIdx) => {
+        const matched = byText.get(text.trim());
+        if (matched) return matched;
+        return {
+          id: `${g.entry.id}_ctx_${bIdx}`,
+          text,
+          provenance: "bank",
+          sourceBulletIds: [],
+          sourceFactIds: [],
+          validatorStatus: "not_applicable",
+        };
+      });
+      return {
+        entry: g.entry,
+        confidenceRank: typeof g.entry.sortOrder === "number" ? g.entry.sortOrder : idx,
+        selectedBullets,
+      };
+    });
 
     const eduEntries = bankEntries
       .filter((e) => e.entryType === "education")
@@ -219,12 +276,13 @@ export function AdaptiveResumeWorkspace() {
       bullets: getOrderedGroupBullets(bullets),
     }));
 
-    const topProjects = projGroups.map(({ entry, bullets }) => ({
+    const topProjects = projGroups.map(({ entry, confidenceRank, selectedBullets }) => ({
       id: entry.id,
       name: entry.title,
       role: entry.organization || undefined,
       description: entry.descriptionContext || undefined,
-      bullets: getOrderedGroupBullets(bullets),
+      confidenceRank,
+      bullets: selectedBullets,
     }));
 
     const topEducation = eduEntries.map((entry) => ({
@@ -276,17 +334,14 @@ export function AdaptiveResumeWorkspace() {
           bullets: ordered,
         };
       }),
-      projects: projGroups.map(({ entry, bullets }): ResumeItemDoc => {
-        const ordered = getOrderedGroupBullets(bullets);
-        return {
-          id: entry.id,
-          sourceEntryId: entry.id,
-          sourceBulletIds: ordered.flatMap((b) => b.sourceBulletIds),
-          title: entry.title,
-          organization: entry.organization || undefined,
-          bullets: ordered,
-        };
-      }),
+      projects: projGroups.map(({ entry, selectedBullets }): ResumeItemDoc => ({
+        id: entry.id,
+        sourceEntryId: entry.id,
+        sourceBulletIds: selectedBullets.flatMap((b) => b.sourceBulletIds),
+        title: entry.title,
+        organization: entry.organization || undefined,
+        bullets: selectedBullets,
+      })),
       education: eduEntries.map((entry): ResumeItemDoc => ({
         id: entry.id,
         sourceEntryId: entry.id,
