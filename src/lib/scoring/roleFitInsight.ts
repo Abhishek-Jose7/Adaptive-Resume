@@ -14,8 +14,8 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   },
   {
     canonical: "AI Agents",
-    aliases: ["AI Agent", "AI Agents", "Agent", "Agents", "Agentic", "Multi-Agent", "Tool Calling", "Function Calling"],
-    pattern: /\b(ai agents?|multi-agent|agentic|autonomous agents?|agents?|tool calling|function calling)\b/i,
+    aliases: ["AI Agent", "AI Agents", "Agent", "Agents", "Agentic", "Conversational Agents", "Multi-Agent", "Tool Use", "Tool Calling", "Function Calling"],
+    pattern: /\b(ai agents?|conversational agents?|multi-agent|agentic|autonomous agents?|agents?|tool use|tool calling|function calling)\b/i,
     category: "domain",
   },
   {
@@ -28,6 +28,12 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
     canonical: "RAG",
     aliases: ["RAG", "Retrieval-Augmented Generation", "Retrieval Augmented Generation"],
     pattern: /\b(rag|retrieval[- ]augmented generation)\b/i,
+    category: "domain",
+  },
+  {
+    canonical: "Retrieval & Ranking",
+    aliases: ["Retrieval", "Ranking", "Recommendations", "Recommender", "Personalisation", "Personalization"],
+    pattern: /\b(retrieval|ranking|recommendations?|recommender|personalisation|personalization)\b/i,
     category: "domain",
   },
   {
@@ -44,14 +50,14 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   },
   {
     canonical: "Prompt Engineering",
-    aliases: ["Prompt Engineering", "Structured Outputs", "Context Engineering"],
-    pattern: /\b(prompt engineering|context engineering|structured outputs?)\b/i,
+    aliases: ["Prompt Engineering", "LLM Prompting", "Structured Outputs", "Context Engineering"],
+    pattern: /\b(prompt(?:ing| engineering)|llm prompting|context engineering|structured outputs?)\b/i,
     category: "domain",
   },
   {
     canonical: "Model Evaluation",
-    aliases: ["Evals", "Evaluation", "LLM Evals", "Benchmarking"],
-    pattern: /\b(evals|model evaluation|llm evals?|evaluation pipelines?)\b/i,
+    aliases: ["Evals", "Evaluation", "LLM Evals", "Evaluate LLM"],
+    pattern: /\b(evals|model evaluation|llm evals?|llm output quality|evaluation pipelines?)\b/i,
     category: "domain",
   },
   {
@@ -301,6 +307,7 @@ export interface RoleFitInsightResult {
   extractedTitle: string;
   score: number;
   matchedSkills: string[];
+  tagOnlySkills: string[];
   missingSkills: string[];
   relevantEvidenceLabels: string[];
   suitabilityVerdict: string;
@@ -354,9 +361,19 @@ export function extractRoleTitleFromJd(rawText: string): string {
   return "Target Role";
 }
 
+function isStackTagLine(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (!trimmed.includes("|")) return false;
+  // Detect pipe-separated tech stack subtitles like "Next.js | Groq | RAG | Embeddings | NLP."
+  const segments = trimmed.split("|").map((s) => s.trim()).filter(Boolean);
+  return segments.length >= 2 && segments.every((seg) => seg.split(/\s+/).length <= 3);
+}
+
 /**
  * Synthesizes a direct, grounded role-fit insight comparing JD requirements against
- * the candidate's real Career Vault entries, projects, roles, and verified bullets.
+ * the candidate's real Career Vault entries, distinguishing bullet-backed work from
+ * mere tag/skill-list mentions.
  */
 export function analyzeRoleFitAgainstVault(
   rawJdText: string,
@@ -365,23 +382,35 @@ export function analyzeRoleFitAgainstVault(
   const extractedTitle = extractRoleTitleFromJd(rawJdText);
   const detectedRules = ROLE_FIT_TAXONOMY.filter((rule) => rule.pattern.test(rawJdText));
 
-  // Build searchable text blobs per non-profile entry
-  const entryBlobs = entries
+  const entryRecords = entries
     .filter((e) => e.entryType !== "profile")
     .map((entry) => {
-      const textParts = [
-        entry.title,
-        entry.organization || "",
-        entry.descriptionContext || "",
-        ...(entry.facts || []).map((f) => f.valueText || ""),
-        ...(entry.bullets || []).flatMap((b) => [
-          b.text,
-          ...(b.facts || []).map((f) => f.valueText || ""),
-        ]),
-      ];
+      const isSkillEntry = entry.entryType === "skill_group" || entry.entryType === "skill";
+      const bulletProofParts: string[] = [];
+      const tagOnlyParts: string[] = [entry.title, entry.organization || "", entry.descriptionContext || ""];
+
+      if (isSkillEntry) {
+        for (const b of entry.bullets || []) tagOnlyParts.push(b.text);
+      } else {
+        for (const f of entry.facts || []) {
+          if (f.valueText) bulletProofParts.push(f.valueText);
+        }
+        for (const b of entry.bullets || []) {
+          if (isStackTagLine(b.text)) {
+            tagOnlyParts.push(b.text);
+          } else {
+            bulletProofParts.push(b.text);
+            for (const f of b.facts || []) {
+              if (f.valueText) bulletProofParts.push(f.valueText);
+            }
+          }
+        }
+      }
+
       return {
         entry,
-        blob: textParts.join(" \n "),
+        bulletBlob: bulletProofParts.join(" \n "),
+        tagBlob: tagOnlyParts.join(" \n "),
       };
     });
 
@@ -390,24 +419,32 @@ export function analyzeRoleFitAgainstVault(
     .reduce((acc, e) => acc + (e.bullets?.length || 0), 0);
 
   const matchedSkills: string[] = [];
+  const tagOnlySkills: string[] = [];
   const missingSkills: string[] = [];
   const evidenceScoreByEntry = new Map<string, { label: string; hits: number }>();
 
   for (const rule of detectedRules) {
-    let ruleMatched = false;
-    for (const item of entryBlobs) {
-      if (rule.pattern.test(item.blob)) {
-        ruleMatched = true;
+    let hasBulletEvidence = false;
+    let hasTagMention = false;
+
+    for (const item of entryRecords) {
+      if (rule.pattern.test(item.bulletBlob)) {
+        hasBulletEvidence = true;
         if (item.entry.entryType === "experience" || item.entry.entryType === "project") {
           const shortTitle = item.entry.title.split(/\s+[—–-]\s+/)[0].trim();
           const current = evidenceScoreByEntry.get(item.entry.id) || { label: shortTitle, hits: 0 };
           current.hits += 1;
           evidenceScoreByEntry.set(item.entry.id, current);
         }
+      } else if (rule.pattern.test(item.tagBlob)) {
+        hasTagMention = true;
       }
     }
-    if (ruleMatched) {
+
+    if (hasBulletEvidence) {
       matchedSkills.push(rule.canonical);
+    } else if (hasTagMention) {
+      tagOnlySkills.push(rule.canonical);
     } else {
       missingSkills.push(rule.canonical);
     }
@@ -418,16 +455,18 @@ export function analyzeRoleFitAgainstVault(
     .map((v) => v.label)
     .slice(0, 3);
 
-  const totalCriteria = matchedSkills.length + missingSkills.length;
+  const totalCriteria = matchedSkills.length + tagOnlySkills.length + missingSkills.length;
+  const weightedHits = matchedSkills.length + tagOnlySkills.length * 0.45;
   const score =
     entries.length > 0 && totalCriteria > 0
-      ? Math.min(98, Math.round((matchedSkills.length / totalCriteria) * 100))
+      ? Math.min(98, Math.round((weightedHits / totalCriteria) * 100))
       : 0;
 
   let suitabilityVerdict = "Stretch Role · Review Core Requirements";
-  if (score >= 75) suitabilityVerdict = "Strong Fit · High Relevance";
+  if (score >= 72) suitabilityVerdict = "Strong Fit · High Relevance";
   else if (score >= 45) suitabilityVerdict = "Solid Alignment · Key Gaps Noted";
 
+  const unclearPool = [...tagOnlySkills, ...missingSkills];
   let summaryInsight = "";
   if (entries.length === 0) {
     summaryInsight = "Add your experience or import a resume into your Career Vault first so we can check how your background fits this role.";
@@ -435,7 +474,6 @@ export function analyzeRoleFitAgainstVault(
     summaryInsight = "Paste a full job description with required skills and responsibilities for a more specific breakdown, or tailor a resume directly.";
   } else {
     const strengthTopics = formatReadableList(matchedSkills.slice(0, 3));
-    const gapTopics = formatReadableList(missingSkills.slice(0, 2));
     const evidenceClause =
       relevantEvidenceLabels.length > 0
         ? ` (evidenced in ${formatReadableList(relevantEvidenceLabels)})`
@@ -444,12 +482,18 @@ export function analyzeRoleFitAgainstVault(
     const strengthSentence =
       matchedSkills.length > 0
         ? `Your ${strengthTopics} work${evidenceClause} looks relevant to this role.`
-        : `None of the core technical keywords detected in this role appear clearly in your Career Vault yet.`;
+        : `None of the core role criteria have direct bullet-level proof in your Career Vault yet.`;
 
-    const gapSentence =
-      missingSkills.length > 0
-        ? ` Your experience with ${gapTopics} isn't clear from your Career Vault yet, so that's worth bearing in mind.`
-        : ` Every core technical requirement in this posting is backed by evidence in your Vault.`;
+    let gapSentence = "";
+    if (tagOnlySkills.length > 0 && missingSkills.length > 0) {
+      gapSentence = ` Your experience with ${formatReadableList(tagOnlySkills.slice(0, 2))} isn't clear from your achievement bullets yet, and ${formatReadableList(missingSkills.slice(0, 2))} isn't in your Vault — worth bearing in mind.`;
+    } else if (tagOnlySkills.length > 0) {
+      gapSentence = ` Your experience with ${formatReadableList(tagOnlySkills.slice(0, 2))} only appears as a skill tag without supporting bullet work, so that's worth clarifying.`;
+    } else if (missingSkills.length > 0) {
+      gapSentence = ` Your experience with ${formatReadableList(missingSkills.slice(0, 2))} isn't clear from your Career Vault yet, so that's worth bearing in mind.`;
+    } else {
+      gapSentence = ` Every key requirement in this posting is backed by evidence in your Vault.`;
+    }
 
     summaryInsight = `${strengthSentence}${gapSentence}`.trim();
   }
@@ -458,7 +502,8 @@ export function analyzeRoleFitAgainstVault(
     extractedTitle,
     score,
     matchedSkills,
-    missingSkills,
+    tagOnlySkills,
+    missingSkills: unclearPool,
     relevantEvidenceLabels,
     suitabilityVerdict,
     summaryInsight,

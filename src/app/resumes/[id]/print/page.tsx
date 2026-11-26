@@ -40,6 +40,16 @@ export default function ResumePrintPage() {
     }
   }, [resumeId]);
 
+  useEffect(() => {
+    if (!doc) return;
+    const candidate = (doc.profile?.fullName || doc.profile?.name || "Resume").trim();
+    document.title = `${candidate} - Resume`;
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("download") === "1") {
+      const timer = setTimeout(() => window.print(), 280);
+      return () => clearTimeout(timer);
+    }
+  }, [doc]);
+
   if (loading) {
     return <div className="p-8 text-center text-sm text-gray-500">Preparing print document...</div>;
   }
@@ -55,15 +65,22 @@ export default function ResumePrintPage() {
     );
   }
 
+  const printDoc = {
+    ...doc,
+    page: {
+      size: doc.page?.size || ("A4" as const),
+      targetPages: doc.page?.targetPages || 1,
+    },
+  };
   const recommendedFit = AutoFitLadder.evaluateFit(
-    doc,
-    AutoFitLadder.recommendedStepForOnePage(doc)
+    printDoc,
+    Math.max(5, AutoFitLadder.recommendedStepForOnePage(printDoc))
   );
 
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white p-4 print:p-0">
       {/* Print Controls - Hidden on print */}
-      <div className="max-w-[816px] mx-auto mb-4 flex items-center justify-between print:hidden bg-white p-3 rounded-lg border shadow-xs">
+      <div className="max-w-[794px] mx-auto mb-4 flex items-center justify-between print:hidden bg-white p-3 rounded-lg border shadow-xs">
         <Link
           href={`/resumes/${resumeId}/edit`}
           className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900"
@@ -76,7 +93,7 @@ export default function ResumePrintPage() {
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-md shadow-xs"
           >
-            <Printer className="w-3.5 h-3.5" /> Print / Save as PDF
+            <Printer className="w-3.5 h-3.5" /> Download PDF / Print
           </button>
         </div>
       </div>
@@ -84,7 +101,7 @@ export default function ResumePrintPage() {
       {/* Actual Printable Resume Document */}
       <div className="print:m-0 print:p-0">
         <TemplateRenderer
-          doc={doc}
+          doc={printDoc}
           templateId={templateId}
           fontSizePt={recommendedFit.fontSizePt}
           lineHeight={recommendedFit.lineHeight}
@@ -96,7 +113,7 @@ export default function ResumePrintPage() {
 
       <style jsx global>{`
         @page {
-          size: ${doc.page?.size === "A4" ? "A4" : "letter"} portrait;
+          size: ${printDoc.page.size === "LETTER" ? "letter" : "A4"} portrait;
           margin: 0mm;
         }
         @media print {

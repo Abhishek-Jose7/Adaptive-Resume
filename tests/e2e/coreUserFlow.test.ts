@@ -402,6 +402,13 @@ describe("Milestone M6: End-to-End User Journey (PRD Section 8.6)", () => {
     expect(resolvedShare).toBeDefined();
     expect(resolvedShare?.resumeDoc.profile.email).toBe("[Contact via Shared Profile]");
     expect(resolvedShare?.resumeDoc.profile.phone).toBe("[Hidden for Privacy]");
+    expect(resolvedShare?.isOwner).toBe(false);
+    expect(resolvedShare?.viewCount).toBeUndefined();
+    expect(resolvedShare?.lastViewedAt).toBeUndefined();
+
+    const ownerShare = await ShareService.resolveShareToken(share.token, { viewerUserId: E2E_USER_ID });
+    expect(ownerShare?.isOwner).toBe(true);
+    expect(ownerShare?.viewCount).toBe(1);
 
     // -------------------------------------------------------------
     // STEP 10: BYOK Credential Vault (AES-256-GCM Encrypted Storage)

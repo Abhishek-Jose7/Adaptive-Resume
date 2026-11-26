@@ -4,8 +4,9 @@ import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
+import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
 import { ResumeDoc } from "@/types/resume";
-import { Printer, AlertCircle, Eye, Clock } from "lucide-react";
+import { FileDown, AlertCircle, Eye, Clock } from "lucide-react";
 
 interface ShareViewData {
   id: string;
@@ -17,7 +18,7 @@ interface ShareViewData {
   expiresAt: string;
   daysRemaining?: number;
   isExpiringSoon?: boolean;
-  showViewCounters?: boolean;
+  isOwner?: boolean;
   viewCount?: number;
   authorName?: string;
 }
@@ -54,7 +55,13 @@ export default function PublicSharePage({
       });
   }, [token, isPreview]);
 
-  const handlePrint = () => {
+  useEffect(() => {
+    if (!data) return;
+    const candidate = (data.authorName || data.resumeDoc?.profile?.fullName || "Resume").trim();
+    document.title = `${candidate} - Resume`;
+  }, [data]);
+
+  const handleDownloadPdf = () => {
     window.print();
   };
 
@@ -93,12 +100,24 @@ export default function PublicSharePage({
     day: "numeric",
   });
 
+  const shareDoc: ResumeDoc = {
+    ...data.resumeDoc,
+    page: {
+      size: (data.pageSize as "A4" | "LETTER") || data.resumeDoc?.page?.size || "A4",
+      targetPages: data.resumeDoc?.page?.targetPages || 1,
+    },
+  };
+  const fit = AutoFitLadder.evaluateFit(
+    shareDoc,
+    Math.max(5, AutoFitLadder.recommendedStepForOnePage(shareDoc))
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-paper print:bg-white">
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/95 print:hidden">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center border border-ink font-display text-[14px] font-semibold leading-none">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-ink font-display text-[14px] font-semibold leading-none">
               R
             </span>
             <div className="min-w-0">
@@ -113,35 +132,65 @@ export default function PublicSharePage({
                     expires in {data.daysRemaining ?? 0}d
                   </span>
                 )}
-                {data.showViewCounters && typeof data.viewCount === "number" && (
-                  <span className="inline-flex items-center gap-0.5 rounded border border-rule bg-sheet px-1.5 py-0.5 text-ink">
+                {data.isOwner && typeof data.viewCount === "number" && (
+                  <span
+                    className="inline-flex items-center gap-0.5 rounded border border-rule bg-sheet px-1.5 py-0.5 text-ink"
+                    title="Only visible to you as the resume owner"
+                  >
                     <Eye className="h-2.5 w-2.5" />
-                    {data.viewCount} views
+                    {data.viewCount} views (only you)
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {data.allowDownload && (
-            <button onClick={handlePrint} className="btn btn-primary btn-sm">
-              <Printer className="h-3.5 w-3.5" strokeWidth={1.8} />
-              Print or save PDF
+          {data.allowDownload !== false && (
+            <button onClick={handleDownloadPdf} className="btn btn-primary btn-sm shrink-0">
+              <FileDown className="h-3.5 w-3.5" strokeWidth={1.8} />
+              Download PDF
             </button>
           )}
         </div>
       </header>
 
       <main className="flex flex-1 justify-center px-4 py-8 sm:px-6 print:p-0">
-        <div className="w-full max-w-[850px]">
+        <div className="w-full" style={{ maxWidth: shareDoc.page.size === "LETTER" ? "816px" : "794px" }}>
           <div className="plate overflow-hidden print:border-0 print:shadow-none">
-            <TemplateRenderer doc={data.resumeDoc} templateId={data.templateId || "classic_ats"} />
+            <TemplateRenderer
+              doc={shareDoc}
+              templateId={data.templateId || "classic-ats"}
+              fontSizePt={fit.fontSizePt}
+              lineHeight={fit.lineHeight}
+              sectionGapRem={fit.sectionGapRem}
+              marginInches={fit.marginInches}
+              readOnly
+            />
           </div>
           <p className="mt-3 text-center font-mono text-[10.5px] text-graphite print:hidden">
             shared as a snapshot — it does not change when the owner edits
           </p>
         </div>
       </main>
+
+      <style jsx global>{`
+        @page {
+          size: ${shareDoc.page.size === "LETTER" ? "letter" : "A4"} portrait;
+          margin: 0mm;
+        }
+        @media print {
+          body {
+            background-color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          nav, header, footer, button, .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

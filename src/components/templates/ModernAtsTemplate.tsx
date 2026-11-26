@@ -8,12 +8,13 @@ import { shortenProjectDescription, getGroupedSkills } from "@/lib/utils/project
 export function ModernAtsTemplate({
   doc,
   fontSizePt = 10,
-  lineHeight = 1.35,
-  sectionGapRem = 0.9,
-  marginInches = 0.65,
+  lineHeight = 1.32,
+  sectionGapRem = 0.75,
+  marginInches = 0.5,
   onElementClick,
   readOnly = false,
 }: TemplateProps) {
+  const isA4 = (doc.page?.size || "A4") === "A4";
   const handleClick = (section: string, id?: string) => {
     if (!readOnly && onElementClick) {
       onElementClick(section, id);
@@ -22,8 +23,10 @@ export function ModernAtsTemplate({
 
   return (
     <div
-      className="bg-white text-gray-900 font-sans shadow-md print:shadow-none mx-auto w-full max-w-[816px] min-h-[1056px] transition-all"
+      className="bg-white text-gray-900 font-sans shadow-md print:shadow-none mx-auto w-full transition-all box-border"
       style={{
+        maxWidth: isA4 ? "794px" : "816px",
+        minHeight: isA4 ? "1123px" : "1056px",
         padding: `${marginInches}in`,
         fontSize: `${fontSizePt}pt`,
         lineHeight: lineHeight,
@@ -235,21 +238,29 @@ export function ModernAtsTemplate({
         </section>
       )}
 
-      {/* Certifications */}
-      {doc.certifications && doc.certifications.length > 0 && (
+      {/* Achievements & Certifications */}
+      {((doc.awards && doc.awards.length > 0) || (doc.certifications && doc.certifications.length > 0)) && (
         <section
           onClick={() => handleClick("certifications")}
           style={{ marginTop: `${sectionGapRem}rem` }}
           className={`cursor-pointer ${!readOnly ? "hover:bg-[#becbbf]/15 rounded p-1" : ""}`}
         >
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#10241c] flex items-center gap-2">
-            <span>Certifications</span>
+            <span>Achievements &amp; Certifications</span>
             <span className="flex-1 border-b border-[#becbbf]" />
           </h2>
           <ul className="list-disc pl-4 mt-1 space-y-0.5 text-xs text-gray-700">
-            {doc.certifications.map((c) => (
+            {(doc.awards || []).map((a) => (
+              <li key={a.id}>
+                <span className="font-semibold text-gray-900">{a.name}</span>
+                {a.issuer ? `: ${a.issuer}` : ""}
+                {a.issueDate && <span className="text-gray-500"> ({a.issueDate})</span>}
+              </li>
+            ))}
+            {(doc.certifications || []).map((c) => (
               <li key={c.id}>
-                <span className="font-semibold text-gray-900">{c.name}</span> – {c.issuer}{" "}
+                <span className="font-semibold text-gray-900">{c.name}</span>
+                {c.issuer ? ` – ${c.issuer}` : ""}{" "}
                 {c.issueDate && <span className="text-gray-500">({c.issueDate})</span>}
               </li>
             ))}

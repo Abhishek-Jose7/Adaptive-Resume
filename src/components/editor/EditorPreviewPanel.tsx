@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { ResumeDocStore, EditorState } from "@/lib/editor/resumeDocStore";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { AtsLinter } from "@/lib/editor/atsLinter";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
+import { budgetResumeForOnePageA4 } from "@/lib/editor/onePageA4Budgeter";
 import { PlainTextSerializer } from "@/lib/export/plainTextSerializer";
 import {
   Undo,
@@ -75,7 +76,36 @@ export function EditorPreviewPanel({
   const lintReport = useMemo(() => AtsLinter.lint(doc), [doc]);
   const fitSettings = useMemo(() => AutoFitLadder.evaluateFit(doc, autoFitStep), [doc, autoFitStep]);
   const plainTextPreview = useMemo(() => PlainTextSerializer.serialize(doc), [doc]);
-  const currentPageSize = doc.page?.size === "A4" ? "A4" : "LETTER";
+  const currentPageSize = doc.page?.size === "LETTER" ? "LETTER" : "A4";
+  const pageWidthPx = currentPageSize === "A4" ? 794 : 816;
+  const pageHeightPx = currentPageSize === "A4" ? 1123 : 1056;
+  const paperRef = useRef<HTMLDivElement>(null);
+  const [renderedHeightPx, setRenderedHeightPx] = useState<number>(pageHeightPx);
+
+  useEffect(() => {
+    const el = paperRef.current;
+    if (!el || previewMode !== "visual") return;
+    const measure = () => {
+      const h = el.scrollHeight;
+      setRenderedHeightPx(h);
+      if (h > pageHeightPx + 6 && autoFitStep < 7) {
+        setAutoFitStep((prev) => (prev < 7 ? prev + 1 : prev));
+      }
+    };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => measure());
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, [doc, templateId, autoFitStep, previewMode, pageHeightPx]);
+
+  const overflowsOnePage = renderedHeightPx > pageHeightPx + 6;
+  const handleTrimToFitOnePage = () => {
+    const fitted = budgetResumeForOnePageA4(doc);
+    store.applyDocumentUpdate(fitted);
+    setAutoFitStep(AutoFitLadder.recommendedStepForOnePage(fitted));
+  };
 
   const handleTemplateChange = (newTemplate: string) => {
     setTemplateId(newTemplate);
@@ -166,11 +196,10 @@ export function EditorPreviewPanel({
 
             <button
               onClick={() => setPreviewMode((m) => (m === "visual" ? "ats-text" : "visual"))}
-              className={`inline-flex items-center gap-1 border px-1.5 py-1 text-[11.5px] font-medium ${
-                previewMode === "ats-text"
-                  ? "border-ink bg-ink text-cream"
-                  : "border-rule bg-sheet text-ink hover:bg-paper-deep"
-              }`}
+              className={`inline-flex items-center gap-1 border px-1.5 py-1 text-[11.5px] font-medium ${previewMode === "ats-text"
+                ? "border-ink bg-ink text-cream"
+                : "border-rule bg-sheet text-ink hover:bg-paper-deep"
+                }`}
               title="Preview exact plain-text parse order read by ATS systems"
             >
               {previewMode === "ats-text" ? <Eye className="h-3.5 w-3.5" /> : <Terminal className="h-3.5 w-3.5 text-stamp" />}
@@ -188,11 +217,10 @@ export function EditorPreviewPanel({
 
             <button
               onClick={() => setShowLintDrawer(!showLintDrawer)}
-              className={`inline-flex items-center gap-1 border px-1.5 py-1 text-[11.5px] font-medium ${
-                lintReport.score >= 80
-                  ? "border-press/35 bg-press-soft text-press"
-                  : "border-marker/40 bg-marker-soft text-marker-dark"
-              }`}
+              className={`inline-flex items-center gap-1 border px-1.5 py-1 text-[11.5px] font-medium ${lintReport.score >= 80
+                ? "border-press/35 bg-press-soft text-press"
+                : "border-marker/40 bg-marker-soft text-marker-dark"
+                }`}
               title="ATS readiness report"
             >
               <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.7} />
@@ -210,9 +238,17 @@ export function EditorPreviewPanel({
             <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.7} />
             Quality gate
           </button>
-          <Link href={`/resumes/${resumeId}/print`} target="_blank" className="btn btn-sm btn-primary">
+          <Link
+            href={`/resumes/${resumeId}/print?download=1`}
+            target="_blank"
+            className="btn btn-sm btn-primary"
+          >
+            <Download className="h-3.5 w-3.5" strokeWidth={1.7} />
+            Download PDF
+          </Link>
+          <Link href={`/resumes/${resumeId}/print`} target="_blank" className="btn btn-sm">
             <Printer className="h-3.5 w-3.5" strokeWidth={1.7} />
-            Print or PDF
+            Print
           </Link>
           <button onClick={() => setShowShareModal(true)} className="btn btn-sm">
             <Share2 className="h-3.5 w-3.5" strokeWidth={1.7} />
@@ -266,24 +302,34 @@ export function EditorPreviewPanel({
       />
 
       <div className="flex flex-1 justify-center overflow-y-auto p-4 sm:p-6">
-        <div className="relative w-full max-w-[816px]">
-          {autoFitStep > 1 && (
-            <div className="mb-3 flex items-center justify-between gap-3 border border-stamp/30 bg-stamp-soft px-2.5 py-1.5 text-[11.5px] text-stamp">
-              <span>{fitSettings.stepDescription}</span>
-              <button
-                onClick={() => setAutoFitStep(1)}
-                className="shrink-0 font-medium underline decoration-stamp/30 underline-offset-2"
-              >
-                Reset
-              </button>
+        <div className="relative w-full" style={{ maxWidth: `${pageWidthPx}px` }}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border border-rule bg-sheet px-2.5 py-1.5 text-[11.5px]">
+            <span className={overflowsOnePage ? "text-marker-dark font-medium" : "text-press font-medium"}>
+              {overflowsOnePage
+                ? `Exceeds 1 ${currentPageSize} page (${Math.round((renderedHeightPx / pageHeightPx) * 100)}% height)`
+                : `Fits 1 ${currentPageSize} page · ${fitSettings.stepDescription}`}
+            </span>
+            <div className="flex items-center gap-2">
+              {overflowsOnePage && (
+                <button
+                  type="button"
+                  onClick={handleTrimToFitOnePage}
+                  className="rounded border border-ink bg-ink px-2 py-0.5 text-[11px] font-semibold text-cream hover:opacity-90"
+                >
+                  Trim to fit 1 {currentPageSize} page
+                </button>
+              )}
+              {autoFitStep > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setAutoFitStep(1)}
+                  className="shrink-0 font-medium text-stamp underline decoration-stamp/30 underline-offset-2"
+                >
+                  Reset fit
+                </button>
+              )}
             </div>
-          )}
-
-          {fitSettings.overflowWarning && (
-            <div className="mb-3 border border-marker/40 bg-marker-soft px-2.5 py-1.5 text-[11.5px] text-marker-dark">
-              {fitSettings.overflowWarning}
-            </div>
-          )}
+          </div>
 
           {previewMode === "ats-text" ? (
             <div className="border border-rule bg-sheet p-5 shadow-plate space-y-3">
@@ -314,7 +360,7 @@ export function EditorPreviewPanel({
               </pre>
             </div>
           ) : (
-            <div className="bg-sheet shadow-plate">
+            <div ref={paperRef} className="relative bg-sheet shadow-plate">
               <TemplateRenderer
                 doc={doc}
                 templateId={templateId}
@@ -324,6 +370,17 @@ export function EditorPreviewPanel({
                 marginInches={fitSettings.marginInches}
                 onElementClick={(section, id) => store.setActiveLocation(section, id)}
               />
+              {overflowsOnePage && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-alarm/60"
+                  style={{ top: `${pageHeightPx}px` }}
+                >
+                  <span className="ml-2 -mt-2.5 inline-block bg-alarm px-1.5 py-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-wide text-white">
+                    End of {currentPageSize} Page 1
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -359,11 +416,10 @@ export function EditorPreviewPanel({
               lintReport.issues.map((iss) => (
                 <div
                   key={iss.id}
-                  className={`border px-2.5 py-2 text-[11.5px] ${
-                    iss.severity === "error"
-                      ? "border-alarm/35 bg-alarm-soft text-alarm"
-                      : "border-marker/40 bg-marker-soft text-marker-dark"
-                  }`}
+                  className={`border px-2.5 py-2 text-[11.5px] ${iss.severity === "error"
+                    ? "border-alarm/35 bg-alarm-soft text-alarm"
+                    : "border-marker/40 bg-marker-soft text-marker-dark"
+                    }`}
                 >
                   <div className="flex items-center gap-1 font-medium">
                     <AlertTriangle className="h-3 w-3" strokeWidth={1.8} />

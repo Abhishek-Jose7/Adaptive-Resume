@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { ShareService } from "@/lib/services/shareService";
+import { getAuthenticatedUser } from "@/lib/auth/clerk";
 import { successResponse, errorResponse } from "@/lib/api/response";
 
 export async function GET(
@@ -9,9 +10,18 @@ export async function GET(
   const { token } = await params;
   const isPreview = req.nextUrl.searchParams.get("preview") === "1";
 
+  let viewerUserId: string | null = null;
+  try {
+    const viewer = await getAuthenticatedUser(req);
+    viewerUserId = viewer?.userId || null;
+  } catch {
+    viewerUserId = null;
+  }
+
   try {
     const resolved = await ShareService.resolveShareToken(token, {
       incrementView: !isPreview,
+      viewerUserId,
     });
     if (!resolved) {
       return errorResponse(

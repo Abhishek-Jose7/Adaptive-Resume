@@ -17,6 +17,7 @@ import { UsageLimitService } from "./usageLimitService";
 import { SettingsService } from "./settingsService";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import { compareReverseChronological, sortResumeDocChronologically } from "../utils/resumeOrderUtils";
+import { budgetResumeForOnePageA4 } from "../editor/onePageA4Budgeter";
 import { JDAnalysis } from "@/types/job";
 import { BankEntry, AchievementBullet } from "@/types/bank";
 
@@ -218,12 +219,24 @@ export class ResumeService {
         issueDate: c.startDate || c.endDate || undefined,
       }));
 
+    const awards = fullEntries
+      .filter((e) => e.entryType === "award")
+      .map((a) => ({
+        id: a.id,
+        name: a.title,
+        issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+        issueDate: a.startDate || a.endDate || undefined,
+      }));
+
+    const summaryText = (profileEntry?.descriptionContext || "").trim();
+    const headlineText = (user?.headline || "").trim();
+
     return {
       profile: {
         name: user?.displayName || "",
         fullName: user?.displayName || "",
-        headline: user?.headline || "",
-        summary: profileEntry?.descriptionContext || "",
+        headline: headlineText,
+        summary: summaryText.toLowerCase() === headlineText.toLowerCase() ? "" : summaryText,
         email: user?.contactEmail || user?.email || "",
         phone: user?.phone || "",
         location: user?.location || "",
@@ -234,6 +247,7 @@ export class ResumeService {
       education,
       skills,
       certifications,
+      awards,
     };
   }
 
@@ -254,49 +268,52 @@ export class ResumeService {
     const resolvedTemplateId = resolvedDocSeed?.template?.id || userDefaults.defaultTemplateId || "classic-ats";
     const resolvedPageSize = resolvedDocSeed?.page?.size || userDefaults.defaultPageSize || "A4";
 
-    const canonicalDoc: ResumeDoc = sortResumeDocChronologically({
-      schemaVersion: 1,
-      documentId: docId,
-      versionId,
-      jobId: jobId || undefined,
-      profile: {
-        name: "",
-        fullName: "",
-        headline: "",
-        summary: "",
-        email: "",
-        phone: "",
-        location: "",
-        links: [],
-        ...(resolvedDocSeed?.profile || {}),
-      },
-      sections: resolvedDocSeed?.sections || [
-        { id: "sec_exp", type: "experience", heading: "Experience", visible: true, items: [] },
-        { id: "sec_edu", type: "education", heading: "Education", visible: true, items: [] },
-        { id: "sec_skills", type: "skills", heading: "Skills", visible: true, items: [] },
-        { id: "sec_projects", type: "projects", heading: "Projects", visible: true, items: [] },
-      ],
-      template: {
-        id: resolvedTemplateId,
-        version: "1.0",
-        theme: {},
-        ...(resolvedDocSeed?.template || {}),
-      },
-      page: {
-        size: resolvedPageSize,
-        targetPages: 1,
-        ...(resolvedDocSeed?.page || {}),
-      },
-      metadata: {
-        createdAt: new Date().toISOString(),
-        ...(resolvedDocSeed?.metadata || {}),
-      },
-      experience: resolvedDocSeed?.experience || [],
-      education: resolvedDocSeed?.education || [],
-      skills: resolvedDocSeed?.skills || [],
-      projects: resolvedDocSeed?.projects || [],
-      certifications: resolvedDocSeed?.certifications || [],
-    });
+    const canonicalDoc: ResumeDoc = budgetResumeForOnePageA4(
+      sortResumeDocChronologically({
+        schemaVersion: 1,
+        documentId: docId,
+        versionId,
+        jobId: jobId || undefined,
+        profile: {
+          name: "",
+          fullName: "",
+          headline: "",
+          summary: "",
+          email: "",
+          phone: "",
+          location: "",
+          links: [],
+          ...(resolvedDocSeed?.profile || {}),
+        },
+        sections: resolvedDocSeed?.sections || [
+          { id: "sec_exp", type: "experience", heading: "Experience", visible: true, items: [] },
+          { id: "sec_edu", type: "education", heading: "Education", visible: true, items: [] },
+          { id: "sec_skills", type: "skills", heading: "Skills", visible: true, items: [] },
+          { id: "sec_projects", type: "projects", heading: "Projects", visible: true, items: [] },
+        ],
+        template: {
+          id: resolvedTemplateId,
+          version: "1.0",
+          theme: {},
+          ...(resolvedDocSeed?.template || {}),
+        },
+        page: {
+          size: resolvedPageSize,
+          targetPages: 1,
+          ...(resolvedDocSeed?.page || {}),
+        },
+        metadata: {
+          createdAt: new Date().toISOString(),
+          ...(resolvedDocSeed?.metadata || {}),
+        },
+        experience: resolvedDocSeed?.experience || [],
+        education: resolvedDocSeed?.education || [],
+        skills: resolvedDocSeed?.skills || [],
+        projects: resolvedDocSeed?.projects || [],
+        certifications: resolvedDocSeed?.certifications || [],
+        awards: resolvedDocSeed?.awards || [],
+      })
+    );
 
     const docJsonString = JSON.stringify(canonicalDoc);
     const contentHash = createHash("sha256").update(docJsonString).digest("hex");

@@ -62,14 +62,15 @@ export class AutoFitLadder {
     }
     if (currentStep >= 4) {
       fontSizePt = 9.5;
-      stepDescription = "Step 4: Reduced body font size to 9.5pt";
+      stepDescription = "Step 4: Compact 9.5pt body typography for single-page A4 fit";
     }
     if (currentStep >= 5) {
       marginInches = 0.5;
       stepDescription = "Step 5: Compact print margins (0.5 in)";
     }
     if (currentStep >= 6) {
-      stepDescription = "Step 6: Content pruning recommended (bullets exceed 1-page budget)";
+      sectionGapRem = 0.52;
+      stepDescription = "Step 6: Tight section rhythm for single-page A4 fit";
       for (const exp of doc.experience || []) {
         if (exp.bullets.length > 3) {
           for (let i = 3; i < exp.bullets.length; i++) {
@@ -86,7 +87,10 @@ export class AutoFitLadder {
     if (currentStep >= 7) {
       isCompactVariant = true;
       fontSizePt = 9.0;
-      stepDescription = "Step 7: High-density compact template variant enabled";
+      lineHeight = 1.18;
+      marginInches = 0.42;
+      sectionGapRem = 0.45;
+      stepDescription = "Step 7: High-density 1-page A4 preset enabled";
     }
     if (currentStep >= 8 || totalChars > this.MAX_PAGE_ESTIMATED_CHARS) {
       if (totalChars > this.MAX_PAGE_ESTIMATED_CHARS) {

@@ -206,6 +206,7 @@ export function AdaptiveResumeWorkspace() {
 
     const skillEntries = bankEntries.filter((e) => e.entryType === "skill_group");
     const certEntries = bankEntries.filter((e) => e.entryType === "certification");
+    const awardEntries = bankEntries.filter((e) => e.entryType === "award");
 
     const topExperience = expGroups.map(({ entry, bullets }) => ({
       id: entry.id,
@@ -252,6 +253,13 @@ export function AdaptiveResumeWorkspace() {
       name: c.title,
       issuer: c.organization || "",
       issueDate: c.startDate || c.endDate || undefined,
+    }));
+
+    const topAwards = awardEntries.map((a) => ({
+      id: a.id,
+      name: a.title,
+      issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+      issueDate: a.startDate || a.endDate || undefined,
     }));
 
     const sectionGroups = {
@@ -343,6 +351,7 @@ export function AdaptiveResumeWorkspace() {
       skills: topSkills,
       projects: topProjects,
       certifications: topCertifications,
+      awards: topAwards,
     };
   };
 

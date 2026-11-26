@@ -267,6 +267,27 @@ export class DocxGenerator {
           }
         }
       },
+      awards: () => {
+        if (normalized.awards.length === 0) return;
+        addSectionHeader("Achievements & Awards");
+        for (const a of normalized.awards) {
+          paragraphs.push(
+            new Paragraph({
+              bullet: { level: 0 },
+              spacing: { after: 30 },
+              children: [
+                new TextRun({ text: a.name, bold: true, size: 20, font: "Calibri" }),
+                ...(a.issuer
+                  ? [new TextRun({ text: ` — ${a.issuer}`, size: 20, font: "Calibri", color: "444444" })]
+                  : []),
+                ...(a.issueDate
+                  ? [new TextRun({ text: ` (${a.issueDate})`, italics: true, size: 19, font: "Calibri" })]
+                  : []),
+              ],
+            })
+          );
+        }
+      },
       certifications: () => {
         if (normalized.certifications.length === 0) return;
         addSectionHeader("Certifications & Credentials");

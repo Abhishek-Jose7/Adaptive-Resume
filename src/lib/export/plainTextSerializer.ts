@@ -102,6 +102,15 @@ export class PlainTextSerializer {
           lines.push("");
         }
       },
+      awards: () => {
+        if (normalized.awards.length === 0) return;
+        lines.push("ACHIEVEMENTS & AWARDS");
+        lines.push("-".repeat(21));
+        for (const a of normalized.awards) {
+          lines.push(`* ${a.name}${a.issuer ? ` - ${a.issuer}` : ""}${a.issueDate ? ` (${a.issueDate})` : ""}`);
+        }
+        lines.push("");
+      },
       certifications: () => {
         if (normalized.certifications.length === 0) return;
         lines.push("CERTIFICATIONS");

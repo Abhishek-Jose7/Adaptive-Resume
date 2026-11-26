@@ -140,6 +140,7 @@ export interface ResumeDoc {
   skills?: ResumeSkill[];
   projects?: ResumeProject[];
   certifications?: ResumeCertification[];
+  awards?: ResumeCertification[];
 }
 
 // Section 18.5: Resume Version Diff

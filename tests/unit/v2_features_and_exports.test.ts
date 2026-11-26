@@ -12,6 +12,7 @@ import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
 import { countIndividualSkills } from "@/lib/cache/vaultClientCache";
 import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
+import { budgetResumeForOnePageA4, estimateA4DensityUnits } from "@/lib/editor/onePageA4Budgeter";
 import { ResumeDoc } from "@/types/resume";
 
 describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () => {
@@ -370,6 +371,7 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
         entryType: "project",
         title: "Nyaaya AI — Legal Awareness Platform",
         bullets: [
+          { text: "Next.js | Groq | RAG | Embeddings | NLP" },
           { text: "Built multi-step LLM agent workflows with RAG orchestration and FastAPI services." },
         ],
       },
@@ -382,7 +384,8 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     ]);
 
     expect(insight.extractedTitle).toBe("AI Systems Engineer");
-    expect(insight.matchedSkills).toEqual(expect.arrayContaining(["LLMs", "AI Agents", "RAG", "FastAPI", "PostgreSQL"]));
+    expect(insight.matchedSkills).toEqual(expect.arrayContaining(["LLMs", "AI Agents", "RAG", "FastAPI"]));
+    expect(insight.tagOnlySkills).toEqual(expect.arrayContaining(["Embeddings", "PostgreSQL"]));
     expect(insight.missingSkills).toContain("Embeddings");
     expect(insight.summaryInsight).toContain("Nyaaya AI");
     expect(insight.summaryInsight).toContain("Embeddings");
@@ -390,5 +393,120 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     const parsedJd = JDAnalysisService.analyzeDeterministic(jd);
     const canonicals = parsedJd.keywords.map((k) => k.canonical);
     expect(canonicals).toEqual(expect.arrayContaining(["LLMs", "AI Agents", "Embeddings", "RAG", "FastAPI", "PostgreSQL"]));
+  });
+
+  it("budgets multi-project resumes to 1 A4 page while preserving hackathon awards and exports", async () => {
+    const oversizedDoc: ResumeDoc = {
+      schemaVersion: 1,
+      documentId: "res_a4_test",
+      versionId: "ver_a4_test",
+      profile: {
+        name: "Abhishek Jose",
+        fullName: "Abhishek Jose",
+        headline: "Third-year Computer Engineering student",
+        summary: "Third-year Computer Engineering student",
+        email: "abhishek@example.com",
+        links: [],
+      },
+      sections: [],
+      template: { id: "classic-ats", version: "1.0", theme: {} },
+      page: { size: "A4", targetPages: 1 },
+      metadata: { createdAt: new Date().toISOString() },
+      experience: [
+        {
+          id: "exp_1",
+          company: "GDG CRCE",
+          position: "Technical Lead",
+          startDate: "2026-05-01",
+          isCurrent: true,
+          bullets: Array.from({ length: 5 }, (_, idx) => ({
+            id: `b_exp1_${idx}`,
+            text: `Led initiative ${idx + 1} building scalable infrastructure and coordinating student engineering operations across events.`,
+            provenance: "bank" as const,
+            sourceBulletIds: [],
+            sourceFactIds: [],
+            validatorStatus: "passed" as const,
+          })),
+        },
+        {
+          id: "exp_2",
+          company: "GDSC CRCE",
+          position: "Technical Associate",
+          startDate: "2025-06-01",
+          endDate: "2026-05-28",
+          bullets: Array.from({ length: 4 }, (_, idx) => ({
+            id: `b_exp2_${idx}`,
+            text: `Organized hackathon workflows and built Next.js + Prisma event portals for 1,000+ participants across colleges (${idx + 1}).`,
+            provenance: "bank" as const,
+            sourceBulletIds: [],
+            sourceFactIds: [],
+            validatorStatus: "passed" as const,
+          })),
+        },
+      ],
+      projects: [
+        {
+          id: "p1",
+          name: "Sponzy — Sponsorship Marketplace",
+          bullets: [
+            { id: "p1b0", text: "Flask | PostgreSQL | JavaScript", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+            { id: "p1b1", text: "Built real-time chat and sponsorship matching.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+            { id: "p1b2", text: "Added analytics tracking for event organizers.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+          ],
+        },
+        {
+          id: "p2",
+          name: "Nyaaya AI — Legal Awareness Platform",
+          bullets: [
+            { id: "p2b0", text: "Next.js | Groq | RAG | Embeddings | NLP", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+            { id: "p2b1", text: "Implemented LLM-powered retrieval and conversational AI agents for plain-language legal guidance.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+          ],
+        },
+        {
+          id: "p3",
+          name: "Hangout — Group Itinerary Planner",
+          bullets: [
+            { id: "p3b0", text: "Implemented constraint-based itinerary optimization.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+          ],
+        },
+        {
+          id: "p4",
+          name: "KrishiMitra AI — Farmer Decision Support",
+          bullets: [
+            { id: "p4b0", text: "Built Flutter + Flask + ML advisory platform.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" },
+          ],
+        },
+      ],
+      education: [
+        { id: "edu_1", institution: "FRCRCE", degree: "B.E. in Computer Engineering", startDate: "2024", endDate: "2028-05-28" },
+      ],
+      skills: [
+        { name: "Python", category: "Languages" },
+        { name: "LLMs", category: "AI & GenAI" },
+      ],
+      awards: [
+        { id: "aw_1", name: "2x Hackathon Winner [PKP Hacks]", issuer: "" },
+        { id: "aw_2", name: "2x Hackathon Winner [Pixels Sies]", issuer: "" },
+      ],
+      certifications: [
+        { id: "cert_1", name: "Supervised ML", issuer: "Coursera" },
+      ],
+    };
+
+    const fitted = budgetResumeForOnePageA4(oversizedDoc, { jdKeywords: ["LLMs", "RAG", "agents"] });
+    expect(fitted.profile.summary).toBe("");
+    expect(fitted.awards?.map((a) => a.name)).toContain("2x Hackathon Winner [PKP Hacks]");
+    expect((fitted.projects || []).length).toBeLessThanOrEqual(3);
+    expect(fitted.projects?.[0].name).toContain("Nyaaya AI");
+    expect(estimateA4DensityUnits(fitted)).toBeLessThanOrEqual(2950);
+
+    const txt = PlainTextSerializer.serialize(fitted);
+    expect(txt).toContain("ACHIEVEMENTS & AWARDS");
+    expect(txt).toContain("2x Hackathon Winner [PKP Hacks]");
+
+    const docxBlob = await DocxGenerator.generateDocxBlob(fitted);
+    const zip = await JSZip.loadAsync(await docxBlob.arrayBuffer());
+    const docXml = await zip.file("word/document.xml")!.async("string");
+    expect(docXml).toContain("2x Hackathon Winner [PKP Hacks]");
   });
 });

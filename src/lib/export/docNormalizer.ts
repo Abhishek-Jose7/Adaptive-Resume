@@ -31,10 +31,11 @@ export interface NormalizedExportResume {
   skills: ResumeSkill[];
   projects: ResumeProject[];
   certifications: ResumeCertification[];
+  awards: ResumeCertification[];
   extraSections: NormalizedCustomSection[];
 }
 
-const DEFAULT_ORDER = ["experience", "education", "skills", "projects", "certifications"];
+const DEFAULT_ORDER = ["experience", "education", "skills", "projects", "awards", "certifications"];
 
 function toBulletDocs(rawBullets: unknown): ResumeBulletDoc[] {
   if (!Array.isArray(rawBullets)) return [];
@@ -162,7 +163,23 @@ export function normalizeResumeForExport(doc: ResumeDoc): NormalizedExportResume
     }
   }
 
-  // 6. Extra custom sections (awards, publications, volunteer, custom)
+  // 6. Awards / Achievements
+  const awardSec = findSection(doc, ["awards", "award"]);
+  let awards: ResumeCertification[] = [];
+  if (isSectionVisible(doc, ["awards", "award"])) {
+    if (doc.awards && doc.awards.length > 0) {
+      awards = doc.awards;
+    } else if (awardSec?.items?.length) {
+      awards = awardSec.items.map((it) => ({
+        id: it.id,
+        name: it.title || "",
+        issuer: it.organization || "",
+        issueDate: it.dates?.start || it.dates?.end || undefined,
+      }));
+    }
+  }
+
+  // 7. Extra custom sections (publications, volunteer, custom)
   const knownTypes = new Set([
     "profile",
     "experience",
@@ -171,6 +188,8 @@ export function normalizeResumeForExport(doc: ResumeDoc): NormalizedExportResume
     "skill_group",
     "projects",
     "project",
+    "awards",
+    "award",
     "certifications",
     "certification",
   ]);
@@ -206,6 +225,7 @@ export function normalizeResumeForExport(doc: ResumeDoc): NormalizedExportResume
     skills,
     projects,
     certifications,
+    awards,
     extraSections,
   };
 }

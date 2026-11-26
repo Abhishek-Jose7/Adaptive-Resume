@@ -157,7 +157,7 @@ export function ShareModal({ resumeVersionId, isOpen, onClose, previewDoc }: Sha
 
         <div className="py-4 space-y-4">
           <p className="text-xs text-graphite leading-relaxed">
-            Generate an expiring, read-only snapshot link for recruiters. View counts and link expiry alerts stay visible here.
+            Generate an expiring, read-only snapshot link for recruiters. View counts and link expiry alerts are visible only to you here—never to visitors opening the link.
           </p>
 
           {expiringSoonCount > 0 && (

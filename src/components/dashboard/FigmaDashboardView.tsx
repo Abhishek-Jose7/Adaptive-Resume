@@ -51,8 +51,11 @@ export function FigmaDashboardView() {
     suitabilityVerdict: string;
     canApplyRecommendation: string;
     matchedSkills: string[];
+    tagOnlySkills?: string[];
     missingSkills: string[];
+    source?: string;
   } | null>(null);
+  const [analyzingRole, setAnalyzingRole] = useState(false);
   const [bankEntries, setBankEntries] = useState<BankEntry[]>([]);
   const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,23 +115,61 @@ export function FigmaDashboardView() {
     };
   }, [loadDashboardData]);
 
-  function handleAnalyze() {
+  async function handleAnalyze() {
     const trimmed = jobText.trim();
     if (trimmed.length < 20) return;
     setTailorError(null);
+    setAnalyzingRole(true);
+
+    try {
+      const res = await fetch("/api/v1/overview/analyze-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: trimmed }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const matched = Array.isArray(data?.matchedSkills) ? data.matchedSkills : [];
+        const tagOnly = Array.isArray(data?.tagOnlySkills) ? data.tagOnlySkills : [];
+        const missing = Array.isArray(data?.missingSkills) ? data.missingSkills : [];
+        const totalChecked = matched.length + missing.length;
+
+        setAnalysisResult({
+          score: typeof data?.score === "number" ? data.score : 0,
+          title: data?.extractedTitle || extractRoleTitleFromJd(trimmed),
+          details:
+            totalChecked > 0
+              ? `${matched.length} of ${totalChecked} role criteria evidenced in bullets · ${data?.totalFactsCount ?? 0} verified facts`
+              : `${data?.totalFactsCount ?? 0} verified facts checked against role`,
+          suitabilityVerdict: data?.suitabilityVerdict || "Role Fit Assessment",
+          canApplyRecommendation: data?.summaryInsight || "",
+          matchedSkills: matched.slice(0, 8),
+          tagOnlySkills: tagOnly.slice(0, 4),
+          missingSkills: missing.slice(0, 6),
+          source: data?.source,
+        });
+        setAnalyzed(true);
+        return;
+      }
+    } catch {
+      // Fallback to local evidence engine if network unavailable
+    } finally {
+      setAnalyzingRole(false);
+    }
 
     const insight = analyzeRoleFitAgainstVault(trimmed, bankEntries);
-
     setAnalysisResult({
       score: insight.score,
       title: insight.extractedTitle,
       details:
         bankEntries.length === 0
           ? "0 facts in Career Vault · Add your experience first"
-          : `${insight.matchedSkills.length} of ${insight.matchedSkills.length + insight.missingSkills.length} role requirements verified · ${insight.totalFactsCount} verified facts found`,
+          : `${insight.matchedSkills.length} of ${insight.matchedSkills.length + insight.missingSkills.length} role criteria evidenced in bullets · ${insight.totalFactsCount} verified facts`,
       suitabilityVerdict: insight.suitabilityVerdict,
       canApplyRecommendation: insight.summaryInsight,
       matchedSkills: insight.matchedSkills.slice(0, 8),
+      tagOnlySkills: insight.tagOnlySkills.slice(0, 4),
       missingSkills: insight.missingSkills.slice(0, 6),
     });
     setAnalyzed(true);
@@ -315,6 +356,15 @@ export function FigmaDashboardView() {
           issueDate: c.startDate || c.endDate || undefined,
         }));
 
+      const awards = bankEntries
+        .filter((e) => e.entryType === "award")
+        .map((a) => ({
+          id: a.id,
+          name: a.title,
+          issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+          issueDate: a.startDate || a.endDate || undefined,
+        }));
+
       const resumeDoc = {
         schemaVersion: 1,
         documentId: "",
@@ -377,6 +427,7 @@ export function FigmaDashboardView() {
             ),
           ),
         certifications,
+        awards,
       };
 
       // 6. Create the resume and navigate directly to the live draft editor
@@ -540,15 +591,19 @@ export function FigmaDashboardView() {
                 <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                   <button
                     type="button"
-                    disabled={creatingResume || jobText.trim().length < 20}
+                    disabled={analyzingRole || creatingResume || jobText.trim().length < 20}
                     onClick={handleAnalyze}
                   >
-                    Analyse role <FigmaIcon name="spark" size={16} />
+                    {analyzingRole ? (
+                      <>Analysing fit… <FigmaIcon name="spark" size={16} /></>
+                    ) : (
+                      <>Analyse role <FigmaIcon name="spark" size={16} /></>
+                    )}
                   </button>
                   <button
                     type="button"
                     className={jobText.trim().length >= 10 ? "ready" : ""}
-                    disabled={creatingResume || jobText.trim().length < 10}
+                    disabled={analyzingRole || creatingResume || jobText.trim().length < 10}
                     onClick={handleCreateTailoredResume}
                   >
                     {creatingResume ? (
@@ -607,6 +662,21 @@ export function FigmaDashboardView() {
                         {analysisResult.matchedSkills.map((sk) => (
                           <span key={sk} className="pill-matched">
                             ✓ {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisResult?.tagOnlySkills && analysisResult.tagOnlySkills.length > 0 && (
+                    <div className="req-group">
+                      <span className="req-group-title">
+                        <i className="dot-neutral" /> Listed in Skills Only — Needs Bullet Proof ({analysisResult.tagOnlySkills.length})
+                      </span>
+                      <div className="req-pills">
+                        {analysisResult.tagOnlySkills.map((sk) => (
+                          <span key={sk} className="pill-unrecorded">
+                            ◐ {sk}
                           </span>
                         ))}
                       </div>

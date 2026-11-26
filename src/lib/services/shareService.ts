@@ -3,7 +3,6 @@ import { shareLinks, resumeVersions, users, auditEvents } from "../db/schema";
 import { eq, and, gt, isNull, desc, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { ResumeDoc } from "@/types/resume";
-import { SettingsService } from "./settingsService";
 
 export interface CreateShareLinkInput {
   resumeVersionId: string;
@@ -92,8 +91,12 @@ export class ShareService {
 
   /**
    * Resolves a public share token without requiring authentication and tracks view analytics.
+   * View counts are returned ONLY to the verified owner (`viewerUserId === link.userId`).
    */
-  static async resolveShareToken(token: string, options: { incrementView?: boolean } = {}) {
+  static async resolveShareToken(
+    token: string,
+    options: { incrementView?: boolean; viewerUserId?: string | null } = {}
+  ) {
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const now = new Date();
 
@@ -129,11 +132,11 @@ export class ShareService {
     if (links.length === 0) return null;
 
     const link = links[0];
-    const ownerSettings = await SettingsService.getUserSettings(link.userId);
+    const isOwner = Boolean(options.viewerUserId && options.viewerUserId === link.userId);
     let currentViewCount = link.viewCount ?? 0;
     let currentLastViewedAt = link.lastViewedAt;
 
-    if (options.incrementView !== false) {
+    if (options.incrementView !== false && !isOwner) {
       try {
         const [updated] = await db
           .update(shareLinks)
@@ -183,9 +186,9 @@ export class ShareService {
       daysRemaining,
       isExpiringSoon: daysRemaining <= 5,
       authorName: link.authorName,
-      showViewCounters: ownerSettings.showViewCounters,
-      viewCount: ownerSettings.showViewCounters ? currentViewCount : undefined,
-      lastViewedAt: ownerSettings.showViewCounters ? currentLastViewedAt : undefined,
+      isOwner,
+      viewCount: isOwner ? currentViewCount : undefined,
+      lastViewedAt: isOwner ? currentLastViewedAt : undefined,
     };
   }
 

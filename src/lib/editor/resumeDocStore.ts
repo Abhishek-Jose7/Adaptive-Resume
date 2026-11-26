@@ -73,6 +73,10 @@ export class ResumeDocStore {
     this.notify();
   }
 
+  applyDocumentUpdate(doc: ResumeDoc) {
+    this.pushState(doc);
+  }
+
   setActiveLocation(section: string, itemId: string | null = null) {
     this.state = {
       ...this.state,
