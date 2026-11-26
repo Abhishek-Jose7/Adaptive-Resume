@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { JDKeyword } from "@/types/job";
 import { ArrowUp, ArrowDown, Trash2, Plus, Check } from "lucide-react";
 
@@ -22,6 +22,10 @@ export function KeywordManager({
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    setKeywords(initialKeywords);
+  }, [initialKeywords]);
+
   const activeKeywords = keywords.filter((k) => k.userOverride !== "removed");
   const mustHaves = activeKeywords.filter((k) => k.priority === "must_have");
   const niceToHaves = activeKeywords.filter((k) => k.priority === "nice_to_have");
@@ -33,6 +37,8 @@ export function KeywordManager({
       await onKeywordsUpdated(updated);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 2500);
+    } catch (err) {
+      console.error("Failed to save keyword overrides:", err);
     } finally {
       setLoading(false);
     }

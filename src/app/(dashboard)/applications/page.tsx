@@ -27,15 +27,18 @@ export default function ApplicationsPage() {
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/applications");
-      if (res.ok) {
-        const json = await res.json();
-        setApplications(json.data || json || []);
+      const [res, jobsRes] = await Promise.all([
+        fetch("/api/v1/applications"),
+        fetch("/api/v1/jobs"),
+      ]);
+      const [appsJson, jobsJson] = await Promise.all([
+        res.ok ? res.json() : Promise.resolve(null),
+        jobsRes.ok ? jobsRes.json() : Promise.resolve(null),
+      ]);
+      if (appsJson) {
+        setApplications(appsJson.data || appsJson || []);
       }
-
-      const jobsRes = await fetch("/api/v1/jobs");
-      if (jobsRes.ok) {
-        const jobsJson = await jobsRes.json();
+      if (jobsJson) {
         setAvailableJobs(jobsJson.data || jobsJson || []);
       }
     } catch (err) {

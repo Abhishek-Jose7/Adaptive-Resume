@@ -132,6 +132,17 @@ export class ResumeDocStore {
     this.pushState(newDoc);
   }
 
+  setTemplateId(templateId: string) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      template: {
+        ...this.state.doc.template,
+        id: templateId,
+      },
+    };
+    this.pushState(newDoc);
+  }
+
   // Experience Actions
   addExperience(exp: ResumeExperience) {
     const newDoc: ResumeDoc = {

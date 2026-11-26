@@ -1,24 +1,22 @@
 import { NextRequest } from "next/server";
 import { getAuthUserId } from "@/lib/auth/clerk";
-import { successResponse, errorResponse } from "@/lib/api/response";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { ResumeService } from "@/lib/services/resumeService";
 import { ResumeQualityGateService } from "@/lib/export/resumeQualityGate";
 import { CanaryDetector } from "@/lib/intelligence/canaryDetector";
 import { ResumeDoc } from "@/types/resume";
 import { db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getAuthUserId();
-  if (!userId) return errorResponse("UNAUTHENTICATED", "Sign in required", 401);
-
-  const { id: resumeId } = await params;
-
   try {
+    const userId = await getAuthUserId(req);
+    const { id: resumeId } = await params;
+
     const resume = await ResumeService.getResume(userId, resumeId);
     if (!resume) return errorResponse("NOT_FOUND", "Resume not found", 404);
 
@@ -42,9 +40,9 @@ export async function POST(
     let jdText: string | undefined;
     if (resume.document.jobId) {
       const [job] = await db
-        .select()
+        .select({ rawText: jobs.rawText })
         .from(jobs)
-        .where(eq(jobs.id, resume.document.jobId))
+        .where(and(eq(jobs.id, resume.document.jobId), eq(jobs.userId, userId)))
         .limit(1);
       if (job) jdText = job.rawText;
     }
@@ -59,7 +57,7 @@ export async function POST(
     }
 
     return successResponse(audit);
-  } catch (err: any) {
-    return errorResponse("INTERNAL_ERROR", err.message, 500);
+  } catch (err) {
+    return handleApiError(err);
   }
 }

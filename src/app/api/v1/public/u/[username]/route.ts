@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db/client";
 import { users, bankEntries, achievementBullets } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { successResponse, errorResponse } from "@/lib/api/response";
 
 export async function GET(
@@ -19,7 +19,7 @@ export async function GET(
         createdAt: users.createdAt,
       })
       .from(users)
-      .where(eq(users.username, username))
+      .where(and(eq(users.username, username), isNull(users.deletedAt)))
       .limit(1);
 
     if (userRecords.length === 0) {
@@ -28,12 +28,57 @@ export async function GET(
 
     const user = userRecords[0];
 
-    // Fetch public profile entry if present
-    const profileEntries = await db
-      .select()
-      .from(bankEntries)
-      .where(and(eq(bankEntries.userId, user.id), eq(bankEntries.entryType, "profile")))
-      .limit(1);
+    const [profileEntries, entries, bullets] = await Promise.all([
+      db
+        .select()
+        .from(bankEntries)
+        .where(
+          and(
+            eq(bankEntries.userId, user.id),
+            eq(bankEntries.entryType, "profile"),
+            inArray(bankEntries.visibility, ["public_eligible", "public"]),
+            isNull(bankEntries.deletedAt)
+          )
+        )
+        .limit(1),
+      db
+        .select({
+          id: bankEntries.id,
+          entryType: bankEntries.entryType,
+          title: bankEntries.title,
+          organization: bankEntries.organization,
+          location: bankEntries.location,
+          startDate: bankEntries.startDate,
+          endDate: bankEntries.endDate,
+          isCurrent: bankEntries.isCurrent,
+          descriptionContext: bankEntries.descriptionContext,
+        })
+        .from(bankEntries)
+        .where(
+          and(
+            eq(bankEntries.userId, user.id),
+            inArray(bankEntries.visibility, ["public_eligible", "public"]),
+            isNull(bankEntries.deletedAt)
+          )
+        )
+        .limit(100),
+      db
+        .select({
+          id: achievementBullets.id,
+          entryId: achievementBullets.entryId,
+          text: achievementBullets.text,
+        })
+        .from(achievementBullets)
+        .where(
+          and(
+            eq(achievementBullets.userId, user.id),
+            inArray(achievementBullets.visibility, ["public_eligible", "public"]),
+            inArray(achievementBullets.verificationStatus, ["user_verified", "source_verified", "verified"]),
+            isNull(achievementBullets.deletedAt)
+          )
+        )
+        .limit(300),
+    ]);
 
     const profileEntry = profileEntries[0];
     const candidateProfile = {
@@ -45,38 +90,6 @@ export async function GET(
       bio: profileEntry?.descriptionContext || undefined,
       createdAt: user.createdAt,
     };
-
-    // Fetch public entries
-    const entries = await db
-      .select({
-        id: bankEntries.id,
-        entryType: bankEntries.entryType,
-        title: bankEntries.title,
-        organization: bankEntries.organization,
-        location: bankEntries.location,
-        startDate: bankEntries.startDate,
-        endDate: bankEntries.endDate,
-        isCurrent: bankEntries.isCurrent,
-        descriptionContext: bankEntries.descriptionContext,
-      })
-      .from(bankEntries)
-      .where(and(eq(bankEntries.userId, user.id), eq(bankEntries.visibility, "public")));
-
-    // Fetch verified public bullets
-    const bullets = await db
-      .select({
-        id: achievementBullets.id,
-        entryId: achievementBullets.entryId,
-        text: achievementBullets.text,
-      })
-      .from(achievementBullets)
-      .where(
-        and(
-          eq(achievementBullets.userId, user.id),
-          eq(achievementBullets.visibility, "public"),
-          eq(achievementBullets.verificationStatus, "verified")
-        )
-      );
 
     const bulletsByEntry = new Map<string, typeof bullets>();
     for (const b of bullets) {

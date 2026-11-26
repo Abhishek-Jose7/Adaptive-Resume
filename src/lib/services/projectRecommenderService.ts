@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/client";
 import { bankEntries, achievementBullets, bulletFacts, projectMetadata } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { JDAnalysis, ProjectRecommendation } from "@/types/job";
 import { ProjectMaturityLevel } from "@/types/bank";
 import { shortenProjectDescription } from "@/lib/utils/projectUtils";
@@ -28,21 +28,29 @@ export class ProjectRecommenderService {
 
     if (projects.length === 0) return [];
 
-    // 2. Fetch associated bullets and metadata
-    const bullets = await db
-      .select()
-      .from(achievementBullets)
-      .where(and(eq(achievementBullets.userId, userId), isNull(achievementBullets.deletedAt)));
+    const projectIds = projects.map((p) => p.id);
 
-    const facts = await db
-      .select()
-      .from(bulletFacts)
-      .where(eq(bulletFacts.userId, userId));
-
-    const metaList = await db
-      .select()
-      .from(projectMetadata)
-      .where(eq(projectMetadata.userId, userId));
+    // 2. Fetch associated bullets and metadata concurrently, scoped to projects
+    const [bullets, facts, metaList] = await Promise.all([
+      db
+        .select()
+        .from(achievementBullets)
+        .where(
+          and(
+            eq(achievementBullets.userId, userId),
+            inArray(achievementBullets.entryId, projectIds),
+            isNull(achievementBullets.deletedAt)
+          )
+        ),
+      db
+        .select()
+        .from(bulletFacts)
+        .where(eq(bulletFacts.userId, userId)),
+      db
+        .select()
+        .from(projectMetadata)
+        .where(and(eq(projectMetadata.userId, userId), inArray(projectMetadata.entryId, projectIds))),
+    ]);
 
     const metaMap = new Map(metaList.map((m) => [m.entryId, m]));
 
@@ -82,12 +90,18 @@ export class ProjectRecommenderService {
         }
       }
 
-      // Calculate relevance score (0.0 to 1.0)
+      // Calculate genuine keyword relevance (0.0 to 1.0) without inflating unmatched projects
       const keywordOverlap = supportedRequirements.length;
-      const relevanceScore = Math.min(
-        1.0,
-        parseFloat(((keywordOverlap * 0.25) + (projBullets.length > 0 ? 0.2 : 0.05)).toFixed(2))
-      );
+      const relevanceScore =
+        keywordOverlap === 0
+          ? 0
+          : Math.min(
+              1.0,
+              parseFloat(
+                (keywordOverlap / Math.max(1, Math.min(jdKeywords.length, 4)) * 0.8 +
+                  (projBullets.length > 0 ? 0.2 : 0)).toFixed(2)
+              )
+            );
 
       // Determine maturity and known gaps from user-confirmed metadata
       const maturityLevel: ProjectMaturityLevel = (meta?.maturityLevel as ProjectMaturityLevel) || "functional_prototype";
@@ -102,12 +116,13 @@ export class ProjectRecommenderService {
         knownGaps.push(`Known limitations: ${meta.limitations}`);
       }
 
-      // Generate honest, non-inflated draft description
-      let tailoredDescription = shortenProjectDescription(proj.descriptionContext) || projBullets[0]?.text || "";
-      if (maturityLevel === "functional_prototype" || maturityLevel === "partially_implemented") {
-        tailoredDescription = `Architected functional prototype demonstrating ${Array.from(demonstratedSkills).slice(0, 3).join(", ")}. Focused on core technical workflows.`;
-      } else if (maturityLevel === "deployed" || maturityLevel === "completed") {
-        tailoredDescription = projBullets.map((b) => b.text).join(" ");
+      // Generate honest, non-inflated draft description strictly from project evidence
+      let tailoredDescription =
+        shortenProjectDescription(proj.descriptionContext) ||
+        projBullets.map((b) => b.text).join(" ") ||
+        "";
+      if (!tailoredDescription && demonstratedSkills.size > 0) {
+        tailoredDescription = `Implemented core project workflows using ${Array.from(demonstratedSkills).slice(0, 3).join(", ")}.`;
       }
 
       // Ensure NO inflated forbidden terms ("production-ready", "enterprise-grade") appear unless user verified
@@ -118,11 +133,10 @@ export class ProjectRecommenderService {
           .replace(/fully functional/gi, "implemented");
       }
 
-      const rationale = `Demonstrates hands-on implementation of ${
+      const rationale =
         supportedRequirements.length > 0
-          ? supportedRequirements.slice(0, 3).join(", ")
-          : "relevant software engineering architecture"
-      }. Status: ${maturityLevel.replace("_", " ")}.`;
+          ? `Directly evidences ${supportedRequirements.slice(0, 3).join(", ")} from your project record. Status: ${maturityLevel.replace(/_/g, " ")}.`
+          : `No direct keyword overlap with the target posting yet. Status: ${maturityLevel.replace(/_/g, " ")}.`;
 
       recommendations.push({
         projectId: proj.id,
@@ -139,7 +153,7 @@ export class ProjectRecommenderService {
         supportedJobRequirements: supportedRequirements,
         existingEvidenceCount: projBullets.length + projFacts.length,
         knownGaps,
-        userContribution: meta?.actualContribution || "Lead architect & developer",
+        userContribution: meta?.actualContribution || "Builder / Contributor (role unannotated)",
         selected: false, // User MUST explicitly select
         tailoredDescription,
         userApproved: false,

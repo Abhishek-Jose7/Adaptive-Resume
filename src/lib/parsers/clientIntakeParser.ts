@@ -1,4 +1,3 @@
-import { ResumeStructuringService } from "./resumeStructuringService";
 import type { StagedItemInput } from "@/lib/repositories/importRepository";
 
 /**
@@ -13,18 +12,16 @@ export async function parseResumeTextWithFallback(
 ): Promise<StagedItemInput[]> {
   if (!rawText || !rawText.trim()) return [];
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 22000);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 22000);
 
+  try {
     const res = await fetch("/api/v1/imports/parse-resume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rawText, sourceLabel }),
       signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const payload = await res.json().catch(() => null);
@@ -35,8 +32,11 @@ export async function parseResumeTextWithFallback(
     }
   } catch {
     // Graceful local fallback below when offline, timed out, or unauthenticated
+  } finally {
+    clearTimeout(timeoutId);
   }
 
+  const { ResumeStructuringService } = await import("./resumeStructuringService");
   const structuredSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
   return ResumeStructuringService.toStagedItemInputs(structuredSections);
 }

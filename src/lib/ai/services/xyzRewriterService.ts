@@ -204,22 +204,57 @@ OUTPUT JSON SCHEMA:
     }
 
     const question = hasVerifiedMetric ? null : this.generateMetricQuestion(sourceBullet.text);
+    const extractedNums = Array.from(this.extractNumericTokens(cleanText));
+    const metricSnippet = extractedNums.length > 0 ? extractedNums.join(", ") : null;
+
+    const claimMap = [{ claim: cleanText, evidenceIds: [sourceBullet.id], claimType: "action" as const }];
+    const validation = TruthBoundValidator.validate(
+      {
+        text: cleanText,
+        sourceBulletIds: [sourceBullet.id],
+        sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
+        claimMap,
+        validatorStatus: "not_applicable",
+      },
+      [
+        {
+          id: sourceBullet.id,
+          userId: "",
+          entryId: "",
+          text: sourceBullet.text,
+          visibility: "private",
+          verificationStatus: "unverified",
+          usagePolicy: "eligible",
+          sortOrder: 0,
+          rowVersion: 1,
+          createdAt: "",
+          updatedAt: "",
+          facts: sourceBullet.facts || [],
+        },
+      ],
+      sourceBullet.facts || [],
+      [],
+      undefined,
+      { targetKeywords: targetJdKeywords }
+    );
 
     return {
       rewrittenText: cleanText,
       originalText: sourceBullet.text,
       xyzStructure: {
-        accomplishedX: "Delivered key engineering functionality",
-        measuredByY: hasVerifiedMetric ? "Verified project metrics" : null,
-        byDoingZ: "Applying targeted development practices",
+        accomplishedX: cleanText.replace(/\.$/, ""),
+        measuredByY: hasVerifiedMetric ? metricSnippet : null,
+        byDoingZ: parentEntry.title ? `Work performed in ${parentEntry.title}` : cleanText.replace(/\.$/, ""),
       },
       hasVerifiedMetric,
       suggestedMetricQuestion: question,
-      claimMap: [{ claim: cleanText, evidenceIds: [sourceBullet.id], claimType: "action" }],
+      claimMap,
       sourceBulletIds: [sourceBullet.id],
       sourceFactIds: (sourceBullet.facts || []).map((f) => f.id),
-      passedValidation: true,
-      validationNotes: ["Grounded via deterministic XYZ engine."],
+      passedValidation: validation.isValid,
+      validationNotes: validation.isValid
+        ? ["Passed TruthBoundValidator via deterministic XYZ engine."]
+        : validation.failures.map((v) => v.message),
     };
   }
 

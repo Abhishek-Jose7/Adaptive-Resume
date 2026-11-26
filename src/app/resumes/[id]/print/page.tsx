@@ -87,7 +87,7 @@ export default function ResumePrintPage() {
 
       <style jsx global>{`
         @page {
-          size: letter portrait;
+          size: ${doc.page?.size === "A4" ? "A4" : "letter"} portrait;
           margin: 0mm;
         }
         @media print {

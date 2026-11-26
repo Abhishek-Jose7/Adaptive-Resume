@@ -66,10 +66,10 @@ export function UsageLimitsDashboard() {
         : `${report.aiGenerationsLimit - report.aiGenerationsUsed} left this month`,
     },
     {
-      label: "PDF and DOCX exports",
+      label: "DOCX & TXT downloads (server-tracked)",
       used: report.exportsUsed,
       limit: report.exportsLimit,
-      note: `${report.exportsLimit - report.exportsUsed} left this month`,
+      note: `${Math.max(0, report.exportsLimit - report.exportsUsed)} left this month · browser print/PDF is unlimited`,
     },
     {
       label: "Career facts stored",
@@ -90,8 +90,11 @@ export function UsageLimitsDashboard() {
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-mono text-[11px] text-graphite">{report.monthlyPeriod}</span>
-          <span className="text-[12px] text-graphite">spend to date</span>
+          <span className="text-[12px] text-graphite">platform fee</span>
           <span className="font-display text-[18px] font-semibold tracking-tight">$0.00</span>
+          <span className="font-mono text-[11px] text-graphite">
+            · {report.aiTokensConsumed.toLocaleString()} tokens logged
+          </span>
         </div>
 
         <div className="flex items-center gap-2">

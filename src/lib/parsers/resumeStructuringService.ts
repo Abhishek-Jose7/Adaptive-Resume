@@ -367,18 +367,36 @@ export class ResumeStructuringService {
           return true;
         });
 
-        const cleanBullets = nonContactLines
-          .map((l) => l.replace(/^[•\-\*]\s*/, "").trim())
-          .filter((l) => l.length > 15);
+        const explicitBulletLines: string[] = [];
+        let hasExplicitBullets = false;
+        for (const rawLine of nonContactLines) {
+          const trimmed = rawLine.trim();
+          if (!trimmed) continue;
+          if (/^(?:[•\-\*▪●➢➤‣]|\d+\.)\s+/.test(trimmed)) {
+            hasExplicitBullets = true;
+            explicitBulletLines.push(trimmed.replace(/^(?:[•\-\*▪●➢➤‣]|\d+\.)\s*/, "").trim());
+          } else if (hasExplicitBullets && explicitBulletLines.length > 0) {
+            // Merge wrapped continuation line onto the previous explicit bullet
+            explicitBulletLines[explicitBulletLines.length - 1] =
+              `${explicitBulletLines[explicitBulletLines.length - 1]} ${trimmed}`.replace(/\s{2,}/g, " ").trim();
+          }
+        }
 
-        const summaryText = cleanBullets.join(" ").replace(/\s{2,}/g, " ").trim();
+        const joinedLines = nonContactLines
+          .map((l) => l.replace(/^[•\-\*▪●➢➤‣]\s*/, "").trim())
+          .filter(Boolean);
+
+        const summaryText = joinedLines.join(" ").replace(/\s{2,}/g, " ").trim();
+        const filteredExplicitBullets = explicitBulletLines.filter((b) => b.length > 15);
         if (summaryText.length > 25) {
           structuredResults.push({
             entryType: "profile",
             title: "Professional Summary",
             organization: null,
             descriptionContext: summaryText,
-            bullets: cleanBullets.length > 1 ? cleanBullets : [summaryText],
+            // Preserve distinct bullets ONLY when the resume explicitly used bullet markers;
+            // keep wrapped prose lines as ONE single clean paragraph.
+            bullets: hasExplicitBullets && filteredExplicitBullets.length > 1 ? filteredExplicitBullets : [summaryText],
             confidence: 0.95,
             rawSnippet: summaryText.substring(0, 300),
           });
@@ -1227,8 +1245,10 @@ export class ResumeStructuringService {
     const results: StructuredResumeSection[] = [];
     const rangePattern = /(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*)?((?:19|20)\d{2})\s*(?:-|–|—|to)\s*(?:(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*)?((?:19|20)\d{2}|present|current|ongoing|expected)/i;
     const yearPattern = /\b(?:19|20)\d{2}\b/;
+    // Degree tokens only — intentionally excludes standalone "engineering" so
+    // "College of Engineering" is recognized as an institution, not a degree title.
     const degreePattern =
-      /\b(bachelor|master|phd|ph\.?d|doctorate|associate|diploma|engineering|higher\s+secondary|secondary|icse|cbse|hsc|ssc|isc|\d{1,2}th\s*(?:grade|std)?|class\s*(?:x|xii|10|12)|b\.?tech\b|m\.?tech\b|b\.?e(?:\.|\b)|m\.?e(?:\.|\b)|b\.?sc?\b|m\.?sc?\b|b\.?c\.?a\b|m\.?c\.?a\b|b\.?b\.?a\b|m\.?b\.?a\b|b\.?a(?:\.|\b)|b\.?des\b)/i;
+      /\b(bachelor|master|phd|ph\.?d|doctorate|associate|diploma|higher\s+secondary|secondary|icse|cbse|hsc|ssc|isc|\d{1,2}th\s*(?:grade|std)?|class\s*(?:x|xii|10|12)|b\.?\s*tech\b|m\.?\s*tech\b|b\.?\s*e(?:\.|\b)|m\.?\s*e(?:\.|\b)|b\.?\s*sc?\b|m\.?\s*sc?\b|b\.?\s*c\.?\s*a\b|m\.?\s*c\.?\s*a\b|b\.?\s*b\.?\s*a\b|m\.?\s*b\.?\s*a\b|b\.?\s*a(?:\.|\b)|b\.?\s*des\b)/i;
     const institutionKeywords = /\b(?:College|University|School|Institute|Academy|Polytechnic|IIT|NIT|IIIT|BITS)\b/i;
     const eduDetailLinePattern =
       /^(?:[•\-\*]\s+|(?:cgpa|gpa|sgpa|percentage|marks|score|grade|grades|cpi|relevant\s+coursework|coursework|courses|minor|specialization|honors|honours|thesis|dissertation|dean'?s\s+list|activities|clubs)\s*:|\d+(?:\.\d+)?\s*(?:\/\s*(?:4|10|100)|%)\b)/i;
@@ -1356,7 +1376,7 @@ export class ResumeStructuringService {
             dateLine = next;
           }
           consumed.add(i + 1);
-        } else if (!institution && (institutionKeywords.test(cleanLine) || cleanLine.includes("Engineering"))) {
+        } else if (!institution && institutionKeywords.test(cleanLine)) {
           const parts = cleanLine.split(/(?=B\s*\.?\s*Tech\b|M\s*\.?\s*Tech\b|B\s*\.?\s*E(?:\.|\b)|M\s*\.?\s*E(?:\.|\b)|Bachelor|Master|Associate|Diploma|B\.?S\.?\b|M\.?S\.?\b)/i);
           if (parts.length > 1) {
             institution = parts[0].replace(/[,|·•-]\s*$/, "").trim();
@@ -1398,7 +1418,7 @@ export class ResumeStructuringService {
         title = title.replace(gpaInTitle[0], "").replace(/\s*\|\s*$/, "").trim();
       }
 
-      const dateText = dateLine || cleanLine;
+      const dateText = dateLine || `${cleanLine} ${title}`;
       const rangeMatch = dateText.match(rangePattern);
       const yearMatches = dateText.match(/\b(?:19|20)\d{2}\b/g) || [];
       const startDate = rangeMatch?.[2] || (yearMatches.length > 1 ? yearMatches[0] : null);
@@ -1406,8 +1426,12 @@ export class ResumeStructuringService {
       const isCurrent = Boolean((endRaw && /present|current|ongoing|expected/i.test(endRaw)) || /expected/i.test(dateText));
       const endDate = endRaw && /present|current|ongoing/i.test(endRaw) ? null : endRaw;
 
-      // Strip date from title if glued
-      title = title.replace(rangePattern, "").replace(/\s*[|·•—–-]\s*$/, "").trim();
+      // Strip date / "Expected Month YYYY" from title if glued
+      title = title
+        .replace(rangePattern, "")
+        .replace(/\s*(?:\||·|•|-|—|–)?\s*(?:expected|graduating|class of)?\s*(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+)?\b(?:19|20)\d{2}\b.*$/i, "")
+        .replace(/\s*[|·•—–-]\s*$/, "")
+        .trim();
 
       // Extract trailing location from institution if present (e.g. "College Name, Mumbai")
       if (institution) {

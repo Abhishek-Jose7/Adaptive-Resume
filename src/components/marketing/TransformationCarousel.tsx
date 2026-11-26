@@ -166,7 +166,7 @@ export function TransformationCarousel() {
               </div>
               <h3 className="text-lg font-bold text-[#10241c] mb-2">{active.toRole}</h3>
               <p className="text-sm text-[#10241c]/80 leading-relaxed font-normal bg-[#becbbf]/15 p-4 rounded-xl border border-[#10241c]/10">
-                "{active.jobRequirement}"
+                &ldquo;{active.jobRequirement}&rdquo;
               </p>
             </div>
             <div className="mt-4 pt-4 border-t border-[#10241c]/10">
@@ -191,7 +191,7 @@ export function TransformationCarousel() {
               <h3 className="text-lg font-bold text-[#10241c] mb-2">{active.fromRole}</h3>
               <div className="text-sm text-[#10241c]/80 leading-relaxed bg-[#F7F9F8] p-4 rounded-xl border border-dashed border-[#10241c]/20">
                 <div className="font-semibold text-xs text-[#10241c]/60 mb-1">Your authentic entry:</div>
-                "{active.bankBullet}"
+                &ldquo;{active.bankBullet}&rdquo;
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-[#10241c]/10">
@@ -212,7 +212,7 @@ export function TransformationCarousel() {
               </div>
               <h3 className="text-lg font-bold text-[#10241c] mb-2">Ready For Review</h3>
               <div className="text-sm text-[#10241c] font-medium leading-relaxed bg-[#becbbf]/25 p-4 rounded-xl border-2 border-[#10241c]/20 shadow-sm">
-                "{active.tailoredBullet}"
+                &ldquo;{active.tailoredBullet}&rdquo;
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-[#10241c]/10">

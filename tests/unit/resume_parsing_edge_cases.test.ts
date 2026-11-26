@@ -527,5 +527,40 @@ DeepLearning.AI / Coursera
       expect(certs.length).toBe(1);
       expect(certs[0].organization).toContain("DeepLearning.AI");
     });
+
+    it("keeps wrapped Professional Summary prose as a single paragraph and merges adjacent College of Engineering + B.E. degree into one Education card", async () => {
+      const sampleText = `
+ALEX RODRIGUES
+alex@example.com | +91 9876543210 | Mumbai, India
+PROFESSIONAL SUMMARY
+I am a third-year Computer Engineering student who likes building things that
+actually get used. I've worked across full-stack development, AI / ML,
+GenAI, and backend systems, from building products independently to
+turning ideas into working products.
+EDUCATION
+Fr. Conceicao Rodrigues College of Engineering, Mumbai
+B.E. in Computer Engineering | Expected May 2028
+      `.trim();
+
+      const sections = ResumeStructuringService.structureResumeText(sampleText, "AlexResume.pdf");
+
+      const summary = sections.find((s) => s.entryType === "profile" && s.title === "Professional Summary");
+      expect(summary).toBeDefined();
+      expect(summary!.bullets).toHaveLength(1);
+      expect(summary!.bullets[0]).toContain("actually get used.");
+      expect(summary!.bullets[0]).toContain("turning ideas into working products");
+
+      const edus = sections.filter((s) => s.entryType === "education");
+      expect(edus).toHaveLength(1);
+      expect(edus[0].organization).toContain("Fr. Conceicao Rodrigues College of Engineering");
+      expect(edus[0].title).toContain("B.E. in Computer Engineering");
+      expect(edus[0].endDate).toBe("2028");
+
+      // Repeated parseFromText runs must return deterministic identical item counts
+      const firstRun = await AiResumeParserService.parseFromText(sampleText, "AlexResume.pdf", { forceLocal: true });
+      const secondRun = await AiResumeParserService.parseFromText(sampleText, "AlexResume.pdf", { forceLocal: true });
+      expect(firstRun.stagedItems.length).toBe(secondRun.stagedItems.length);
+      expect(firstRun.stagedItems).toEqual(secondRun.stagedItems);
+    });
   });
 });

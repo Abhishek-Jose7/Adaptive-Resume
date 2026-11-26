@@ -271,15 +271,15 @@ export function EditorFormPanel({ store, editorState }: Props) {
                 onClick={() =>
                   store.addExperience({
                     id: `exp_${Date.now()}`,
-                    company: "Company Name",
-                    position: "Job Title",
-                    startDate: "2023",
+                    company: "",
+                    position: "",
+                    startDate: "",
                     endDate: null,
-                    isCurrent: true,
+                    isCurrent: false,
                     bullets: [
                       {
                         id: `b_${Date.now()}`,
-                        text: "Engineered core feature reducing latency by 25%.",
+                        text: "",
                         provenance: "manual",
                         sourceBulletIds: [],
                         sourceFactIds: [],
@@ -351,7 +351,7 @@ export function EditorFormPanel({ store, editorState }: Props) {
                       onClick={() =>
                         store.addExperienceBullet(exp.id, {
                           id: `b_${Date.now()}`,
-                          text: "Quantified achievement demonstrating measurable impact.",
+                          text: "",
                           provenance: "manual",
                           sourceBulletIds: [],
                           sourceFactIds: [],
@@ -538,14 +538,14 @@ export function EditorFormPanel({ store, editorState }: Props) {
                 onClick={() =>
                   store.addProject({
                     id: `proj_${Date.now()}`,
-                    name: "Project Name",
-                    role: "Lead Developer",
-                    url: "https://github.com/...",
-                    description: "High-performance distributed system.",
+                    name: "",
+                    role: "",
+                    url: "",
+                    description: "",
                     bullets: [
                       {
                         id: `b_${Date.now()}`,
-                        text: "Implemented consensus protocol handling 5,000 req/sec.",
+                        text: "",
                         provenance: "manual",
                         sourceBulletIds: [],
                         sourceFactIds: [],
@@ -604,7 +604,7 @@ export function EditorFormPanel({ store, editorState }: Props) {
                       onClick={() =>
                         store.addProjectBullet(proj.id, {
                           id: `b_${Date.now()}`,
-                          text: "Engineered scalable feature with verified metrics.",
+                          text: "",
                           provenance: "manual",
                           sourceBulletIds: [],
                           sourceFactIds: [],

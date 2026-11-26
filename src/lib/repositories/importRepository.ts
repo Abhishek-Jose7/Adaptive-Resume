@@ -218,32 +218,35 @@ export class ImportRepository {
     if (acceptedItems.length === 0) return { committedCount: 0, entryIds: [] };
 
     const acceptedIds = acceptedItems.map((a) => a.stagedItemId);
-
-    // 1. Fetch staged rows in one batch query
-    const rows = await db
-      .select()
-      .from(stagedItems)
-      .where(
-        and(
-          eq(stagedItems.userId, userId),
-          eq(stagedItems.batchId, batchId),
-          inArray(stagedItems.id, acceptedIds)
-        )
-      );
-
     const overrideMap = new Map(acceptedItems.map((a) => [a.stagedItemId, a.overrideData]));
     const newEntryIds: string[] = [];
-
-    // 0. Fetch batch to obtain linked sourceId for full provenance chain
-    const [batchRecord] = await db
-      .select({ sourceId: importBatches.sourceId })
-      .from(importBatches)
-      .where(and(eq(importBatches.userId, userId), eq(importBatches.id, batchId)))
-      .limit(1);
-
-    const sourceId = batchRecord?.sourceId || null;
+    let committedCount = 0;
 
     await db.transaction(async (tx) => {
+      // Atomically claim pending staged rows inside transaction to prevent duplicate commits
+      const rows = await tx
+        .update(stagedItems)
+        .set({ status: "accepted" })
+        .where(
+          and(
+            eq(stagedItems.userId, userId),
+            eq(stagedItems.batchId, batchId),
+            eq(stagedItems.status, "pending"),
+            inArray(stagedItems.id, acceptedIds)
+          )
+        )
+        .returning();
+
+      if (rows.length === 0) return;
+      committedCount = rows.length;
+
+      const [batchRecord] = await tx
+        .select({ sourceId: importBatches.sourceId })
+        .from(importBatches)
+        .where(and(eq(importBatches.userId, userId), eq(importBatches.id, batchId)))
+        .limit(1);
+
+      const sourceId = batchRecord?.sourceId || null;
       const entryInserts: Array<typeof bankEntries.$inferInsert> = [];
       const bulletInserts: Array<typeof achievementBullets.$inferInsert> = [];
       const factInserts: Array<typeof bulletFacts.$inferInsert> = [];
@@ -306,37 +309,43 @@ export class ImportRepository {
           });
         }
 
+        const rawEndStr = data.endDate != null ? String(data.endDate).trim() : "";
+        const rawStartStr = data.startDate != null ? String(data.startDate).trim() : "";
         const isCurrent = Boolean(
           data.isCurrent ||
-          (data.endDate && /^(present|current|now|ongoing)$/i.test(data.endDate.trim()))
+          (rawEndStr && /^(present|current|now|ongoing)$/i.test(rawEndStr))
         );
 
         entryInserts.push({
           id: entryId,
           userId,
           entryType: row.entryType,
-          title: data.title || "Imported Item",
-          organization: data.organization || null,
-          location: data.location || null,
-          startDate: safePostgresDate(data.startDate, false),
-          endDate: isCurrent ? null : safePostgresDate(data.endDate, true),
+          title: typeof data.title === "string" && data.title.trim() ? data.title.trim() : "Imported Item",
+          organization: typeof data.organization === "string" && data.organization.trim() ? data.organization.trim() : null,
+          location: typeof data.location === "string" && data.location.trim() ? data.location.trim() : null,
+          startDate: safePostgresDate(rawStartStr || null, false),
+          endDate: isCurrent ? null : safePostgresDate(rawEndStr || null, true),
           isCurrent,
-          descriptionContext: data.descriptionContext || null,
+          descriptionContext: typeof data.descriptionContext === "string" && data.descriptionContext.trim() ? data.descriptionContext.trim() : null,
           visibility: "private",
           verificationStatus: "user_verified",
           sortOrder: 0,
           rowVersion: 1,
         });
 
-        if (data.bullets && data.bullets.length > 0) {
-          data.bullets.forEach((bulletText, bIdx) => {
+        const safeBullets = Array.isArray(data.bullets)
+          ? data.bullets.map((b) => (typeof b === "string" ? b.trim() : String(b ?? "").trim())).filter(Boolean)
+          : [];
+
+        if (safeBullets.length > 0) {
+          safeBullets.forEach((bulletText, bIdx) => {
             const bulletId = `bullet_${crypto.randomUUID()}`;
             bulletInserts.push({
               id: bulletId,
               userId,
               entryId,
               text: bulletText,
-              normalizedText: bulletText.trim().toLowerCase(),
+              normalizedText: bulletText.toLowerCase(),
               visibility: "private",
               verificationStatus: "user_verified",
               usagePolicy: "eligible",
@@ -346,15 +355,16 @@ export class ImportRepository {
             });
 
             // Index each skill as an individual fact for precise ATS / role matching
+            // Must obey bullet_facts_parent_check XOR constraint: set bulletId OR entryId, never both
             if (row.entryType === "skill_group" || row.entryType === "skill") {
               factInserts.push({
                 id: `fact_${crypto.randomUUID()}`,
                 userId,
                 bulletId,
-                entryId,
+                entryId: null,
                 factType: "tool",
                 factKey: "skill",
-                valueText: bulletText.trim(),
+                valueText: bulletText,
                 verificationStatus: "user_verified",
               });
             }
@@ -402,7 +412,7 @@ export class ImportRepository {
         .where(and(eq(importBatches.userId, userId), eq(importBatches.id, batchId)));
     });
 
-    return { committedCount: rows.length, entryIds: newEntryIds };
+    return { committedCount, entryIds: newEntryIds };
   }
 
   /**

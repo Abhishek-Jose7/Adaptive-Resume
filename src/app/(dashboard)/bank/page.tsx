@@ -99,6 +99,9 @@ export default function DataBankPage() {
       setNotification("Entry deleted. Every resume built from it will ask again.");
       setTimeout(() => setNotification(null), 4000);
       await fetchEntries();
+    } else {
+      setNotification("Could not delete entry. Please try again.");
+      setTimeout(() => setNotification(null), 4000);
     }
   };
 
@@ -110,6 +113,9 @@ export default function DataBankPage() {
     });
     if (res.ok) {
       await fetchEntries();
+    } else {
+      setNotification("Could not add bullet. Please try again.");
+      setTimeout(() => setNotification(null), 4000);
     }
   };
 

@@ -39,8 +39,14 @@ export class CompletenessService {
           if (bullet.facts && bullet.facts.some((f) => f.factType === "metric" || f.valueNumber != null)) {
             hasMetric = true;
           } else {
-            // Regex check for numeric patterns (% or $ or digits) in bullet text
-            const hasNumeric = /\b\d+(\.\d+)?%|\$\d+|\b\d+\b/.test(bullet.text);
+            // Strip bare years (e.g. 2024, 2026) and common version tokens (e.g. HTML5, CSS3, React 18, v2)
+            const strippedText = bullet.text
+              .replace(/\b(?:19|20)\d{2}\b/g, "")
+              .replace(/\b(?:html5|css3|es6|web3|v\d+(?:\.\d+)?)\b/gi, "")
+              .replace(/\b(?:react|next\.?js|angular|vue|python|java|node)\s+\d+(?:\.\d+)?\b/gi, "");
+            const hasNumeric = /\b\d+(?:\.\d+)?%|\$\d+[\d,.]*[kmb]?|\b\d+(?:,\d{3})*(?:\.\d+)?\+?\s*(?:x|ms|s|sec|secs|seconds|min|mins|hours|hrs|days|weeks|months|k|m|b|users|customers|clients|teams|members|requests|req\/s|rps|endpoints|colleges|events|states|countries|projects|pipelines|tickets|bugs)\b/i.test(
+              strippedText
+            );
             if (hasNumeric) {
               hasMetric = true;
             }

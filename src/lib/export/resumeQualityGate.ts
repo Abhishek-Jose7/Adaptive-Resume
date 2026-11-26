@@ -101,20 +101,26 @@ export class ResumeQualityGateService {
       }
     }
 
+    let aiRewriteCount = 0;
     let unvalidatedAiCount = 0;
     for (const b of allBullets) {
-      if (b.provenance === "ai-rewrite" && b.validatorStatus === "rejected") {
-        criticalErrors.push({
-          rule: "UNSUPPORTED_AI_CLAIM",
-          message: `Bullet rejected by Truth-Bound Validator remains on resume: "${b.text.slice(0, 50)}..."`,
-          section: b.section,
-          bulletId: b.id,
-        });
-        unvalidatedAiCount++;
+      if (b.provenance === "ai-rewrite") {
+        aiRewriteCount++;
+        if (b.validatorStatus === "rejected") {
+          criticalErrors.push({
+            rule: "UNSUPPORTED_AI_CLAIM",
+            message: `Bullet rejected by Truth-Bound Validator remains on resume: "${b.text.slice(0, 50)}..."`,
+            section: b.section,
+            bulletId: b.id,
+          });
+          unvalidatedAiCount++;
+        }
       }
     }
-    if (unvalidatedAiCount === 0) {
+    if (aiRewriteCount > 0 && unvalidatedAiCount === 0) {
       passedChecks.push("All AI bullets passed Truth-Bound validation with zero unevidenced claims");
+    } else if (aiRewriteCount === 0) {
+      passedChecks.push("All bullets come directly from your Career Vault or manual entry");
     }
 
     // 3. Duplicate Bullets Check
@@ -144,7 +150,7 @@ export class ResumeQualityGateService {
       if (exp.startDate && exp.endDate) {
         const start = new Date(exp.startDate);
         const end = new Date(exp.endDate);
-        if (start > end) {
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start > end) {
           criticalErrors.push({
             rule: "INCONSISTENT_DATES",
             message: `Start date (${exp.startDate}) is after end date (${exp.endDate}) for ${exp.company}.`,
@@ -154,19 +160,47 @@ export class ResumeQualityGateService {
         }
       }
     }
+    for (const edu of doc.education || []) {
+      if (edu.startDate && edu.endDate) {
+        const start = new Date(edu.startDate);
+        const end = new Date(edu.endDate);
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start > end) {
+          criticalErrors.push({
+            rule: "INCONSISTENT_DATES",
+            message: `Start date (${edu.startDate}) is after end date (${edu.endDate}) for ${edu.institution}.`,
+            section: "Education",
+          });
+          dateIssues++;
+        }
+      }
+    }
     if (dateIssues === 0) {
-      passedChecks.push("Chronological date ordering is consistent across all experience records");
+      passedChecks.push("Chronological date ordering is consistent across dated records");
     }
 
     // 5. Broken Hyperlinks / URL Syntax Check
     let linkIssues = 0;
     const profileLinks = (doc.profile && doc.profile.links) || (doc as any).contact?.links || [];
     for (const link of profileLinks) {
-      if (link.url && !link.url.startsWith("http://") && !link.url.startsWith("https://")) {
+      if (link.url && !link.url.startsWith("https://")) {
         warnings.push({
           rule: "MALFORMED_URL",
-          message: `Profile link "${link.label}" (${link.url}) is missing https:// prefix.`,
+          message: link.url.startsWith("http://")
+            ? `Profile link "${link.label}" (${link.url}) uses insecure http:// instead of https://.`
+            : `Profile link "${link.label}" (${link.url}) is missing https:// prefix.`,
           section: "Profile",
+        });
+        linkIssues++;
+      }
+    }
+    for (const proj of doc.projects || []) {
+      if (proj.url && !proj.url.startsWith("https://")) {
+        warnings.push({
+          rule: "MALFORMED_URL",
+          message: proj.url.startsWith("http://")
+            ? `Project link for "${proj.name}" (${proj.url}) uses http:// instead of https://.`
+            : `Project link for "${proj.name}" (${proj.url}) is missing https:// prefix.`,
+          section: "Projects",
         });
         linkIssues++;
       }

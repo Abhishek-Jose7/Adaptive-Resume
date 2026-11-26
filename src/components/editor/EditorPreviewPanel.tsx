@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { ResumeDocStore, EditorState } from "@/lib/editor/resumeDocStore";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { AtsLinter } from "@/lib/editor/atsLinter";
@@ -46,30 +46,30 @@ export function EditorPreviewPanel({
   const [resumeVersions, setResumeVersions] = useState<any[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
 
-  const loadVersions = async () => {
+  const loadVersions = useCallback(async () => {
     try {
       const res = await fetch(`/api/v1/resumes/${resumeId}/versions`);
       if (res.ok) {
         const data = await res.json();
-        setResumeVersions(data.items || []);
+        setResumeVersions(Array.isArray(data) ? data : data.items || []);
       }
     } catch (err) {
       console.error("Failed to load resume versions:", err);
     }
-  };
+  }, [resumeId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (resumeId) {
       loadVersions();
     }
-  }, [resumeId]);
+  }, [resumeId, loadVersions]);
 
-  const lintReport = AtsLinter.lint(doc);
-  const fitSettings = AutoFitLadder.evaluateFit(doc, autoFitStep);
+  const lintReport = useMemo(() => AtsLinter.lint(doc), [doc]);
+  const fitSettings = useMemo(() => AutoFitLadder.evaluateFit(doc, autoFitStep), [doc, autoFitStep]);
 
   const handleTemplateChange = (newTemplate: string) => {
     setTemplateId(newTemplate);
-    store.updateProfile({});
+    store.setTemplateId(newTemplate);
   };
 
   const handleExportTxt = async () => {
@@ -216,11 +216,16 @@ export function EditorPreviewPanel({
         resumeId={resumeId}
         versions={resumeVersions}
         onRestoreVersion={async (vId) => {
-          const res = await fetch(`/api/v1/resumes/${resumeId}`);
+          const res = await fetch(`/api/v1/resume-versions/${vId}/restore`, {
+            method: "POST",
+          });
           if (res.ok) {
-            const data = await res.json();
-            const serverDoc = data.latestVersion?.resumeDocJson || data.documentJson;
-            if (serverDoc) store.updateProfile(serverDoc.contact || {});
+            const json = await res.json();
+            const restored = json?.data ?? json;
+            if (restored?.resumeDocJson) {
+              store.setDocument(restored.resumeDocJson);
+            }
+            await loadVersions();
           }
         }}
         onBranchCreated={loadVersions}

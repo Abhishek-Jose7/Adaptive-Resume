@@ -2,10 +2,6 @@
 
 import React, { useState } from "react";
 import { Upload, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
-import { parseDocxBuffer } from "@/lib/parsers/browserDocxParser";
-import { parseLinkedInZip } from "@/lib/parsers/browserZipParser";
-import { parsePdfBuffer } from "@/lib/parsers/browserPdfParser";
-import { parseResumeTextWithFallback } from "@/lib/parsers/clientIntakeParser";
 
 interface FileUploadDropzoneProps {
   onParsedItemsReady: (sourceType: string, sourceLabel: string, items: any[]) => Promise<void>;
@@ -77,6 +73,10 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
       const fileNameLower = file.name.toLowerCase();
 
       if (fileNameLower.endsWith(".docx")) {
+        const [{ parseDocxBuffer }, { parseResumeTextWithFallback }] = await Promise.all([
+          import("@/lib/parsers/browserDocxParser"),
+          import("@/lib/parsers/clientIntakeParser"),
+        ]);
         const result = await parseDocxBuffer(buffer, file.name);
         setStatus("Structuring resume sections...");
         const items = await parseResumeTextWithFallback(result.text, file.name);
@@ -85,6 +85,7 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
         setStatus("Parsed and staged for review");
         setLoading(false);
       } else if (fileNameLower.endsWith(".zip")) {
+        const { parseLinkedInZip } = await import("@/lib/parsers/browserZipParser");
         const zipResult = await parseLinkedInZip(buffer);
         setStatus(`Extracted ${zipResult.items.length} items from the LinkedIn export`);
 
@@ -109,6 +110,10 @@ export function FileUploadDropzone({ onParsedItemsReady }: FileUploadDropzonePro
         setLoading(false);
       } else if (fileNameLower.endsWith(".pdf")) {
         setStatus("Checking whether the PDF has selectable text");
+        const [{ parsePdfBuffer }, { parseResumeTextWithFallback }] = await Promise.all([
+          import("@/lib/parsers/browserPdfParser"),
+          import("@/lib/parsers/clientIntakeParser"),
+        ]);
         const pdfResult = await parsePdfBuffer(buffer, file.name);
 
         if (pdfResult.isScanned) {

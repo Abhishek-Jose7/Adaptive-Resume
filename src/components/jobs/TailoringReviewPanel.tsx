@@ -21,7 +21,7 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
       const res = await fetch(`/api/v1/jobs/${jobId}/tailor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "local-deterministic" }),
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {
@@ -30,7 +30,7 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
       }
 
       const json = await res.json();
-      setRunDetails(json.data);
+      setRunDetails(json?.data ?? json);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -48,8 +48,9 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
       });
       if (res.ok) {
         const json = await res.json();
-        setRunDetails(json.data);
-        const acceptedItem = json.data.results.find((r: TailoredBulletResult) => r.bulletId === bulletId);
+        const payload = json?.data ?? json;
+        setRunDetails(payload);
+        const acceptedItem = payload?.results?.find((r: TailoredBulletResult) => r.bulletId === bulletId);
         if (acceptedItem && onAccepted) {
           onAccepted(acceptedItem);
         }
@@ -69,7 +70,7 @@ export function TailoringReviewPanel({ jobId, onAccepted }: Props) {
       });
       if (res.ok) {
         const json = await res.json();
-        setRunDetails(json.data);
+        setRunDetails(json?.data ?? json);
       }
     } catch (err: any) {
       console.error("Reject failed:", err);

@@ -93,18 +93,17 @@ export class ApplicationService {
     if (list.length === 0) return null;
     const app = list[0];
 
-    // Fetch cover letters for this application or job
-    const clList = await db
-      .select()
-      .from(coverLetters)
-      .where(and(eq(coverLetters.userId, userId), eq(coverLetters.applicationId, id)));
-
-    // Fetch interview history
-    const interviews = await db
-      .select()
-      .from(applicationInterviews)
-      .where(and(eq(applicationInterviews.userId, userId), eq(applicationInterviews.applicationId, id)))
-      .orderBy(asc(applicationInterviews.roundNumber));
+    const [clList, interviews] = await Promise.all([
+      db
+        .select()
+        .from(coverLetters)
+        .where(and(eq(coverLetters.userId, userId), eq(coverLetters.applicationId, id))),
+      db
+        .select()
+        .from(applicationInterviews)
+        .where(and(eq(applicationInterviews.userId, userId), eq(applicationInterviews.applicationId, id)))
+        .orderBy(asc(applicationInterviews.roundNumber)),
+    ]);
 
     return {
       ...app,
@@ -168,15 +167,24 @@ export class ApplicationService {
       feedbackNotes: string;
       prepNotes: string;
       completedAt: string;
-    }>
+    }>,
+    applicationId?: string
   ) {
+    const conditions = [
+      eq(applicationInterviews.id, interviewId),
+      eq(applicationInterviews.userId, userId),
+    ];
+    if (applicationId) {
+      conditions.push(eq(applicationInterviews.applicationId, applicationId));
+    }
+
     const [updated] = await db
       .update(applicationInterviews)
       .set({
         ...updates,
         completedAt: updates.completedAt ? new Date(updates.completedAt) : undefined,
       })
-      .where(and(eq(applicationInterviews.id, interviewId), eq(applicationInterviews.userId, userId)))
+      .where(and(...conditions))
       .returning();
     return updated;
   }
@@ -184,39 +192,52 @@ export class ApplicationService {
   /**
    * Deletes an interview round
    */
-  static async deleteInterview(userId: string, interviewId: string): Promise<boolean> {
-    const res = await db
+  static async deleteInterview(
+    userId: string,
+    interviewId: string,
+    applicationId?: string
+  ): Promise<boolean> {
+    const conditions = [
+      eq(applicationInterviews.id, interviewId),
+      eq(applicationInterviews.userId, userId),
+    ];
+    if (applicationId) {
+      conditions.push(eq(applicationInterviews.applicationId, applicationId));
+    }
+
+    const deleted = await db
       .delete(applicationInterviews)
-      .where(and(eq(applicationInterviews.id, interviewId), eq(applicationInterviews.userId, userId)));
-    return (res as any).rowCount > 0;
+      .where(and(...conditions))
+      .returning({ id: applicationInterviews.id });
+    return deleted.length > 0;
   }
 
   /**
    * Creates an application tracking record with cross-tenant foreign key verification
    */
   static async createApplication(userId: string, input: ApplicationInput) {
-    // Verify referenced jobId ownership if supplied
-    if (input.jobId) {
-      const job = await db
-        .select({ id: jobs.id })
-        .from(jobs)
-        .where(and(eq(jobs.id, input.jobId), eq(jobs.userId, userId)))
-        .limit(1);
-      if (job.length === 0) {
-        throw new Error("Referenced job not found or access denied");
-      }
-    }
+    const [jobCheck, verCheck] = await Promise.all([
+      input.jobId
+        ? db
+            .select({ id: jobs.id })
+            .from(jobs)
+            .where(and(eq(jobs.id, input.jobId), eq(jobs.userId, userId)))
+            .limit(1)
+        : Promise.resolve(null),
+      input.resumeVersionId
+        ? db
+            .select({ id: resumeVersions.id })
+            .from(resumeVersions)
+            .where(and(eq(resumeVersions.id, input.resumeVersionId), eq(resumeVersions.userId, userId)))
+            .limit(1)
+        : Promise.resolve(null),
+    ]);
 
-    // Verify referenced resumeVersionId ownership if supplied
-    if (input.resumeVersionId) {
-      const ver = await db
-        .select({ id: resumeVersions.id })
-        .from(resumeVersions)
-        .where(and(eq(resumeVersions.id, input.resumeVersionId), eq(resumeVersions.userId, userId)))
-        .limit(1);
-      if (ver.length === 0) {
-        throw new Error("Referenced resume version not found or access denied");
-      }
+    if (jobCheck && jobCheck.length === 0) {
+      throw new Error("Referenced job not found or access denied");
+    }
+    if (verCheck && verCheck.length === 0) {
+      throw new Error("Referenced resume version not found or access denied");
     }
 
     const id = `app_${crypto.randomUUID()}`;

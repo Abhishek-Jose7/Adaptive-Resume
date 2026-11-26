@@ -116,26 +116,49 @@ export class JDAnalysisService {
       .update(rawText.toLowerCase().replace(/\s+/g, " ").trim())
       .digest("hex");
 
+    const detectedEducation: string[] = [];
+    if (/\b(b\.?s\.?|b\.?tech|bachelor(?:'s)?|undergraduate)\b/i.test(rawText)) {
+      detectedEducation.push("Bachelor's degree mentioned in posting");
+    }
+    if (/\b(m\.?s\.?|master(?:'s)?|ph\.?d)\b/i.test(rawText)) {
+      detectedEducation.push("Graduate degree mentioned in posting");
+    }
+
+    const detectedConstraints: string[] = [];
+    if (/\b(work authorization|authorized to work|visa|sponsorship)\b/i.test(rawText)) {
+      detectedConstraints.push("Work authorization / visa requirement mentioned");
+    }
+    if (/\b(security clearance|clearance)\b/i.test(rawText)) {
+      detectedConstraints.push("Security clearance requirement mentioned");
+    }
+
     const analysis: JDAnalysis = {
       schemaVersion: 1,
       role: {
         title: null,
         company: null,
         seniority,
-        domain: ["Software Engineering"],
+        domain: keywords.some((k) => k.category === "domain")
+          ? keywords.filter((k) => k.category === "domain").map((k) => k.canonical)
+          : [],
         location: null,
         workMode,
         yearsExperience: {
           min: yearsMin,
           max: yearsMax,
         },
-        education: ["Bachelor's degree or equivalent practical experience"],
+        education: detectedEducation,
       },
       keywords,
       responsibilities: responsibilities.slice(0, 15),
-      constraints: ["English-only", "Applicant must be authorized to work"],
+      constraints: detectedConstraints,
       ambiguityFlags: keywords.length < 3 ? ["Few technical keywords detected"] : [],
-      confidence: 0.85,
+      confidence:
+        keywords.length >= 3 && responsibilities.length > 0
+          ? 0.85
+          : keywords.length > 0 || responsibilities.length > 0
+            ? 0.65
+            : 0.3,
       sourceTextHash,
       promptVersion,
     };

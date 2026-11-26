@@ -536,6 +536,10 @@ export async function parsePdfBuffer(
 
   const pages = stripMultiPageChrome(rawPages);
   let fullText = pages.join("\n\n").trim();
+  // Measure selectable body character count before injecting hyperlink annotations
+  // so image-only PDFs with clickable URLs are still detected as scanned and routed to OCR.
+  const selectableBodyCharCount = fullText.length;
+  const isScanned = selectableBodyCharCount < 50;
 
   // Place any missing hyperlink annotation URLs right near the top contact header of page 1
   // (after line 1) so Personal Details captures them without polluting Awards/Education at bottom.
@@ -554,8 +558,6 @@ export async function parsePdfBuffer(
   }
 
   const charCount = fullText.length;
-  // Browser-side detection: scanned PDFs have negligible/empty selectable text (< 50 chars)
-  const isScanned = charCount < 50;
 
   return {
     text: fullText,

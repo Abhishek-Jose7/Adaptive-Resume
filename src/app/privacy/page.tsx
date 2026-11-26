@@ -196,7 +196,7 @@ export default function PrivacyPage() {
               </div>
               <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#536259]">
                 <p>
-                  By default, all resumes and Career Vault entries are completely private. A resume is only shared externally if you click "Share" to generate an unguessable public link, or if you download a PDF/DOCX to send to a recruiter.
+                  By default, all resumes and Career Vault entries are completely private. A resume is only shared externally if you click &ldquo;Share&rdquo; to generate an unguessable public link, or if you download a PDF/DOCX to send to a recruiter.
                 </p>
                 <p>
                   You can revoke or disable any public share link at any time from your Resumes dashboard.

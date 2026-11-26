@@ -15,6 +15,7 @@ export default function ResumeEditorPage() {
   const resumeId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [store, setStore] = useState<ResumeDocStore | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "conflict" | "error">("saved");
@@ -24,9 +25,15 @@ export default function ResumeEditorPage() {
   const [pane, setPane] = useState<"form" | "preview">("form");
 
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rowVersionRef = useRef<number>(1);
+  const versionNumberRef = useRef<number>(1);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
     async function initEditor() {
+      setLoadError(null);
       try {
         const res = await fetch(`/api/v1/resumes/${resumeId}`);
         if (!res.ok) throw new Error("Resume not found");
@@ -36,8 +43,15 @@ export default function ResumeEditorPage() {
         const serverDoc: ResumeDoc =
           serverData.latestVersion?.resumeDocJson || serverData.documentJson || serverData;
 
+        if (!active) return;
+
+        const initialVerNum = serverData.latestVersion?.versionNumber || 1;
+        const initialRowVer = serverData.latestVersion?.rowVersion || 1;
+        versionNumberRef.current = initialVerNum;
+        rowVersionRef.current = initialRowVer;
+
         setResumeTitle(serverData.document?.title || "Untitled Resume");
-        setVersionNumber(serverData.latestVersion?.versionNumber || 1);
+        setVersionNumber(initialVerNum);
 
         const localDraft = await IndexedDbDraftService.loadDraft(resumeId);
         let initialDoc = serverDoc;
@@ -51,17 +65,19 @@ export default function ResumeEditorPage() {
           }
         }
 
+        if (!active) return;
+
         const newStore = new ResumeDocStore(initialDoc);
         setStore(newStore);
         setEditorState(newStore.getState());
 
-        newStore.subscribe((newState) => {
+        unsubscribe = newStore.subscribe((newState) => {
           setEditorState(newState);
 
           if (newState.isDirty) {
             setAutosaveStatus("saving");
 
-            IndexedDbDraftService.saveDraft(resumeId, newState.doc, versionNumber);
+            IndexedDbDraftService.saveDraft(resumeId, newState.doc, versionNumberRef.current);
 
             if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
             autosaveTimerRef.current = setTimeout(async () => {
@@ -71,7 +87,7 @@ export default function ResumeEditorPage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     document: newState.doc,
-                    versionNumber,
+                    rowVersion: rowVersionRef.current,
                   }),
                 });
 
@@ -85,6 +101,14 @@ export default function ResumeEditorPage() {
                   return;
                 }
 
+                const patchJson = await patchRes.json();
+                const savedPayload = patchJson?.data ?? patchJson;
+                if (typeof savedPayload?.rowVersion === "number") {
+                  rowVersionRef.current = savedPayload.rowVersion;
+                } else {
+                  rowVersionRef.current += 1;
+                }
+
                 newStore.markSaved();
                 setAutosaveStatus("saved");
               } catch (err) {
@@ -96,8 +120,9 @@ export default function ResumeEditorPage() {
         });
       } catch (err: any) {
         console.error("Init editor error:", err);
+        if (active) setLoadError(err?.message || "Could not load resume");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
@@ -106,9 +131,22 @@ export default function ResumeEditorPage() {
     }
 
     return () => {
+      active = false;
+      if (unsubscribe) unsubscribe();
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
   }, [resumeId]);
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-md py-24 text-center space-y-3">
+        <p className="text-[14px] font-medium text-ink">{loadError}</p>
+        <Link href="/resumes" className="btn btn-sm inline-flex">
+          Back to Resumes
+        </Link>
+      </div>
+    );
+  }
 
   if (loading || !store || !editorState) {
     return (

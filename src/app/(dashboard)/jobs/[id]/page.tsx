@@ -20,6 +20,7 @@ export default function JobDetailPage() {
   const [analysis, setAnalysis] = useState<JDAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [creatingResume, setCreatingResume] = useState(false);
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -167,11 +168,32 @@ export default function JobDetailPage() {
               {analysis ? "Read again" : "Read requirements"}
             </button>
             <button
-              onClick={() => router.push(`/resumes/new?jobId=${job.id}`)}
+              onClick={async () => {
+                setCreatingResume(true);
+                try {
+                  const res = await fetch("/api/v1/resumes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      title: `${job.title}${job.company ? ` — ${job.company}` : ""} Resume`,
+                      jobId: job.id,
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Failed to create resume draft");
+                  const created = await res.json();
+                  const payload = created?.data ?? created;
+                  router.push(`/resumes/${payload.id}/edit`);
+                } catch (err: any) {
+                  setError(err?.message || "Could not create resume draft");
+                } finally {
+                  setCreatingResume(false);
+                }
+              }}
+              disabled={creatingResume}
               className="btn btn-primary btn-sm"
             >
               <FileText className="h-4 w-4" strokeWidth={1.8} />
-              Tailor a resume
+              {creatingResume ? "Creating..." : "Tailor a resume"}
             </button>
           </div>
         </div>

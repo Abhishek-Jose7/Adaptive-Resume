@@ -37,11 +37,13 @@ export class SkillsRoadmapEngine {
       }
     }
 
+    const fullBulletsText = bullets.map((b) => b.text.toLowerCase()).join(" \n ");
     for (const b of bullets) {
       const lower = b.text.toLowerCase();
-      lower.split(/[\s,.;:()]+/).forEach((word) => {
-        if (word.length > 2) {
-          bulletsCountMap.set(word, (bulletsCountMap.get(word) || 0) + 1);
+      lower.split(/[\s,;()]+/).forEach((word) => {
+        const clean = word.replace(/^[.]+|[.]+$/g, "");
+        if (clean.length > 1) {
+          bulletsCountMap.set(clean, (bulletsCountMap.get(clean) || 0) + 1);
         }
       });
     }
@@ -57,7 +59,12 @@ export class SkillsRoadmapEngine {
 
     for (const kw of jdAnalysis.keywords) {
       const canonical = kw.canonical.toLowerCase();
-      const bulletMentions = bulletsCountMap.get(canonical) || 0;
+      let bulletMentions = bulletsCountMap.get(canonical) || 0;
+      if (bulletMentions === 0 && canonical.includes(" ")) {
+        const escaped = canonical.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const phraseMatches = fullBulletsText.match(new RegExp(`\\b${escaped}\\b`, "gi"));
+        bulletMentions = phraseMatches ? phraseMatches.length : 0;
+      }
       const isVerifiedFact = verifiedTools.has(canonical);
 
       let evidenceGrade: "strong_evidence" | "limited_evidence" | "unrecorded" = "unrecorded";

@@ -47,18 +47,19 @@ export function ProjectRecommendationPanel({
       const res = await fetch(`/api/v1/jobs/${jobId}/project-recommendations`);
       if (res.ok) {
         const data = await res.json();
-        setRecommendations(data.items || []);
-        // Pre-select top 2 recommendations by default if none selected
-        if (data.items && data.items.length > 0) {
-          const initial = new Set<string>();
-          data.items.slice(0, 2).forEach((p: ProjectRecommendation) => {
+        const items: ProjectRecommendation[] = Array.isArray(data) ? data : data.items || [];
+        setRecommendations(items);
+        // Only reflect explicitly pre-selected projects; never force-select unapproved projects
+        const initial = new Set<string>();
+        items.forEach((p: ProjectRecommendation) => {
+          if (p.selected) {
             const id = p.projectId || p.entryId;
             if (id) initial.add(id);
-          });
-          setSelectedIds(initial);
-          if (onSelectedProjectsChange) {
-            onSelectedProjectsChange(Array.from(initial));
           }
+        });
+        setSelectedIds(initial);
+        if (onSelectedProjectsChange && initial.size > 0) {
+          onSelectedProjectsChange(Array.from(initial));
         }
       }
     } catch (err) {

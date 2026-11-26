@@ -34,28 +34,38 @@ export class UsageLimitService {
   static async getUsageReport(userId: string): Promise<FreeTierUsageReport> {
     const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-    // Check BYOK keys
-    const creds = await db
-      .select()
-      .from(providerCredentials)
-      .where(and(eq(providerCredentials.userId, userId), eq(providerCredentials.isValid, true)));
+    // Fetch BYOK keys, quota record, and live entry/resume SQL counts concurrently
+    const [creds, usageRows, [entryCountRow], [resumeCountRow]] = await Promise.all([
+      db
+        .select({ provider: providerCredentials.provider })
+        .from(providerCredentials)
+        .where(and(eq(providerCredentials.userId, userId), eq(providerCredentials.isValid, true))),
+      db
+        .select()
+        .from(userUsageQuotas)
+        .where(
+          and(
+            eq(userUsageQuotas.userId, userId),
+            eq(userUsageQuotas.monthlyPeriod, currentPeriod)
+          )
+        )
+        .limit(1),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(bankEntries)
+        .where(and(eq(bankEntries.userId, userId), isNull(bankEntries.deletedAt))),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(resumeDocuments)
+        .where(eq(resumeDocuments.userId, userId)),
+    ]);
 
     const hasCustomApiKey = creds.length > 0;
     const activeProvider = hasCustomApiKey ? creds[0].provider : "Local / Shared Free Tier";
 
-    // Fetch quota record
-    let [usage] = await db
-      .select()
-      .from(userUsageQuotas)
-      .where(
-        and(
-          eq(userUsageQuotas.userId, userId),
-          eq(userUsageQuotas.monthlyPeriod, currentPeriod)
-        )
-      );
-
+    let usage = usageRows[0];
     if (!usage) {
-      const id = `quota_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const id = `quota_${crypto.randomUUID()}`;
       await db
         .insert(userUsageQuotas)
         .values({
@@ -77,22 +87,14 @@ export class UsageLimitService {
             eq(userUsageQuotas.userId, userId),
             eq(userUsageQuotas.monthlyPeriod, currentPeriod)
           )
-        );
+        )
+        .limit(1);
     }
-
-    // Live counts
-    const entries = await db
-      .select({ id: bankEntries.id })
-      .from(bankEntries)
-      .where(and(eq(bankEntries.userId, userId), isNull(bankEntries.deletedAt)));
-
-    const resumes = await db
-      .select({ id: resumeDocuments.id })
-      .from(resumeDocuments)
-      .where(eq(resumeDocuments.userId, userId));
 
     const aiUsed = usage?.aiGenerationsCount || 0;
     const expUsed = usage?.exportsGeneratedCount || 0;
+    const storageEntriesUsed = Number(entryCountRow?.count ?? 0);
+    const resumesCount = Number(resumeCountRow?.count ?? 0);
 
     // If user has supplied BYOK, generation limits are unlimited on our platform (governed by their provider)
     const effectiveAiLimit = hasCustomApiKey ? Infinity : this.FREE_LIMITS.maxAiGenerationsPerMonth;
@@ -107,15 +109,15 @@ export class UsageLimitService {
       aiTokensConsumed: usage?.aiTokensConsumed || 0,
       exportsUsed: expUsed,
       exportsLimit: effectiveExpLimit,
-      storageEntriesUsed: entries.length,
+      storageEntriesUsed,
       storageEntriesLimit: this.FREE_LIMITS.maxStorageEntries,
-      resumesCount: resumes.length,
+      resumesCount,
       resumesLimit: this.FREE_LIMITS.maxActiveResumes,
       isAiQuotaExhausted: !hasCustomApiKey && aiUsed >= effectiveAiLimit,
       isExportQuotaExhausted: expUsed >= effectiveExpLimit,
       honestNotice: hasCustomApiKey
         ? `You have connected your own ${activeProvider} key. Platform generation rate limits are bypassed.`
-        : `Free-tier mode: ${effectiveAiLimit - aiUsed} free AI generations remaining this month. Add a free Google Gemini or Groq key in Settings anytime for unlimited usage.`,
+        : `Free-tier mode: ${Math.max(0, effectiveAiLimit - aiUsed)} free AI generations remaining this month. Add a free Google Gemini or Groq key in Settings anytime for unlimited usage.`,
     };
   }
 

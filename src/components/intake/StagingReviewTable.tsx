@@ -519,6 +519,10 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
                         </span>
                       ))}
                     </div>
+                  ) : item.entryType === "profile" && /summary|about|objective|overview/i.test(data.title || "") && (!data.bullets || data.bullets.length <= 1) ? (
+                    <p className="text-[13.5px] leading-relaxed text-[#384d43]">
+                      {data.bullets?.[0] || data.descriptionContext}
+                    </p>
                   ) : (
                     /* Regular Bullets List */
                     data.bullets && data.bullets.length > 0 && (

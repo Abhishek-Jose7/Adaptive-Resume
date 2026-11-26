@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { CompletenessService } from "../../src/lib/services/completenessService";
 import { DuplicateDetectionService } from "../../src/lib/services/duplicateDetectionService";
 import { BankRepository } from "../../src/lib/repositories/bankRepository";
+import { ImportRepository } from "../../src/lib/repositories/importRepository";
 import { BankEntry } from "../../src/types/bank";
 
 import { db } from "../../src/lib/db/client";
@@ -309,6 +310,41 @@ describe("Milestone M1: Data Bank Auditing & Repository", () => {
       await BankRepository.restoreEntry(testUserId, entryId);
       const listAfterRestore = await BankRepository.listEntries(testUserId);
       expect(listAfterRestore.items.find((i) => i.id === entryId)).toBeDefined();
+    });
+
+    it("should commit staged skill_group and education items without violating bullet_facts_parent_check", async () => {
+      const { batchId } = await ImportRepository.createBatch(testUserId, "resume_upload", "test.pdf");
+      const stagedIds = await ImportRepository.addStagedItems(testUserId, batchId, [
+        {
+          entryType: "skill_group",
+          parsedDataJson: {
+            title: "Languages",
+            bullets: ["TypeScript", "Python", "PostgreSQL"],
+          },
+          confidence: 0.95,
+        },
+        {
+          entryType: "education",
+          parsedDataJson: {
+            title: "B.E. in Computer Engineering",
+            organization: "Fr. Conceicao Rodrigues College of Engineering",
+            location: "Mumbai",
+            endDate: "May 2028",
+            isCurrent: true,
+            bullets: [],
+          },
+          confidence: 0.95,
+        },
+      ]);
+
+      const committed = await ImportRepository.commitStagedItems(
+        testUserId,
+        batchId,
+        stagedIds.map((stagedItemId) => ({ stagedItemId }))
+      );
+
+      expect(committed.committedCount).toBe(2);
+      expect(committed.entryIds).toHaveLength(2);
     });
   });
 });

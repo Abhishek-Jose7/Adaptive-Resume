@@ -240,23 +240,40 @@ export function VersionDiffModal({
           ) : (
             <div className="space-y-4">
               {/* Profile Details Diff */}
-              {diff.profileDiff && (
+              {(diff.profileDiff || (Array.isArray(diff.profileChanges) && diff.profileChanges.length > 0)) && (
                 <div className="p-3 bg-sheet/80 border border-rule rounded-lg space-y-2">
                   <h4 className="text-xs font-bold text-ink normal-case tracking-normal">
                     Profile &amp; Header Changes
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="p-2 bg-paper rounded border border-rule/80">
-                      <span className="text-graphite text-[10px] block">Base v{diff.baseVersionNumber}</span>
-                      <p className="font-semibold text-ink">{diff.profileDiff.baseName}</p>
-                      <p className="text-graphite text-[11px]">{diff.profileDiff.baseEmail}</p>
+                  {diff.profileDiff ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="p-2 bg-paper rounded border border-rule/80">
+                        <span className="text-graphite text-[10px] block">Base v{diff.baseVersionNumber}</span>
+                        <p className="font-semibold text-ink">{diff.profileDiff.baseName}</p>
+                        <p className="text-graphite text-[11px]">{diff.profileDiff.baseEmail}</p>
+                      </div>
+                      <div className="p-2 bg-paper rounded border border-rule/80">
+                        <span className="text-graphite text-[10px] block">Target v{diff.targetVersionNumber}</span>
+                        <p className="font-semibold text-ink">{diff.profileDiff.targetName}</p>
+                        <p className="text-graphite text-[11px]">{diff.profileDiff.targetEmail}</p>
+                      </div>
                     </div>
-                    <div className="p-2 bg-paper rounded border border-rule/80">
-                      <span className="text-graphite text-[10px] block">Target v{diff.targetVersionNumber}</span>
-                      <p className="font-semibold text-ink">{diff.profileDiff.targetName}</p>
-                      <p className="text-graphite text-[11px]">{diff.profileDiff.targetEmail}</p>
+                  ) : (
+                    <div className="space-y-1.5 text-xs">
+                      {diff.profileChanges.map((pc: any, i: number) => (
+                        <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-paper rounded border border-rule/80">
+                          <div>
+                            <span className="text-[10px] font-mono text-graphite">{pc.field} (Base):</span>
+                            <p className="text-alarm">{pc.baseValue || "—"}</p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono text-graphite">{pc.field} (Target):</span>
+                            <p className="text-press">{pc.targetValue || "—"}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 

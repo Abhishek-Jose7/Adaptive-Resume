@@ -30,7 +30,8 @@ export function ShareModal({ resumeVersionId, isOpen, onClose }: ShareModalProps
       const res = await fetch("/api/v1/shares");
       if (res.ok) {
         const json = await res.json();
-        const relevant = (json.data || []).filter(
+        const list = Array.isArray(json) ? json : json.data || [];
+        const relevant = list.filter(
           (s: any) => s.resumeVersionId === resumeVersionId && !s.revokedAt
         );
         setActiveShares(relevant);
@@ -66,7 +67,8 @@ export function ShareModal({ resumeVersionId, isOpen, onClose }: ShareModalProps
 
       if (res.ok) {
         const json = await res.json();
-        const fullUrl = `${window.location.origin}${json.data.shareUrl}`;
+        const payload = json?.data ?? json;
+        const fullUrl = `${window.location.origin}${payload.shareUrl}`;
         setGeneratedUrl(fullUrl);
         await fetchShares();
       } else {

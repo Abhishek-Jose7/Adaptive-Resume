@@ -31,15 +31,18 @@ export default function CoverLettersPage() {
   const fetchLetters = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/cover-letters");
-      if (res.ok) {
-        const json = await res.json();
-        setLetters(json.data || json || []);
+      const [res, jobsRes] = await Promise.all([
+        fetch("/api/v1/cover-letters"),
+        fetch("/api/v1/jobs"),
+      ]);
+      const [lettersJson, jobsJson] = await Promise.all([
+        res.ok ? res.json() : Promise.resolve(null),
+        jobsRes.ok ? jobsRes.json() : Promise.resolve(null),
+      ]);
+      if (lettersJson) {
+        setLetters(lettersJson.data || lettersJson || []);
       }
-
-      const jobsRes = await fetch("/api/v1/jobs");
-      if (jobsRes.ok) {
-        const jobsJson = await jobsRes.json();
+      if (jobsJson) {
         setAvailableJobs(jobsJson.data || jobsJson || []);
       }
     } catch (err) {

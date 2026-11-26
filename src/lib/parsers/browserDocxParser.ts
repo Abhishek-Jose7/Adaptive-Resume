@@ -68,7 +68,7 @@ function htmlToStructuredResumeText(html: string): string {
     .join("\n");
 }
 
-async function extractDocxHeaderFooterLines(nodeBuffer: Buffer): Promise<string[]> {
+async function extractDocxHeaderFooterLines(nodeBuffer: Uint8Array): Promise<string[]> {
   try {
     const zip = await JSZip.loadAsync(nodeBuffer);
     const headerFiles = Object.values(zip.files).filter((f) =>
@@ -104,15 +104,24 @@ export async function parseDocxBuffer(
     throw new Error(validation.errorMessage);
   }
 
-  const nodeBuffer = buffer instanceof Uint8Array
-    ? Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-    : Buffer.from(new Uint8Array(buffer));
+  const uint8 =
+    buffer instanceof Uint8Array
+      ? buffer
+      : new Uint8Array(buffer);
+  const arrayBuffer = uint8.buffer.slice(
+    uint8.byteOffset,
+    uint8.byteOffset + uint8.byteLength
+  ) as ArrayBuffer;
+  const mammothInput =
+    typeof Buffer !== "undefined"
+      ? { buffer: Buffer.from(uint8.buffer, uint8.byteOffset, uint8.byteLength) }
+      : { arrayBuffer };
 
   // Extract raw text, HTML (preserving lists, tables, links), and Word header/footer XML
   const [textResult, htmlResult, headerFooterLines] = await Promise.all([
-    mammoth.extractRawText({ buffer: nodeBuffer }),
-    mammoth.convertToHtml({ buffer: nodeBuffer }),
-    extractDocxHeaderFooterLines(nodeBuffer),
+    mammoth.extractRawText(mammothInput),
+    mammoth.convertToHtml(mammothInput),
+    extractDocxHeaderFooterLines(uint8),
   ]);
 
   const htmlStructured = htmlToStructuredResumeText(htmlResult.value);

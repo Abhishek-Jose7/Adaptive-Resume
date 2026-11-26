@@ -3,7 +3,7 @@ import { getAuthenticatedUser } from "@/lib/auth/clerk";
 import { BankRepository } from "@/lib/repositories/bankRepository";
 import { DuplicateDetectionService } from "@/lib/services/duplicateDetectionService";
 import { db } from "@/lib/db/client";
-import { bankEntries } from "@/lib/db/schema";
+import { bankEntries, achievementBullets } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { BulkBankOperationSchema } from "@/lib/validation/bank";
 import { apiSuccess, handleApiError } from "@/lib/api/response";
@@ -22,9 +22,22 @@ export async function POST(req: NextRequest) {
     const validated = BulkBankOperationSchema.parse(body);
 
     if (validated.action === "delete") {
-      for (const id of validated.entryIds) {
-        await BankRepository.softDeleteEntry(user.userId, id);
-      }
+      const now = new Date();
+      await db.transaction(async (tx) => {
+        await tx
+          .update(bankEntries)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(and(eq(bankEntries.userId, user.userId), inArray(bankEntries.id, validated.entryIds)));
+        await tx
+          .update(achievementBullets)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(achievementBullets.userId, user.userId),
+              inArray(achievementBullets.entryId, validated.entryIds)
+            )
+          );
+      });
       return apiSuccess({ deletedCount: validated.entryIds.length });
     }
 

@@ -55,8 +55,14 @@ export function QuantificationAssistantModal({
       const res = await fetch(`/api/v1/quantification?bulletId=${bulletId}&entryId=${entryId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.items && data.items.length > 0) {
-          setQuestions(data.items);
+        const items = Array.isArray(data) ? data : data.items || [];
+        if (items.length > 0) {
+          setQuestions(
+            items.map((q: any) => ({
+              ...q,
+              isAnswered: q.isAnswered ?? q.status === "answered",
+            }))
+          );
         } else {
           // If no questions exist, trigger auto-generation
           await generateQuestions();
@@ -85,7 +91,13 @@ export function QuantificationAssistantModal({
       });
       if (res.ok) {
         const data = await res.json();
-        setQuestions(data.items || []);
+        const items = Array.isArray(data) ? data : data.items || [];
+        setQuestions(
+          items.map((q: any) => ({
+            ...q,
+            isAnswered: q.isAnswered ?? q.status === "answered",
+          }))
+        );
         setActiveQuestionIndex(0);
       }
     } catch (err) {
@@ -110,6 +122,7 @@ export function QuantificationAssistantModal({
     if (!currentQ || !userResponse.trim()) return;
 
     setSubmittingAnswer(true);
+    const numericEstimate = metricEstimate.trim() ? Number(metricEstimate.trim()) : undefined;
     try {
       const res = await fetch("/api/v1/quantification", {
         method: "POST",
@@ -118,7 +131,7 @@ export function QuantificationAssistantModal({
           action: "answer",
           questionId: currentQ.id,
           userResponse: userResponse.trim(),
-          metricEstimate: metricEstimate.trim() || undefined,
+          metricEstimate: Number.isFinite(numericEstimate) ? numericEstimate : undefined,
           metricUnit: metricUnit.trim() || undefined,
           isVerified,
         }),

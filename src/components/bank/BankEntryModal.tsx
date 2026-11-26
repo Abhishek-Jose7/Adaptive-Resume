@@ -57,19 +57,26 @@ export function BankEntryModal({
     setError(null);
   }, [entryToEdit, isOpen]);
 
-  const suggestions = useMemo(
-    () =>
-      getEntryFormSuggestions({
-        draftType: entryType,
-        draftTitle: title,
-        draftOrg: organization,
-        draftLocation: location,
-        draftContext: descriptionContext,
-        editingEntryId: entryToEdit?.id,
-        existingEntries,
-      }),
-    [entryType, title, organization, location, descriptionContext, entryToEdit?.id, existingEntries]
-  );
+  const suggestions = useMemo(() => {
+    if (!isOpen) {
+      return {
+        organizations: [],
+        locations: [],
+        contextTechHints: [],
+        contextPrompts: [],
+        similarEntry: null,
+      };
+    }
+    return getEntryFormSuggestions({
+      draftType: entryType,
+      draftTitle: title,
+      draftOrg: organization,
+      draftLocation: location,
+      draftContext: descriptionContext,
+      editingEntryId: entryToEdit?.id,
+      existingEntries,
+    });
+  }, [isOpen, entryType, title, organization, location, descriptionContext, entryToEdit?.id, existingEntries]);
 
   if (!isOpen) return null;
 

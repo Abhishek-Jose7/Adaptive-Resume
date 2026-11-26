@@ -1,13 +1,29 @@
 "use client";
 
 import React from "react";
-import { ResumeDoc } from "@/types/resume";
+import dynamic from "next/dynamic";
 import { ClassicAtsTemplate, TemplateProps } from "./ClassicAtsTemplate";
-import { ModernAtsTemplate } from "./ModernAtsTemplate";
-import { MinimalExecutiveTemplate } from "./MinimalExecutiveTemplate";
-import { TechnicalScholarTemplate } from "./TechnicalScholarTemplate";
-import { LuxuriousGridTemplate } from "./LuxuriousGridTemplate";
-import { CompactEngineerTemplate } from "./CompactEngineerTemplate";
+
+const ModernAtsTemplate = dynamic(
+  () => import("./ModernAtsTemplate").then((m) => m.ModernAtsTemplate),
+  { ssr: true }
+);
+const MinimalExecutiveTemplate = dynamic(
+  () => import("./MinimalExecutiveTemplate").then((m) => m.MinimalExecutiveTemplate),
+  { ssr: true }
+);
+const TechnicalScholarTemplate = dynamic(
+  () => import("./TechnicalScholarTemplate").then((m) => m.TechnicalScholarTemplate),
+  { ssr: true }
+);
+const LuxuriousGridTemplate = dynamic(
+  () => import("./LuxuriousGridTemplate").then((m) => m.LuxuriousGridTemplate),
+  { ssr: true }
+);
+const CompactEngineerTemplate = dynamic(
+  () => import("./CompactEngineerTemplate").then((m) => m.CompactEngineerTemplate),
+  { ssr: true }
+);
 
 export interface TemplateRendererProps extends TemplateProps {
   templateId?: string;

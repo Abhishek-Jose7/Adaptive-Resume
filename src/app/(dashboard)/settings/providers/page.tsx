@@ -27,7 +27,7 @@ export default function ProvidersSettingsPage() {
       const res = await fetch("/api/v1/provider-credentials");
       if (res.ok) {
         const data = await res.json();
-        setCredentials(data.data || []);
+        setCredentials(Array.isArray(data) ? data : data.data || []);
       }
     } catch (err) {
       console.error("Failed to load credentials:", err);
@@ -80,7 +80,8 @@ export default function ProvidersSettingsPage() {
 
       if (res.ok) {
         const result = await res.json();
-        if (result.data?.isValid) {
+        const payload = result?.data ?? result;
+        if (payload?.isValid) {
           setStatusMessage({ type: "success", text: "Connection valid. The provider accepted the key." });
         } else {
           setStatusMessage({ type: "error", text: "The provider rejected this key." });

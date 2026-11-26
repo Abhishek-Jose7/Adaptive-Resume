@@ -60,7 +60,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .toUpperCase()
     : "TODAY";
   const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = !mounted
+    ? "Welcome"
+    : hour < 12
+      ? "Good morning"
+      : hour < 18
+        ? "Good afternoon"
+        : "Good evening";
   const firstName = user?.firstName || "there";
 
   return (

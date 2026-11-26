@@ -198,11 +198,11 @@ export class JdIntelligenceService {
         id: `imp_${imp.text.toLowerCase().replace(/\s+/g, "_")}`,
         requirementText: imp.text,
         kind: "implied",
-        status: matched ? "confirmed_match" : "partial_match",
+        status: matched ? "confirmed_match" : "missing_evidence",
         matchingBullets: Array.from(new Set(bulletsWithSkill)).slice(0, 2),
         explanation: matched
           ? "Demonstrated in your achievement evidence."
-          : "Implied technical expectation for modern software engineering roles.",
+          : "Not yet evidenced in your Data Bank bullets.",
       });
     }
 
@@ -233,7 +233,7 @@ export class JdIntelligenceService {
         ? Math.round(
             ((confirmedMatchesCount * 1.0 + partialMatchesCount * 0.5) / allEvaluated.length) * 100
           )
-        : 80;
+        : 0;
 
     return {
       jobId: (jdAnalysis as any).jobId || "current-job",

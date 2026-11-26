@@ -47,7 +47,7 @@ export default function PublicUserProfilePage({
         return res.json();
       })
       .then((res) => {
-        setData(res.data);
+        setData(res?.data ?? res);
       })
       .catch((err) => {
         setError(err.message);

@@ -39,14 +39,17 @@ export class BankRepository {
     }
 
     if (options.searchQuery && options.searchQuery.trim()) {
-      const formattedQuery = options.searchQuery
+      const terms = options.searchQuery
         .trim()
         .split(/\s+/)
-        .map((term) => `${term}:*`)
-        .join(" & ");
-      conditions.push(
-        sql`${bankEntries.searchVector} @@ to_tsquery('english', ${formattedQuery})`
-      );
+        .map((t) => t.replace(/[^a-z0-9_+#-]/gi, ""))
+        .filter(Boolean);
+      if (terms.length > 0) {
+        const formattedQuery = terms.map((term) => `${term}:*`).join(" & ");
+        conditions.push(
+          sql`${bankEntries.searchVector} @@ to_tsquery('english', ${formattedQuery})`
+        );
+      }
     }
 
     if (options.cursor) {
@@ -396,9 +399,10 @@ export class BankRepository {
           eq(bankEntries.rowVersion, expectedRowVersion),
           isNull(bankEntries.deletedAt)
         )
-      );
+      )
+      .returning({ id: bankEntries.id });
 
-    return result.length > 0 || true; // PostgreSQL returns updated count
+    return result.length > 0;
   }
 
   /**
@@ -483,8 +487,8 @@ export class BankRepository {
       });
 
       if (data.facts && data.facts.length > 0) {
-        for (const f of data.facts) {
-          await tx.insert(bulletFacts).values({
+        await tx.insert(bulletFacts).values(
+          data.facts.map((f) => ({
             id: `fact_${crypto.randomUUID()}`,
             userId,
             bulletId,
@@ -496,8 +500,8 @@ export class BankRepository {
             currencyCode: f.currencyCode ?? null,
             metricKind: f.metricKind ?? null,
             verificationStatus: "unverified",
-          });
-        }
+          }))
+        );
       }
     });
 
@@ -521,7 +525,7 @@ export class BankRepository {
   ): Promise<boolean> {
     assertValidUserId(userId);
 
-    await db
+    const updated = await db
       .update(achievementBullets)
       .set({
         ...data,
@@ -536,9 +540,10 @@ export class BankRepository {
           eq(achievementBullets.rowVersion, expectedRowVersion),
           isNull(achievementBullets.deletedAt)
         )
-      );
+      )
+      .returning({ id: achievementBullets.id });
 
-    return true;
+    return updated.length > 0;
   }
 
   /**

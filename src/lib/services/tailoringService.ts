@@ -1,6 +1,6 @@
 import { db } from "../db/client";
 import { aiRuns, jobs, jdAnalyses, bankEntries, achievementBullets, bulletFacts, users } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { ProviderFactory } from "../ai/providerFactory";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import { TruthBoundValidator } from "../tailoring/truthBoundValidator";
@@ -79,29 +79,29 @@ export class TailoringService {
       pinnedBulletIds?: string[];
     }
   ): Promise<AiRunDetails> {
-    // 1. Fetch User Email for dual-key routing & Job/JD Analysis
-    const [userRecord] = await db
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    // 1. Fetch User Email, Job, and JD Analysis concurrently
+    const [[userRecord], jobList, jdList] = await Promise.all([
+      db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1),
+      db
+        .select({ id: jobs.id, rawText: jobs.rawText })
+        .from(jobs)
+        .where(and(eq(jobs.userId, userId), eq(jobs.id, jobId)))
+        .limit(1),
+      db
+        .select()
+        .from(jdAnalyses)
+        .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
+        .limit(1),
+    ]);
     const userEmail = userRecord?.email || null;
-
-    const jobList = await db
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.userId, userId), eq(jobs.id, jobId)))
-      .limit(1);
 
     if (jobList.length === 0) {
       throw new Error(`Job not found: ${jobId}`);
     }
-
-    const jdList = await db
-      .select()
-      .from(jdAnalyses)
-      .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
-      .limit(1);
 
     if (jdList.length === 0) {
       throw new Error(`JD Analysis not found for job: ${jobId}. Run analysis first.`);
@@ -118,21 +118,21 @@ export class TailoringService {
     }
 
     try {
-      // 2. Fetch User Bank Entries, Bullets and Facts
-    const userEntries = await db
-      .select()
-      .from(bankEntries)
-      .where(eq(bankEntries.userId, userId));
-
-    const userBullets = await db
-      .select()
-      .from(achievementBullets)
-      .where(eq(achievementBullets.userId, userId));
-
-    const userFacts = await db
-      .select()
-      .from(bulletFacts)
-      .where(eq(bulletFacts.userId, userId));
+      // 2. Fetch active (non-deleted) User Bank Entries, Bullets, and Facts concurrently
+      const [userEntries, userBullets, userFacts] = await Promise.all([
+        db
+          .select()
+          .from(bankEntries)
+          .where(and(eq(bankEntries.userId, userId), isNull(bankEntries.deletedAt))),
+        db
+          .select()
+          .from(achievementBullets)
+          .where(and(eq(achievementBullets.userId, userId), isNull(achievementBullets.deletedAt))),
+        db
+          .select()
+          .from(bulletFacts)
+          .where(eq(bulletFacts.userId, userId)),
+      ]);
 
     // Assemble hierarchical entries
     const factsByBullet = new Map<string, StructuredFact[]>();
@@ -200,6 +200,7 @@ export class TailoringService {
     const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
     let totalTokensIn = 0;
     let totalTokensOut = 0;
+    const modelsUsed = new Set<string>();
     const tailoredResults: TailoredBulletResult[] = [];
 
     // Run Canary Trap Detection on target job raw text
@@ -288,6 +289,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
         };
 
         const res = await provider.generateStructured<RewrittenBullet>(llmInput);
+        if (res.model) modelsUsed.add(res.model);
         if (res.usage) {
           totalTokensIn += res.usage.promptTokens;
           totalTokensOut += res.usage.completionTokens;
@@ -462,14 +464,17 @@ CRITICAL INTEGRITY AND WRITING RULES:
 
     // 5. Store AI Run Record
     const runId = crypto.randomUUID();
+    const resolvedProvider = provider.name;
+    const resolvedModel =
+      modelsUsed.size > 0 ? Array.from(modelsUsed).join(", ") : provider.name;
     const newRun = {
       id: runId,
       userId,
       taskType: "rewrite",
       jobId,
       resumeVersionId: null,
-      provider: provider.name,
-      model: "v1-truth-bound",
+      provider: resolvedProvider,
+      model: resolvedModel,
       promptVersion: "v1.0",
       tokensIn: totalTokensIn,
       tokensOut: totalTokensOut,
@@ -483,8 +488,8 @@ CRITICAL INTEGRITY AND WRITING RULES:
         id: runId,
         userId,
         jobId,
-        provider: provider.name,
-        model: "v1-truth-bound",
+        provider: resolvedProvider,
+        model: resolvedModel,
         promptVersion: "v1.0",
         tokensIn: totalTokensIn,
         tokensOut: totalTokensOut,

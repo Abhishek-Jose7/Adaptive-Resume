@@ -32,8 +32,9 @@ export function MatchScorePanel({ jobId }: Props) {
       }
 
       const json = await res.json();
-      setMatchScore(json.data.matchScore);
-      setGapReport(json.data.gapReport);
+      const payload = json?.data ?? json;
+      setMatchScore(payload.matchScore);
+      setGapReport(payload.gapReport);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -105,6 +106,12 @@ export function MatchScorePanel({ jobId }: Props) {
       weight: 10,
       score: matchScore.dimensions.experienceSeniority.score,
       detail: `Candidate ${matchScore.dimensions.experienceSeniority.candidateSeniority}, required ${matchScore.dimensions.experienceSeniority.requiredSeniority}`,
+    },
+    {
+      label: "Skills evidence & recency",
+      weight: 5,
+      score: matchScore.dimensions.skillsEvidenceRecency.score,
+      detail: `${matchScore.dimensions.skillsEvidenceRecency.recentEvidencedSkillsCount} skill entries in resume`,
     },
     {
       label: "Parseability and formatting",

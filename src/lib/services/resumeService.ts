@@ -107,22 +107,24 @@ export class ResumeService {
     const docJsonString = JSON.stringify(canonicalDoc);
     const contentHash = createHash("sha256").update(docJsonString).digest("hex");
 
-    await db.insert(resumeDocuments).values({
-      id: docId,
-      userId,
-      title,
-      jobId: jobId || null,
-    });
+    await db.transaction(async (tx) => {
+      await tx.insert(resumeDocuments).values({
+        id: docId,
+        userId,
+        title,
+        jobId: jobId || null,
+      });
 
-    await db.insert(resumeVersions).values({
-      id: versionId,
-      userId,
-      resumeDocumentId: docId,
-      versionNumber: 1,
-      versionKind: "working",
-      resumeDocJson: canonicalDoc as any,
-      contentHash,
-      templateId: canonicalDoc.template?.id || "classic-ats",
+      await tx.insert(resumeVersions).values({
+        id: versionId,
+        userId,
+        resumeDocumentId: docId,
+        versionNumber: 1,
+        versionKind: "working",
+        resumeDocJson: canonicalDoc as any,
+        contentHash,
+        templateId: canonicalDoc.template?.id || "classic-ats",
+      });
     });
 
     return {
@@ -170,30 +172,43 @@ export class ResumeService {
     const docJsonString = JSON.stringify(updatedDoc);
     const contentHash = createHash("sha256").update(docJsonString).digest("hex");
 
-    // Atomic Optimistic Concurrency Update at SQL execution level
-    const [updatedVersion] = await db
-      .update(resumeVersions)
-      .set({
-        resumeDocJson: updatedDoc as any,
-        contentHash,
-        templateId: updatedDoc.template?.id || currentVersion.templateId,
-        rowVersion: sql`${resumeVersions.rowVersion} + 1`,
-      })
-      .where(
-        and(
-          eq(resumeVersions.userId, userId),
-          eq(resumeVersions.id, currentVersion.id),
-          isNull(resumeVersions.immutableAt),
-          eq(resumeVersions.rowVersion, expectedRowVersion)
+    const updatedVersion = await db.transaction(async (tx) => {
+      const [ver] = await tx
+        .update(resumeVersions)
+        .set({
+          resumeDocJson: updatedDoc as any,
+          contentHash,
+          templateId: updatedDoc.template?.id || currentVersion.templateId,
+          rowVersion: sql`${resumeVersions.rowVersion} + 1`,
+        })
+        .where(
+          and(
+            eq(resumeVersions.userId, userId),
+            eq(resumeVersions.id, currentVersion.id),
+            isNull(resumeVersions.immutableAt),
+            eq(resumeVersions.rowVersion, expectedRowVersion)
+          )
         )
-      )
-      .returning();
+        .returning();
+
+      if (!ver) return null;
+
+      await tx
+        .update(resumeDocuments)
+        .set({
+          updatedAt: new Date(),
+          rowVersion: sql`${resumeDocuments.rowVersion} + 1`,
+        })
+        .where(and(eq(resumeDocuments.userId, userId), eq(resumeDocuments.id, resumeId)));
+
+      return ver;
+    });
 
     if (!updatedVersion) {
       const check = await db
         .select()
         .from(resumeVersions)
-        .where(eq(resumeVersions.id, currentVersion.id))
+        .where(and(eq(resumeVersions.id, currentVersion.id), eq(resumeVersions.userId, userId)))
         .limit(1);
 
       if (!check.length) throw new Error("Resume version not found");
@@ -206,14 +221,6 @@ export class ResumeService {
       err.statusCode = 409;
       throw err;
     }
-
-    await db
-      .update(resumeDocuments)
-      .set({
-        updatedAt: new Date(),
-        rowVersion: sql`${resumeDocuments.rowVersion} + 1`,
-      })
-      .where(and(eq(resumeDocuments.userId, userId), eq(resumeDocuments.id, resumeId)));
 
     return {
       versionId: updatedVersion.id,

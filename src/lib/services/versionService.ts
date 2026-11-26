@@ -1,6 +1,6 @@
 import { db } from "../db/client";
 import { resumeVersions, resumeDocuments } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 import { ResumeDoc } from "@/types/resume";
 
@@ -77,11 +77,6 @@ export class VersionService {
     const sourceVersion = versions[0];
     const resumeDocumentId = sourceVersion.resumeDocumentId;
 
-    // Get current max version number
-    const allVersions = await this.listVersions(userId, resumeDocumentId);
-    const maxVersionNumber = allVersions.reduce((max, v) => Math.max(max, v.versionNumber), 0);
-    const newVersionNumber = maxVersionNumber + 1;
-
     const newVersionId = `ver_${crypto.randomUUID()}`;
     const docCopy: ResumeDoc = {
       ...(sourceVersion.resumeDocJson as unknown as ResumeDoc),
@@ -91,30 +86,45 @@ export class VersionService {
     const docString = JSON.stringify(docCopy);
     const contentHash = createHash("sha256").update(docString).digest("hex");
 
-    const [created] = await db
-      .insert(resumeVersions)
-      .values({
-        id: newVersionId,
-        userId,
-        resumeDocumentId,
-        parentVersionId: sourceVersion.id,
-        versionNumber: newVersionNumber,
-        versionKind: "working",
-        resumeDocJson: docCopy as any,
-        contentHash,
-        templateId: sourceVersion.templateId,
-        templateVersion: sourceVersion.templateVersion,
-        themeJson: sourceVersion.themeJson,
-        pageSize: sourceVersion.pageSize,
-        targetPages: sourceVersion.targetPages,
-      })
-      .returning();
+    const created = await db.transaction(async (tx) => {
+      // Query only the highest version number instead of transferring every version's resumeDocJson blob
+      const [maxRow] = await tx
+        .select({ maxNum: sql<number>`COALESCE(MAX(${resumeVersions.versionNumber}), 0)` })
+        .from(resumeVersions)
+        .where(
+          and(
+            eq(resumeVersions.userId, userId),
+            eq(resumeVersions.resumeDocumentId, resumeDocumentId)
+          )
+        );
+      const newVersionNumber = Number(maxRow?.maxNum ?? 0) + 1;
 
-    // Update parent resume document updatedAt
-    await db
-      .update(resumeDocuments)
-      .set({ updatedAt: new Date() })
-      .where(and(eq(resumeDocuments.userId, userId), eq(resumeDocuments.id, resumeDocumentId)));
+      const [inserted] = await tx
+        .insert(resumeVersions)
+        .values({
+          id: newVersionId,
+          userId,
+          resumeDocumentId,
+          parentVersionId: sourceVersion.id,
+          versionNumber: newVersionNumber,
+          versionKind: "working",
+          resumeDocJson: docCopy as any,
+          contentHash,
+          templateId: sourceVersion.templateId,
+          templateVersion: sourceVersion.templateVersion,
+          themeJson: sourceVersion.themeJson,
+          pageSize: sourceVersion.pageSize,
+          targetPages: sourceVersion.targetPages,
+        })
+        .returning();
+
+      await tx
+        .update(resumeDocuments)
+        .set({ updatedAt: new Date() })
+        .where(and(eq(resumeDocuments.userId, userId), eq(resumeDocuments.id, resumeDocumentId)));
+
+      return inserted;
+    });
 
     return created;
   }

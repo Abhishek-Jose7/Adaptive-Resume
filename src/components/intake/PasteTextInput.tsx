@@ -4,8 +4,6 @@ import React, { useState } from "react";
 import { FileEdit, Sparkles, AlertTriangle } from "lucide-react";
 import { MAX_PASTED_TEXT_LENGTH } from "@/lib/parsers/fileValidator";
 
-import { parseResumeTextWithFallback } from "@/lib/parsers/clientIntakeParser";
-
 interface PasteTextInputProps {
   onParsedItemsReady: (sourceType: string, sourceLabel: string, items: any[]) => Promise<void>;
 }
@@ -29,6 +27,7 @@ export function PasteTextInput({ onParsedItemsReady }: PasteTextInputProps) {
 
     try {
       // Parse pasted text into structured candidates via hybrid AI + deterministic engine
+      const { parseResumeTextWithFallback } = await import("@/lib/parsers/clientIntakeParser");
       const items = await parseResumeTextWithFallback(text, "Pasted Career Text");
 
       await onParsedItemsReady("free_text", "Pasted Career Text", items);

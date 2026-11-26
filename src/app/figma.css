@@ -2257,10 +2257,19 @@ footer > span {
   flex-direction: column;
   align-items: flex-start;
   border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.welcome-card > * {
+  position: relative;
+  z-index: 1;
 }
 .welcome-card:after {
   content: "";
   position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
   width: 370px;
   height: 370px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2268,10 +2277,10 @@ footer > span {
   right: -80px;
   top: -68px;
   box-shadow:
-    inset 0 0 0 42px var(--ink),
-    inset 0 0 0 43px rgba(255, 255, 255, 0.1),
-    inset 0 0 0 86px var(--ink),
-    inset 0 0 0 87px rgba(255, 255, 255, 0.1);
+    inset 0 0 0 42px transparent,
+    inset 0 0 0 43px rgba(255, 255, 255, 0.08),
+    inset 0 0 0 86px transparent,
+    inset 0 0 0 87px rgba(255, 255, 255, 0.06);
 }
 .welcome-card h2 {
   font-size: clamp(30px, 3.1vw, 47px);
@@ -3072,21 +3081,34 @@ footer > span {
     color: var(--ink) !important;
   }
   .dash-top {
-    height: 76px;
-    padding: 0 16px;
+    height: auto;
+    min-height: 72px;
+    padding: 12px 16px;
   }
   .dash-top h1 {
-    font-size: 19px;
+    font-size: 20px;
+    line-height: 1.15;
   }
-  .dash-content {
-    padding: 16px 12px 85px;
+  .dash-content,
+  .dash-inner-content {
+    padding: 16px 14px 88px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .welcome-card {
-    padding: 22px 16px;
+    padding: 22px 18px;
     min-height: auto;
     display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+  .welcome-card:after {
+    width: 200px;
+    height: 200px;
+    right: -75px;
+    top: -75px;
+    opacity: 0.35;
   }
   .welcome-card button,
   .welcome-card a.welcome-cta {
@@ -3102,6 +3124,29 @@ footer > span {
   .vault-panel,
   .recent-section {
     padding: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .vault-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .vault-stats div:nth-child(2n) {
+    border-right: 0;
+  }
+  .vault-stats div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+  .analysis-top-row,
+  .analysis-actions-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .analysis-actions-row .create-resume {
+    width: 100%;
+    justify-content: center;
   }
   .target-panel textarea {
     font-size: 14px;

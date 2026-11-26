@@ -168,7 +168,7 @@ export function FigmaDashboardView() {
     let calculatedScore = 0;
     if (bankEntries.length > 0 && effectiveJdSkills.length > 0) {
       const matchRatio = matchedSkills.length / effectiveJdSkills.length;
-      calculatedScore = Math.min(98, Math.max(20, Math.round(matchRatio * 100)));
+      calculatedScore = Math.min(98, Math.round(matchRatio * 100));
     }
 
     const missingSkills = effectiveJdSkills.filter((jdSkill) => !matchedSkills.includes(jdSkill));
@@ -229,22 +229,23 @@ export function FigmaDashboardView() {
 
       // 3. Tailor bullets from Career Vault with 8-second safety timeout
       let tailoredResults: any[] = [];
+      const tailorController = new AbortController();
+      const timeoutId = setTimeout(() => tailorController.abort(), 8000);
       try {
-        const tailorController = new AbortController();
-        const timeoutId = setTimeout(() => tailorController.abort(), 8000);
         const tailorRes = await fetch(`/api/v1/jobs/${job.id}/tailor`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mode: "full_resume" }),
           signal: tailorController.signal,
         });
-        clearTimeout(timeoutId);
         if (tailorRes.ok) {
           const tailorData = await tailorRes.json().catch(() => null);
           tailoredResults = tailorData?.results || [];
         }
       } catch (tailorErr) {
         console.warn("Tailoring timeout or fallback to vault bullets:", tailorErr);
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       // 4. Fetch candidate profile for contact headers
@@ -252,11 +253,23 @@ export function FigmaDashboardView() {
         .then((r) => (r.ok ? r.json() : {}))
         .catch(() => ({}));
 
-      // 5. Build tailored resume document
-      const bulletMap = new Map<string, string>();
+      // 5. Build tailored resume document (preserving exact validatorStatus and dates)
+      const bulletResultMap = new Map<string, any>();
       for (const r of tailoredResults) {
-        bulletMap.set(r.bulletId, r.rewrittenText);
+        bulletResultMap.set(r.bulletId, r);
       }
+      const mapBullet = (b: any) => {
+        const res = bulletResultMap.get(b.id);
+        const passed = res && res.validatorStatus === "passed";
+        return {
+          id: b.id,
+          text: passed ? res.rewrittenText : b.text,
+          provenance: passed ? ("ai-rewrite" as const) : ("bank" as const),
+          sourceBulletIds: [b.id],
+          sourceFactIds: [],
+          validatorStatus: res?.validatorStatus || ("not_applicable" as const),
+        };
+      };
 
       const sections = [
         {
@@ -274,14 +287,7 @@ export function FigmaDashboardView() {
               organization: e.organization || undefined,
               dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
               location: e.location || undefined,
-              bullets: (e.bullets || []).map((b) => ({
-                id: b.id,
-                text: bulletMap.get(b.id) || b.text,
-                provenance: bulletMap.has(b.id) ? "ai-rewrite" : "bank",
-                sourceBulletIds: [b.id],
-                sourceFactIds: [],
-                validatorStatus: "passed",
-              })),
+              bullets: (e.bullets || []).map(mapBullet),
             })),
         },
         {
@@ -299,14 +305,7 @@ export function FigmaDashboardView() {
               organization: e.organization || undefined,
               dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
               location: e.location || undefined,
-              bullets: (e.bullets || []).map((b) => ({
-                id: b.id,
-                text: bulletMap.get(b.id) || b.text,
-                provenance: bulletMap.has(b.id) ? "ai-rewrite" : "bank",
-                sourceBulletIds: [b.id],
-                sourceFactIds: [],
-                validatorStatus: "passed",
-              })),
+              bullets: (e.bullets || []).map(mapBullet),
             })),
         },
         {
@@ -387,18 +386,11 @@ export function FigmaDashboardView() {
             id: e.id,
             company: e.organization || "Company",
             position: e.title,
-            startDate: e.startDate || "2024",
+            startDate: e.startDate || "",
             endDate: e.endDate || null,
             isCurrent: e.isCurrent ?? false,
             location: e.location || undefined,
-            bullets: (e.bullets || []).map((b) => ({
-              id: b.id,
-              text: bulletMap.get(b.id) || b.text,
-              provenance: bulletMap.has(b.id) ? "ai-rewrite" : "bank",
-              sourceBulletIds: [b.id],
-              sourceFactIds: [],
-              validatorStatus: "passed",
-            })),
+            bullets: (e.bullets || []).map(mapBullet),
           })),
         projects: bankEntries
           .filter((e) => e.entryType === "project")
@@ -407,14 +399,7 @@ export function FigmaDashboardView() {
             name: e.title,
             role: e.organization || undefined,
             description: shortenProjectDescription(e.descriptionContext),
-            bullets: (e.bullets || []).map((b) => ({
-              id: b.id,
-              text: bulletMap.get(b.id) || b.text,
-              provenance: bulletMap.has(b.id) ? "ai-rewrite" : "bank",
-              sourceBulletIds: [b.id],
-              sourceFactIds: [],
-              validatorStatus: "passed",
-            })),
+            bullets: (e.bullets || []).map(mapBullet),
           })),
         education: bankEntries
           .filter((e) => e.entryType === "education")
@@ -423,7 +408,7 @@ export function FigmaDashboardView() {
             institution: e.organization || "Institution",
             degree: e.title || "Degree",
             field: e.descriptionContext || undefined,
-            startDate: e.startDate || "2020",
+            startDate: e.startDate || "",
             endDate: e.endDate || undefined,
           })),
         skills: bankEntries
@@ -699,8 +684,8 @@ export function FigmaDashboardView() {
                 <div>
                   <b>{entry.title}</b>
                   <small>
-                    {entry.entryType.replace("_", " ")} · {entry.bullets?.length || 1} verified fact
-                    {(entry.bullets?.length || 1) === 1 ? "" : "s"}
+                    {entry.entryType.replace("_", " ")} · {entry.bullets?.length || 0} bullet
+                    {(entry.bullets?.length || 0) === 1 ? "" : "s"}
                   </small>
                 </div>
                 <span className="verified">
@@ -762,11 +747,15 @@ export function FigmaDashboardView() {
                       : "Recently edited"}
                   </small>
                 </div>
-                <span className="score high">{item.matchScore || 92}% match</span>
+                {typeof item.matchScore === "number" ? (
+                  <span className="score high">{item.matchScore}% match</span>
+                ) : (
+                  <span className="score">Tailored draft</span>
+                )}
                 <span className={`status ${item.status === "exported" ? "exported" : "draft"}`}>
                   {item.status || "Draft"}
                 </span>
-                <Link href={`/resumes/${item.id}`} aria-label="Open resume">
+                <Link href={`/resumes/${item.id}/edit`} aria-label="Open resume">
                   <FigmaIcon name="chevron" />
                 </Link>
               </div>

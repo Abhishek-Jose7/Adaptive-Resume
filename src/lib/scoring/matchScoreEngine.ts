@@ -48,13 +48,30 @@ export class MatchScoreEngine {
       };
     }
 
-    // Extract all text content from resume
+    // Extract all text content from resume (supporting both top-level arrays and canonical doc.sections)
     const resumeTextParts: string[] = [];
-    if (resume.profile.summary) resumeTextParts.push(resume.profile.summary);
-    if (resume.profile.headline) resumeTextParts.push(resume.profile.headline);
+    const profile = resume.profile || ({} as any);
+    if (profile.summary) resumeTextParts.push(profile.summary);
+    if (profile.headline) resumeTextParts.push(profile.headline);
+
+    const sections = Array.isArray((resume as any).sections) ? (resume as any).sections : [];
+    const sectionItemsByKind = (kinds: string[]) =>
+      sections
+        .filter((s: any) => kinds.includes(String(s.kind || s.id || "").toLowerCase()) && s.visible !== false)
+        .flatMap((s: any) => s.items || []);
+
+    const experiences = (resume.experience && resume.experience.length > 0)
+      ? resume.experience
+      : sectionItemsByKind(["experience"]);
+    const projects = (resume.projects && resume.projects.length > 0)
+      ? resume.projects
+      : sectionItemsByKind(["projects", "project"]);
+    const skillsList = (resume.skills && resume.skills.length > 0)
+      ? resume.skills
+      : sectionItemsByKind(["skills", "skill_group"]);
 
     const resumeBulletTexts: string[] = [];
-    for (const exp of resume.experience || []) {
+    for (const exp of experiences) {
       if ((exp as any).position) resumeTextParts.push((exp as any).position);
       if ((exp as any).role) resumeTextParts.push((exp as any).role);
       if ((exp as any).company) resumeTextParts.push((exp as any).company);
@@ -66,7 +83,7 @@ export class MatchScoreEngine {
         }
       }
     }
-    for (const proj of resume.projects || []) {
+    for (const proj of projects) {
       if ((proj as any).name) resumeTextParts.push((proj as any).name);
       if ((proj as any).title) resumeTextParts.push((proj as any).title);
       for (const b of proj.bullets || []) {
@@ -76,40 +93,40 @@ export class MatchScoreEngine {
         }
       }
     }
-    for (const skill of resume.skills || []) {
+    for (const skill of skillsList) {
       if ((skill as any).name) resumeTextParts.push((skill as any).name);
+      if ((skill as any).title) resumeTextParts.push((skill as any).title);
       if ((skill as any).category) resumeTextParts.push((skill as any).category);
       if (Array.isArray((skill as any).items)) {
         resumeTextParts.push(...(skill as any).items);
+      }
+      if (Array.isArray((skill as any).bullets)) {
+        for (const sb of (skill as any).bullets) {
+          if (sb?.text) resumeTextParts.push(sb.text);
+        }
       }
     }
 
     const fullResumeText = resumeTextParts.join(" ").toLowerCase();
 
-    // Set of all keywords verified in Data Bank
+    // Set of all keywords verified in Data Bank (preserve internal dots for next.js / node.js)
     const bankKeywords = new Set<string>();
+    const addBankTokens = (raw: string) => {
+      const lower = raw.toLowerCase();
+      bankKeywords.add(lower.trim());
+      lower.split(/[\s,;()]+/).forEach((w) => {
+        const clean = w.replace(/^[.]+|[.]+$/g, "");
+        if (clean.length > 1) bankKeywords.add(clean);
+      });
+    };
     for (const entry of bankEntries) {
-      if (entry.title) {
-        entry.title.toLowerCase().split(/[\s,.;:()]+/).forEach((w) => {
-          if (w.length > 2) bankKeywords.add(w);
-        });
-      }
-      if (entry.descriptionContext) {
-        entry.descriptionContext.toLowerCase().split(/[\s,.;:()]+/).forEach((w) => {
-          if (w.length > 2) bankKeywords.add(w);
-        });
-      }
+      if (entry.title) addBankTokens(entry.title);
+      if (entry.descriptionContext) addBankTokens(entry.descriptionContext);
       if (entry.facts) {
-        entry.facts.forEach((f) => {
-          bankKeywords.add(f.valueText.toLowerCase());
-        });
+        entry.facts.forEach((f) => bankKeywords.add(f.valueText.toLowerCase()));
       }
       if (entry.bullets) {
-        entry.bullets.forEach((b) => {
-          b.text.toLowerCase().split(/[\s,.;:()]+/).forEach((w) => {
-            if (w.length > 2) bankKeywords.add(w);
-          });
-        });
+        entry.bullets.forEach((b) => addBankTokens(b.text));
       }
     }
 
@@ -183,9 +200,8 @@ export class MatchScoreEngine {
         : 15;
 
     // 5. Experience / Seniority Alignment (Weight: 10)
-    // Approximate candidate seniority from resume experience items
     let candidateSeniority: SeniorityLevel = "mid";
-    const totalExpYears = (resume.experience || []).length * 2.5; // Heuristic
+    const totalExpYears = experiences.length * 2.5;
     if (totalExpYears >= 8 || fullResumeText.includes("director") || fullResumeText.includes("lead")) {
       candidateSeniority = "lead";
     } else if (totalExpYears >= 5 || fullResumeText.includes("senior")) {
@@ -208,10 +224,11 @@ export class MatchScoreEngine {
     }
 
     // 6. Skills Evidence and Recency (Weight: 5)
-    // Recent experience has evidenced skills
-    let recentSkillsScore = 5;
-    if ((resume.experience || []).length === 0) {
-      recentSkillsScore = 2;
+    let recentSkillsScore = 0;
+    if (experiences.length > 0 && (coveredMustHave.length > 0 || resumeBulletTexts.length > 0)) {
+      recentSkillsScore = 5;
+    } else if (skillsList.length > 0 || projects.length > 0) {
+      recentSkillsScore = 3;
     }
 
     // 7. Parseability and Formatting (Weight: 10)
@@ -219,22 +236,25 @@ export class MatchScoreEngine {
     const warnings: string[] = [];
     let parseabilityScore = 10;
 
-    const candidateName = resume.profile.fullName || resume.profile.name;
-    if (candidateName && resume.profile.email) {
+    const candidateName = profile.fullName || profile.name;
+    if (candidateName && profile.email) {
       passFlags.push("Standard Contact Information Header");
     } else {
       warnings.push("Missing email or full name in header");
       parseabilityScore -= 3;
     }
 
-    if ((resume.experience || []).length > 0) {
+    if (experiences.length > 0) {
       passFlags.push("Clear Chronological Experience Section");
     } else {
       warnings.push("Missing Experience Section");
       parseabilityScore -= 4;
     }
 
-    if (resumeBulletTexts.length > 0 && resumeBulletTexts.every((b) => b.length < 350)) {
+    if (resumeBulletTexts.length === 0) {
+      warnings.push("No achievement bullets present yet");
+      parseabilityScore -= 2;
+    } else if (resumeBulletTexts.every((b) => b.length < 350)) {
       passFlags.push("Scannable, concise bullet lengths");
     } else {
       warnings.push("Some bullets are excessively long (>350 chars)");
@@ -293,7 +313,7 @@ export class MatchScoreEngine {
         skillsEvidenceRecency: {
           score: recentSkillsScore,
           max: 5,
-          recentEvidencedSkillsCount: (resume.skills || []).length,
+          recentEvidencedSkillsCount: skillsList.length,
         },
         parseabilityFormatting: {
           score: parseabilityScore,

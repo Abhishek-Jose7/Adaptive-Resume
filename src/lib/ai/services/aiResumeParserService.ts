@@ -79,6 +79,37 @@ export interface ParseResumeResult {
 
 export class AiResumeParserService {
   /**
+   * Short-lived deterministic cache keyed by normalized rawText hash so identical
+   * re-uploads produce consistent item counts and structure across calls.
+   */
+  private static readonly parseCache = new Map<
+    string,
+    { result: ParseResumeResult; expiresAt: number }
+  >();
+  private static readonly PARSE_CACHE_TTL_MS = 15 * 60 * 1000;
+
+  private static getCachedParse(cacheKey: string): ParseResumeResult | null {
+    const hit = this.parseCache.get(cacheKey);
+    if (!hit) return null;
+    if (Date.now() > hit.expiresAt) {
+      this.parseCache.delete(cacheKey);
+      return null;
+    }
+    return JSON.parse(JSON.stringify(hit.result)) as ParseResumeResult;
+  }
+
+  private static setCachedParse(cacheKey: string, result: ParseResumeResult) {
+    if (this.parseCache.size >= 100) {
+      const oldestKey = this.parseCache.keys().next().value;
+      if (oldestKey) this.parseCache.delete(oldestKey);
+    }
+    this.parseCache.set(cacheKey, {
+      result: JSON.parse(JSON.stringify(result)) as ParseResumeResult,
+      expiresAt: Date.now() + this.PARSE_CACHE_TTL_MS,
+    });
+  }
+
+  /**
    * System Prompt enforcing Section 18 / Dual-Model Pipeline A requirements:
    * 1. Output clean normalized JSON.
    * 2. NEVER invent missing details, dates, or metrics.
@@ -212,13 +243,22 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
     }
 
     const provider = ProviderFactory.getParserProvider(options?.apiKey, options?.model, options?.userEmail);
+    const cacheBypass = Boolean(options?.apiKey || options?.model);
+    const normalizedKeyInput = `${provider.name}:${options?.forceLocal ? "local" : "ai"}:${sourceLabel}:${rawText.replace(/\s+/g, " ").trim()}`;
+    let cacheKey = "";
+    if (!cacheBypass) {
+      const { createHash } = await import("crypto");
+      cacheKey = createHash("sha256").update(normalizedKeyInput).digest("hex");
+      const cached = this.getCachedParse(cacheKey);
+      if (cached) return cached;
+    }
 
     if (options?.forceLocal || provider.name === "local-deterministic") {
       const structuredSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
       const normalized = this.convertStructuredSectionsToNormalized(structuredSections, sourceLabel);
       const stagedItems = ResumeStructuringService.toStagedItemInputs(structuredSections);
 
-      return {
+      const out: ParseResumeResult = {
         normalized,
         structuredSections,
         stagedItems,
@@ -226,6 +266,8 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         isVision: false,
         ambiguousCount: normalized.ambiguousOrFlagged?.length || 0,
       };
+      if (cacheKey) this.setCachedParse(cacheKey, out);
+      return out;
     }
 
     try {
@@ -239,7 +281,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         },
         schema: {},
         maxOutputTokens: 4096,
-        temperature: 0.1,
+        temperature: 0,
       });
 
       // Handle case where Groq/OpenRouter cascaded internally to LocalDeterministicAdapter
@@ -249,7 +291,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
           : ResumeStructuringService.structureResumeText(rawText, sourceLabel);
         const normalized = this.convertStructuredSectionsToNormalized(localSections, sourceLabel);
         const stagedItems = ResumeStructuringService.toStagedItemInputs(localSections);
-        return {
+        const out: ParseResumeResult = {
           normalized,
           structuredSections: localSections,
           stagedItems,
@@ -257,6 +299,8 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
           isVision: false,
           ambiguousCount: normalized.ambiguousOrFlagged?.length || 0,
         };
+        if (cacheKey) this.setCachedParse(cacheKey, out);
+        return out;
       }
 
       const normalized = this.sanitizeNormalizedJson(response.data);
@@ -264,7 +308,7 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       const structuredSections = this.crossCheckAndSupplement(aiSections, rawText, sourceLabel);
       const stagedItems = ResumeStructuringService.toStagedItemInputs(structuredSections);
 
-      return {
+      const out: ParseResumeResult = {
         normalized,
         structuredSections,
         stagedItems,
@@ -272,6 +316,8 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
         isVision: false,
         ambiguousCount: normalized.ambiguousOrFlagged?.length || 0,
       };
+      if (cacheKey) this.setCachedParse(cacheKey, out);
+      return out;
     } catch (err: any) {
       console.warn("Pipeline A parsing failed; falling back to local deterministic structuring:", err.message);
       const structuredSections = ResumeStructuringService.structureResumeText(rawText, sourceLabel);
@@ -546,8 +592,37 @@ STRICT ANTI-FABRICATION AND PARSING RULES:
       });
     }
 
-    // 4. Education
-    for (const edu of norm.education || []) {
+    // 4. Education (consolidate split adjacent school-only + degree-only items emitted by LLMs)
+    const rawEdus = norm.education || [];
+    const mergedEdus: typeof rawEdus = [];
+    const strictDegreeRx = /\b(bachelor|master|phd|ph\.?d|doctorate|associate|diploma|b\.?\s*tech|m\.?\s*tech|b\.?\s*e(?:\.|\b)|m\.?\s*e(?:\.|\b)|b\.?\s*sc?|m\.?\s*sc?|b\.?\s*c\.?\s*a|m\.?\s*c\.?\s*a|b\.?\s*b\.?\s*a|m\.?\s*b\.?\s*a|b\.?\s*a(?:\.|\b)|higher\s+secondary|secondary|icse|cbse|hsc|ssc|isc)\b/i;
+    const instRx = /\b(college|university|school|institute|academy|polytechnic|iit|nit|iiit|bits)\b/i;
+
+    for (const edu of rawEdus) {
+      const prev = mergedEdus[mergedEdus.length - 1];
+      const prevIsInstOnly =
+        prev &&
+        !strictDegreeRx.test(prev.degree || "") &&
+        (instRx.test(prev.institution || "") || instRx.test(prev.degree || ""));
+      const curIsDegreeOnly =
+        strictDegreeRx.test(edu.degree || "") &&
+        (!edu.institution || edu.institution === "Institution" || edu.institution === edu.degree);
+
+      if (prev && prevIsInstOnly && curIsDegreeOnly) {
+        prev.institution = prev.institution && prev.institution !== "Institution" ? prev.institution : (prev.degree || "University");
+        prev.degree = edu.degree;
+        prev.fieldOfStudy = edu.fieldOfStudy || prev.fieldOfStudy;
+        prev.startDate = edu.startDate || prev.startDate;
+        prev.endDate = edu.endDate || prev.endDate;
+        prev.location = edu.location || prev.location;
+        prev.grades = edu.grades || prev.grades;
+        prev.highlights = [...(prev.highlights || []), ...(edu.highlights || [])];
+        continue;
+      }
+      mergedEdus.push({ ...edu });
+    }
+
+    for (const edu of mergedEdus) {
       const bullets = [...(edu.highlights || [])];
       if (edu.grades) {
         bullets.unshift(`Grades / Performance: ${edu.grades}`);

@@ -373,7 +373,7 @@ export class TruthBoundValidator {
   private static normalizeNumericToken(token: string): string {
     return token
       .toLowerCase()
-      .replace(/[$,€£]/g, "")
+      .replace(/[$,€£,]/g, "")
       .trim();
   }
 

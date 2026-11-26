@@ -27,31 +27,42 @@ export function safePostgresDate(val: string | null | undefined, isEndDate: bool
   // Remove common prefix words like "Since", "Graduating", "Class of", "ca.", "~"
   const clean = trimmed.replace(/^(?:since|graduating|class of|ca\.?|~)\s+/i, "").trim();
 
+  const clampDay = (y: number, mNum: number, dNum: number) => {
+    const maxDay = new Date(Date.UTC(y, mNum, 0)).getUTCDate();
+    return String(Math.min(maxDay, Math.max(1, dNum))).padStart(2, "0");
+  };
+
   // 1. Exact ISO YYYY-MM-DD
   const isoMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoMatch) {
     const y = parseInt(isoMatch[1], 10);
-    const m = String(Math.min(12, Math.max(1, parseInt(isoMatch[2], 10)))).padStart(2, "0");
-    const d = String(Math.min(31, Math.max(1, parseInt(isoMatch[3], 10)))).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    if (y >= 1950 && y <= 2100) {
+      const mNum = Math.min(12, Math.max(1, parseInt(isoMatch[2], 10)));
+      const d = clampDay(y, mNum, parseInt(isoMatch[3], 10));
+      return `${y}-${String(mNum).padStart(2, "0")}-${d}`;
+    }
   }
 
   // 2. YYYY-MM or YYYY/MM
   const ymMatch = clean.match(/^(\d{4})[-/.](\d{1,2})$/);
   if (ymMatch) {
     const y = parseInt(ymMatch[1], 10);
-    const m = String(Math.min(12, Math.max(1, parseInt(ymMatch[2], 10)))).padStart(2, "0");
-    const d = isEndDate ? "28" : "01";
-    return `${y}-${m}-${d}`;
+    if (y >= 1950 && y <= 2100) {
+      const mNum = Math.min(12, Math.max(1, parseInt(ymMatch[2], 10)));
+      const d = isEndDate ? clampDay(y, mNum, 31) : "01";
+      return `${y}-${String(mNum).padStart(2, "0")}-${d}`;
+    }
   }
 
   // 3. MM/YYYY or MM-YYYY
   const myMatch = clean.match(/^(\d{1,2})[-/.](\d{4})$/);
   if (myMatch) {
     const y = parseInt(myMatch[2], 10);
-    const m = String(Math.min(12, Math.max(1, parseInt(myMatch[1], 10)))).padStart(2, "0");
-    const d = isEndDate ? "28" : "01";
-    return `${y}-${m}-${d}`;
+    if (y >= 1950 && y <= 2100) {
+      const mNum = Math.min(12, Math.max(1, parseInt(myMatch[1], 10)));
+      const d = isEndDate ? clampDay(y, mNum, 31) : "01";
+      return `${y}-${String(mNum).padStart(2, "0")}-${d}`;
+    }
   }
 
   // 4. Year only: e.g. "2025" or "2028"
@@ -78,13 +89,15 @@ export function safePostgresDate(val: string | null | undefined, isEndDate: bool
     nov: "11",
     dec: "12",
   };
-  const monthNameMatch = clean.match(/([a-zA-Z]{3,9})[a-z]*\.?\s*(\d{4})/i);
+  const monthNameMatch = clean.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})\b/i);
   if (monthNameMatch) {
-    const mStr = monthNameMatch[1].toLowerCase().substring(0, 3);
-    const m = monthNames[mStr] || "01";
-    const y = monthNameMatch[2];
-    const d = isEndDate ? "28" : "01";
-    return `${y}-${m}-${d}`;
+    const yNum = parseInt(monthNameMatch[2], 10);
+    if (yNum >= 1950 && yNum <= 2100) {
+      const mStr = monthNameMatch[1].toLowerCase().substring(0, 3);
+      const m = monthNames[mStr] || "01";
+      const d = isEndDate ? "28" : "01";
+      return `${yNum}-${m}-${d}`;
+    }
   }
 
   // 6. Embedded 4-digit year: e.g. "Graduation 2028", "2026 Batch"

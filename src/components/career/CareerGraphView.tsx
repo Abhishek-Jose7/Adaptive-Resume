@@ -85,10 +85,18 @@ export function CareerGraphView() {
     if (!sourceId || !targetId) return;
     setSubmittingEdge(true);
     try {
+      const sourceNode = nodes.find((n) => n.id === sourceId);
+      const targetNode = nodes.find((n) => n.id === targetId);
       const res = await fetch("/api/v1/career-graph", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId, targetId, relationType }),
+        body: JSON.stringify({
+          sourceType: sourceNode?.type || "bank_entry",
+          sourceId,
+          targetType: targetNode?.type || "bank_entry",
+          targetId,
+          relationshipType: relationType,
+        }),
       });
       if (!res.ok) throw new Error("Failed to create connection");
       await fetchGraph();
