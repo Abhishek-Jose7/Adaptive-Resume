@@ -1,10 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FigmaIcon } from "@/components/ui/FigmaIcon";
 import { shortenProjectDescription } from "@/lib/utils/projectUtils";
+import {
+  countIndividualSkills,
+  fetchBankEntriesCached,
+  getCachedResumesList,
+  getCachedVaultSnapshot,
+  invalidateVaultCache,
+  setCachedResumesList,
+} from "@/lib/cache/vaultClientCache";
+import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
+import { analyzeRoleFitAgainstVault, extractRoleTitleFromJd } from "@/lib/scoring/roleFitInsight";
 
 interface BankEntry {
   id: string;
@@ -46,188 +56,123 @@ export function FigmaDashboardView() {
   const [bankEntries, setBankEntries] = useState<BankEntry[]>([]);
   const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vaultError, setVaultError] = useState<string | null>(null);
+  const [tailorError, setTailorError] = useState<string | null>(null);
   const [creatingResume, setCreatingResume] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const loadDashboardData = useCallback(async (forceRefresh = false) => {
+    try {
+      setVaultError(null);
+      const [bankRes, resumesRes] = await Promise.allSettled([
+        fetchBankEntriesCached({ forceRefresh }),
+        fetch("/api/v1/resumes", { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : { items: [] },
+        ),
+      ]);
+
+      if (bankRes.status === "fulfilled" && bankRes.value?.items) {
+        setBankEntries(bankRes.value.items as unknown as BankEntry[]);
+      } else if (bankRes.status === "rejected") {
+        setVaultError("Unable to sync Career Vault right now. Your saved data is safe.");
+      }
+      if (resumesRes.status === "fulfilled") {
+        const list = Array.isArray(resumesRes.value)
+          ? resumesRes.value
+          : resumesRes.value?.items || [];
+        setResumes(list);
+        setCachedResumesList(list);
+      }
+    } catch {
+      setVaultError("Unable to sync Career Vault right now. Your saved data is safe.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
-    async function loadData() {
-      try {
-        const [bankRes, resumesRes] = await Promise.allSettled([
-          fetch("/api/v1/bank/entries?limit=100", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : { items: [] },
-          ),
-          fetch("/api/v1/resumes", { cache: "no-store" }).then((r) =>
-            r.ok ? r.json() : { items: [] },
-          ),
-        ]);
 
-        if (!isMounted) return;
-
-        if (bankRes.status === "fulfilled" && bankRes.value?.items) {
-          setBankEntries(bankRes.value.items);
-        }
-        if (resumesRes.status === "fulfilled") {
-          const list = Array.isArray(resumesRes.value)
-            ? resumesRes.value
-            : resumesRes.value?.items || [];
-          setResumes(list);
-        }
-      } catch {
-        // Fallback gracefully
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+    // Instant hydration from cached snapshot so returning to Overview never flashes "Upload resume first"
+    const cachedVault = getCachedVaultSnapshot();
+    const cachedResumes = getCachedResumesList<ResumeListItem>();
+    if (cachedVault?.items) {
+      setBankEntries(cachedVault.items as unknown as BankEntry[]);
+      setLoading(false);
     }
-    loadData();
+    if (cachedResumes) {
+      setResumes(cachedResumes);
+    }
+
+    if (isMounted) {
+      void loadDashboardData();
+    }
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadDashboardData]);
 
   function handleAnalyze() {
     const trimmed = jobText.trim();
     if (trimmed.length < 20) return;
+    setTailorError(null);
 
-    // Fast client-side title extraction
-    const titleMatch = trimmed.match(
-      /(?:title|role|position|looking for a|seeking a)\s*:?\s*([A-Za-z0-9\s-]{4,40})/i,
-    );
-    const extractedTitle = titleMatch ? titleMatch[1].trim() : "Target Engineering Role";
-
-    // 1. Collect all real skills, tools, and verified facts from user's Career Vault
-    const userVerifiedSkills = new Set<string>();
-    let totalVerifiedFactsCount = 0;
-
-    for (const entry of bankEntries) {
-      // Bullets in skill groups are individual skills
-      if (entry.entryType === "skill_group" || entry.entryType === "skill") {
-        for (const bullet of entry.bullets || []) {
-          const s = bullet.text.toLowerCase().trim();
-          if (s) userVerifiedSkills.add(s);
-        }
-      }
-      // Entry titles (e.g. tools, frameworks, positions)
-      const titleWords = entry.title.toLowerCase().split(/[\s,·/&|+-]+/).filter((w) => w.length > 2);
-      for (const w of titleWords) {
-        userVerifiedSkills.add(w);
-      }
-      // Entry facts
-      for (const f of entry.facts || []) {
-        if (f.valueText) userVerifiedSkills.add(f.valueText.toLowerCase().trim());
-      }
-      // Bullet facts and bullet texts
-      for (const b of entry.bullets || []) {
-        totalVerifiedFactsCount++;
-        for (const f of b.facts || []) {
-          if (f.valueText) userVerifiedSkills.add(f.valueText.toLowerCase().trim());
-        }
-        const words = b.text.toLowerCase().split(/[\s,·/&|()\[\]+-]+/).filter((w) => w.length > 2);
-        for (const w of words) {
-          if (/^[a-z0-9.#+]+$/i.test(w)) userVerifiedSkills.add(w);
-        }
-      }
-    }
-
-    // 2. Extract technical requirements from the target JD
-    const lowerJd = trimmed.toLowerCase();
-    const technicalKeywords = [
-      "react", "react.js", "next.js", "vue", "angular", "svelte", "typescript", "javascript",
-      "node", "node.js", "python", "flask", "django", "fastapi", "golang", "go", "rust", "c++",
-      "c#", "java", "sql", "postgresql", "postgres", "sqlite", "mysql", "mongodb", "redis",
-      "prisma", "orm", "drizzle", "graphql", "rest", "rest apis", "api", "apis", "docker",
-      "kubernetes", "k8s", "aws", "gcp", "azure", "cloudflare", "cloudflare workers",
-      "vercel", "firebase", "git", "github", "ci/cd", "linux", "html", "css", "tailwind",
-      "tailwind css", "ai", "ml", "machine learning", "deep learning", "nlp", "llm", "llms",
-      "rag", "genai", "generative ai", "agents", "langchain", "tensorflow", "pytorch",
-      "scikit-learn", "pandas", "numpy", "opencv", "playwright", "selenium", "jest", "cypress"
-    ];
-
-    const jdRequestedSkills = technicalKeywords.filter((kw) => {
-      const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-      return regex.test(lowerJd);
-    });
-
-    const effectiveJdSkills = jdRequestedSkills.length > 0
-      ? jdRequestedSkills
-      : Array.from(new Set(
-          lowerJd.split(/[\s,;·•\n]+/)
-            .filter((w) => w.length > 3 && !/^(with|that|have|this|from|will|your|about|role|team|work|years|must|plus)$/i.test(w))
-        )).slice(0, 8);
-
-    // 3. Genuine matching against user's Career Vault
-    const matchedSkills = effectiveJdSkills.filter((jdSkill) => {
-      for (const userSkill of userVerifiedSkills) {
-        if (userSkill === jdSkill || userSkill.includes(jdSkill) || jdSkill.includes(userSkill)) {
-          return true;
-        }
-      }
-      return false;
-    });
-
-    let calculatedScore = 0;
-    if (bankEntries.length > 0 && effectiveJdSkills.length > 0) {
-      const matchRatio = matchedSkills.length / effectiveJdSkills.length;
-      calculatedScore = Math.min(98, Math.round(matchRatio * 100));
-    }
-
-    const missingSkills = effectiveJdSkills.filter((jdSkill) => !matchedSkills.includes(jdSkill));
-
-    let suitabilityVerdict = "";
-    let canApplyRecommendation = "";
-    if (calculatedScore >= 75) {
-      suitabilityVerdict = "Strong Candidate · Highly Recommended to Apply";
-      canApplyRecommendation = `You match ${matchedSkills.length} of ${effectiveJdSkills.length} core role criteria with strong evidence in your Career Vault. You have the technical baseline required for this role—generating a tailored resume will position your matching projects and skills at the top.`;
-    } else if (calculatedScore >= 50) {
-      suitabilityVerdict = "Good Candidate · Viable to Apply";
-      canApplyRecommendation = `You meet ${matchedSkills.length} of ${effectiveJdSkills.length} key requirements. Applying is viable—a tailored resume will reframe your existing experience to spotlight relevant transferable competencies.`;
-    } else {
-      suitabilityVerdict = "Stretch Role · Review Core Requirements";
-      canApplyRecommendation = `You match ${matchedSkills.length} of ${effectiveJdSkills.length} requirements. Review the unverified skills below: if you have experience with them, add them to your Career Vault first to boost your match score.`;
-    }
+    const insight = analyzeRoleFitAgainstVault(trimmed, bankEntries);
 
     setAnalysisResult({
-      score: calculatedScore,
-      title: extractedTitle,
-      details: bankEntries.length === 0
-        ? "0 facts in Career Vault · Add your experience first"
-        : `${matchedSkills.length} of ${effectiveJdSkills.length} role requirements verified · ${totalVerifiedFactsCount} verified facts found`,
-      suitabilityVerdict,
-      canApplyRecommendation,
-      matchedSkills: matchedSkills.slice(0, 8),
-      missingSkills: missingSkills.slice(0, 6),
+      score: insight.score,
+      title: insight.extractedTitle,
+      details:
+        bankEntries.length === 0
+          ? "0 facts in Career Vault · Add your experience first"
+          : `${insight.matchedSkills.length} of ${insight.matchedSkills.length + insight.missingSkills.length} role requirements verified · ${insight.totalFactsCount} verified facts found`,
+      suitabilityVerdict: insight.suitabilityVerdict,
+      canApplyRecommendation: insight.summaryInsight,
+      matchedSkills: insight.matchedSkills.slice(0, 8),
+      missingSkills: insight.missingSkills.slice(0, 6),
     });
     setAnalyzed(true);
   }
 
   async function handleCreateTailoredResume() {
-    if (!jobText.trim()) return;
+    const trimmedJd = jobText.trim();
+    if (trimmedJd.length < 10) {
+      setTailorError("Please paste at least a short job description first.");
+      return;
+    }
     setCreatingResume(true);
-    let createdJobId: string | null = null;
+    setTailorError(null);
     try {
-      sessionStorage.setItem("pending_job_desc", jobText);
+      try {
+        sessionStorage.removeItem("pending_job_desc");
+      } catch {
+        // Ignore storage errors
+      }
+
+      const roleTitle = analysisResult?.title || extractRoleTitleFromJd(trimmedJd);
 
       // 1. Create target job
       const jobRes = await fetch("/api/v1/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: analysisResult?.title || "Target Role",
-          rawText: jobText.trim(),
+          title: roleTitle,
+          rawText: trimmedJd,
         }),
       });
 
-      if (!jobRes.ok) {
-        window.location.href = "/jobs";
-        return;
+      const jobPayload = await jobRes.json().catch(() => ({}));
+      if (!jobRes.ok || !jobPayload?.job?.id) {
+        throw new Error(
+          jobPayload?.error?.message || "Could not save the target job right now. Please try again."
+        );
       }
-      const { job } = await jobRes.json();
-      createdJobId = job.id;
+      const { job } = jobPayload;
 
-      // 2. Trigger background analysis (non-blocking)
-      fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" }).catch(() => {});
+      // 2. Run & await structured JD analysis before tailoring so /tailor never hits a missing-analysis error
+      await fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" }).catch(() => null);
 
-      // 3. Tailor bullets from Career Vault with 8-second safety timeout
+      // 3. Tailor bullets from Career Vault with an 8-second safety timeout
       let tailoredResults: any[] = [];
       const tailorController = new AbortController();
       const timeoutId = setTimeout(() => tailorController.abort(), 8000);
@@ -253,7 +198,7 @@ export function FigmaDashboardView() {
         .then((r) => (r.ok ? r.json() : {}))
         .catch(() => ({}));
 
-      // 5. Build tailored resume document (preserving exact validatorStatus and dates)
+      // 5. Build tailored resume document (preserving exact validatorStatus, Vault bullet order, reverse-chronological dates, and certifications)
       const bulletResultMap = new Map<string, any>();
       for (const r of tailoredResults) {
         bulletResultMap.set(r.bulletId, r);
@@ -271,24 +216,30 @@ export function FigmaDashboardView() {
         };
       };
 
+      const orderedExperience = bankEntries
+        .filter((e) => e.entryType === "experience")
+        .sort(compareReverseChronological);
+      const orderedEducation = bankEntries
+        .filter((e) => e.entryType === "education")
+        .sort(compareReverseChronological);
+      const profileEntry = bankEntries.find((e) => e.entryType === "profile" && e.descriptionContext);
+
       const sections = [
         {
           id: "section-experience",
           type: "experience",
           heading: "Experience",
           visible: true,
-          items: bankEntries
-            .filter((e) => e.entryType === "experience")
-            .map((e) => ({
-              id: e.id,
-              sourceEntryId: e.id,
-              sourceBulletIds: (e.bullets || []).map((b) => b.id),
-              title: e.title,
-              organization: e.organization || undefined,
-              dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
-              location: e.location || undefined,
-              bullets: (e.bullets || []).map(mapBullet),
-            })),
+          items: orderedExperience.map((e) => ({
+            id: e.id,
+            sourceEntryId: e.id,
+            sourceBulletIds: (e.bullets || []).map((b) => b.id),
+            title: e.title,
+            organization: e.organization || undefined,
+            dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
+            location: e.location || undefined,
+            bullets: (e.bullets || []).map(mapBullet),
+          })),
         },
         {
           id: "section-projects",
@@ -313,25 +264,23 @@ export function FigmaDashboardView() {
           type: "education",
           heading: "Education",
           visible: true,
-          items: bankEntries
-            .filter((e) => e.entryType === "education")
-            .map((e) => ({
-              id: e.id,
-              sourceEntryId: e.id,
-              sourceBulletIds: (e.bullets || []).map((b) => b.id),
-              title: e.title,
-              organization: e.organization || undefined,
-              dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
-              location: e.location || undefined,
-              bullets: (e.bullets || []).map((b) => ({
-                id: b.id,
-                text: b.text,
-                provenance: "bank",
-                sourceBulletIds: [b.id],
-                sourceFactIds: [],
-                validatorStatus: "passed",
-              })),
+          items: orderedEducation.map((e) => ({
+            id: e.id,
+            sourceEntryId: e.id,
+            sourceBulletIds: (e.bullets || []).map((b) => b.id),
+            title: e.title,
+            organization: e.organization || undefined,
+            dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
+            location: e.location || undefined,
+            bullets: (e.bullets || []).map((b) => ({
+              id: b.id,
+              text: b.text,
+              provenance: "bank",
+              sourceBulletIds: [b.id],
+              sourceFactIds: [],
+              validatorStatus: "passed",
             })),
+          })),
         },
         {
           id: "section-skills",
@@ -357,6 +306,15 @@ export function FigmaDashboardView() {
         },
       ].filter((s) => s.items.length > 0);
 
+      const certifications = bankEntries
+        .filter((e) => e.entryType === "certification")
+        .map((c) => ({
+          id: c.id,
+          name: c.title,
+          issuer: c.organization || "",
+          issueDate: c.startDate || c.endDate || undefined,
+        }));
+
       const resumeDoc = {
         schemaVersion: 1,
         documentId: "",
@@ -366,7 +324,7 @@ export function FigmaDashboardView() {
           name: meRes.displayName || "",
           fullName: meRes.displayName || "",
           headline: meRes.headline || "",
-          summary: "",
+          summary: profileEntry?.descriptionContext || "",
           email: meRes.email || "",
           phone: meRes.phone || "",
           location: meRes.location || "",
@@ -378,20 +336,18 @@ export function FigmaDashboardView() {
         },
         sections,
         template: { id: "classic-ats", version: "1.0", theme: {} },
-        page: { size: "LETTER", targetPages: 1 },
+        page: { size: "A4", targetPages: 1 },
         metadata: { createdAt: new Date().toISOString() },
-        experience: bankEntries
-          .filter((e) => e.entryType === "experience")
-          .map((e) => ({
-            id: e.id,
-            company: e.organization || "Company",
-            position: e.title,
-            startDate: e.startDate || "",
-            endDate: e.endDate || null,
-            isCurrent: e.isCurrent ?? false,
-            location: e.location || undefined,
-            bullets: (e.bullets || []).map(mapBullet),
-          })),
+        experience: orderedExperience.map((e) => ({
+          id: e.id,
+          company: e.organization || "Company",
+          position: e.title,
+          startDate: e.startDate || "",
+          endDate: e.endDate || null,
+          isCurrent: e.isCurrent ?? false,
+          location: e.location || undefined,
+          bullets: (e.bullets || []).map(mapBullet),
+        })),
         projects: bankEntries
           .filter((e) => e.entryType === "project")
           .map((e) => ({
@@ -401,78 +357,87 @@ export function FigmaDashboardView() {
             description: shortenProjectDescription(e.descriptionContext),
             bullets: (e.bullets || []).map(mapBullet),
           })),
-        education: bankEntries
-          .filter((e) => e.entryType === "education")
-          .map((e) => ({
-            id: e.id,
-            institution: e.organization || "Institution",
-            degree: e.title || "Degree",
-            field: e.descriptionContext || undefined,
-            startDate: e.startDate || "",
-            endDate: e.endDate || undefined,
-          })),
+        education: orderedEducation.map((e) => ({
+          id: e.id,
+          institution: e.organization || "Institution",
+          degree: e.title || "Degree",
+          field: e.descriptionContext || undefined,
+          startDate: e.startDate || "",
+          endDate: e.endDate || undefined,
+        })),
         skills: bankEntries
           .filter((e) => e.entryType === "skill_group" || e.entryType === "skill")
-          .flatMap((e) => (e.bullets || []).map((b) => ({ name: b.text, category: e.title }))),
+          .flatMap((e) =>
+            (e.bullets || []).flatMap((b) =>
+              b.text
+                .split(/[,•|\n;]+/)
+                .map((tok) => tok.trim())
+                .filter(Boolean)
+                .map((name) => ({ name, category: e.title })),
+            ),
+          ),
+        certifications,
       };
 
-      // 6. Create the resume and route directly to the tailored draft
+      // 6. Create the resume and navigate directly to the live draft editor
       const createRes = await fetch("/api/v1/resumes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `${job.title || "Target role"} resume`,
+          title: `${job.title || roleTitle} resume`,
           jobId: job.id,
           initialDoc: resumeDoc,
         }),
       });
 
-      if (createRes.ok) {
-        const created = await createRes.json();
-        window.location.href = `/resumes/${created.id}/edit`;
-        return;
+      const createdPayload = await createRes.json().catch(() => ({}));
+      if (!createRes.ok || !createdPayload?.id) {
+        throw new Error(
+          createdPayload?.error?.message || "Could not create resume draft right now. Please try again."
+        );
       }
-      window.location.href = createdJobId ? `/jobs/${createdJobId}` : "/jobs";
-    } catch (err) {
+
+      invalidateVaultCache();
+      router.push(`/resumes/${createdPayload.id}/edit`);
+    } catch (err: any) {
       console.error("Resume creation error:", err);
-      window.location.href = createdJobId ? `/jobs/${createdJobId}` : "/jobs";
+      setTailorError(err?.message || "Could not build tailored resume right now. Please try again.");
     } finally {
       setCreatingResume(false);
     }
   }
 
   // Calculate real vault stats from actual user Data Bank entries
-  const skillsCount = bankEntries.filter(
-    (e) => e.entryType === "skill_group" || e.entryType === "skill",
-  ).length;
+  const skillsCount = countIndividualSkills(bankEntries);
   const projectsCount = bankEntries.filter((e) => e.entryType === "project").length;
   const rolesCount = bankEntries.filter((e) => e.entryType === "experience").length;
-  const metricsCount = bankEntries.reduce((acc, e) => acc + (e.bullets?.length || 0), 0);
+  const metricsCount = bankEntries
+    .filter((e) => e.entryType !== "skill_group" && e.entryType !== "skill")
+    .reduce((acc, e) => acc + (e.bullets?.length || 0), 0);
   const totalFacts = skillsCount + projectsCount + rolesCount + metricsCount;
+  const showOnboardingPrompt = !loading && !vaultError && totalFacts === 0;
 
-  // Real recent facts to display in Vault Foundation panel
-  const displayFacts = bankEntries.slice(0, 2);
+  // Real recent facts to display in Vault Foundation panel (most current roles/projects first)
+  const displayFacts = [...bankEntries]
+    .filter((e) => e.entryType !== "profile")
+    .sort(compareReverseChronological)
+    .slice(0, 2);
 
   return (
     <>
-      {/* Welcome Card */}
+      {/* Welcome Card — never show "Upload resume first" once Career Vault has saved facts, while reading, or on fetch error */}
       <div className="welcome-card">
         <div>
           <span>
-            {totalFacts > 0
-              ? `CAREER VAULT · ${totalFacts} VERIFIED FACTS`
-              : "STEP 1 · BUILD YOUR CAREER VAULT FIRST"}
+            {loading && totalFacts === 0
+              ? "CAREER VAULT · LOADING YOUR RECORD"
+              : vaultError && totalFacts === 0
+                ? "CAREER VAULT · CONNECTION ISSUE"
+                : totalFacts > 0
+                  ? `CAREER VAULT · ${totalFacts} VERIFIED FACTS`
+                  : "STEP 1 · BUILD YOUR CAREER VAULT FIRST"}
           </span>
-          {totalFacts > 0 ? (
-            <>
-              <h2>
-                Your experience is ready.
-                <br />
-                <em>Where are we applying?</em>
-              </h2>
-              <p>Paste a job description and we’ll find your strongest, most relevant evidence.</p>
-            </>
-          ) : (
+          {showOnboardingPrompt ? (
             <>
               <h2>
                 Upload your resume first.
@@ -484,9 +449,45 @@ export function FigmaDashboardView() {
                 Upload your resume or paste career details once—we’ll adapt your verified facts for any job with zero hallucinations.
               </p>
             </>
+          ) : vaultError && totalFacts === 0 ? (
+            <>
+              <h2>
+                Your records are safe.
+                <br />
+                <em>Retry syncing Vault.</em>
+              </h2>
+              <p>{vaultError}</p>
+            </>
+          ) : (
+            <>
+              <h2>
+                Your experience is ready.
+                <br />
+                <em>Where are we applying?</em>
+              </h2>
+              <p>
+                {loading && totalFacts === 0
+                  ? "Loading your verified Career Vault records…"
+                  : "Paste a job description and we’ll find your strongest, most relevant evidence."}
+              </p>
+            </>
           )}
         </div>
-        {totalFacts > 0 ? (
+        {showOnboardingPrompt ? (
+          <Link href="/bank/intake" className="welcome-cta">
+            Upload resume to Vault <FigmaIcon name="arrow" />
+          </Link>
+        ) : vaultError && totalFacts === 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadDashboardData(true);
+            }}
+          >
+            Retry syncing Vault <FigmaIcon name="arrow" />
+          </button>
+        ) : (
           <button
             type="button"
             onClick={() => {
@@ -497,14 +498,10 @@ export function FigmaDashboardView() {
           >
             Tailor a new resume <FigmaIcon name="arrow" />
           </button>
-        ) : (
-          <Link href="/bank/intake" className="welcome-cta">
-            Upload resume to Vault <FigmaIcon name="arrow" />
-          </Link>
         )}
         <div className="welcome-graphic">
-          <span>{totalFacts > 0 ? totalFacts : "0"}</span>
-          <small>{totalFacts > 0 ? "TRUTHS" : "START"}</small>
+          <span>{totalFacts > 0 ? totalFacts : loading ? "···" : vaultError ? "!" : "0"}</span>
+          <small>{totalFacts > 0 ? "TRUTHS" : loading ? "SYNC" : vaultError ? "RETRY" : "START"}</small>
         </div>
       </div>
 
@@ -522,7 +519,7 @@ export function FigmaDashboardView() {
 
           {!analyzed ? (
             <>
-              {totalFacts === 0 && (
+              {showOnboardingPrompt && (
                 <div className="mb-3 rounded border border-[#a98452]/30 bg-[#fdfaf3] p-3 text-[12.5px] leading-relaxed text-[#10241c]">
                   <strong>Notice:</strong> Please upload your resume or add experience in the Career Vault first. Once facts are saved, paste any job post here to match against your verified experience.
                 </div>
@@ -533,19 +530,43 @@ export function FigmaDashboardView() {
                 onChange={(e) => setJobText(e.target.value)}
                 placeholder="Paste the job description here…&#10;&#10;Tip: include responsibilities and requirements for a more precise match."
               />
+              {tailorError && (
+                <div className="mb-3 rounded border border-red-700/25 bg-red-50/70 px-3 py-2 text-[12.5px] font-medium text-red-900">
+                  {tailorError}
+                </div>
+              )}
               <div className="input-footer">
                 <span>{jobText.length} characters</span>
-                <button
-                  type="button"
-                  className={jobText.trim().length > 20 ? "ready" : ""}
-                  onClick={handleAnalyze}
-                >
-                  Analyse role <FigmaIcon name="spark" size={17} />
-                </button>
+                <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  <button
+                    type="button"
+                    disabled={creatingResume || jobText.trim().length < 20}
+                    onClick={handleAnalyze}
+                  >
+                    Analyse role <FigmaIcon name="spark" size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className={jobText.trim().length >= 10 ? "ready" : ""}
+                    disabled={creatingResume || jobText.trim().length < 10}
+                    onClick={handleCreateTailoredResume}
+                  >
+                    {creatingResume ? (
+                      <>Tailoring draft… <FigmaIcon name="spark" size={16} /></>
+                    ) : (
+                      <>Tailor a resume <FigmaIcon name="arrow" size={16} /></>
+                    )}
+                  </button>
+                </div>
               </div>
             </>
           ) : (
             <div className="analysis-result">
+              {tailorError && (
+                <div className="mb-3 rounded border border-red-700/25 bg-red-50/70 px-3 py-2 text-[12.5px] font-medium text-red-900">
+                  {tailorError}
+                </div>
+              )}
               <div className="analysis-top-row">
                 <div className="result-score">
                   <span>{analysisResult?.score ?? 0}%</span>
@@ -556,8 +577,8 @@ export function FigmaDashboardView() {
                     {((analysisResult?.score || 0) >= 75)
                       ? "STRONG MATCH"
                       : ((analysisResult?.score || 0) >= 50)
-                      ? "SOLID MATCH"
-                      : "STRETCH MATCH"}
+                        ? "SOLID MATCH"
+                        : "STRETCH MATCH"}
                   </span>
                   <h3>{analysisResult?.title || "Target Engineering Role"}</h3>
                   <p>{analysisResult?.details || "0 skills matched · 0 strong evidence points found"}</p>
@@ -693,6 +714,10 @@ export function FigmaDashboardView() {
                 </span>
               </div>
             ))
+          ) : loading ? (
+            <div className="py-6 text-center border-t border-[rgba(16,36,28,0.1)]">
+              <p className="text-[13px] text-[#536259]">Syncing your verified records…</p>
+            </div>
           ) : (
             <div className="py-6 text-center border-t border-[rgba(16,36,28,0.1)]">
               <p className="text-[14px] font-bold text-[#10241c]">

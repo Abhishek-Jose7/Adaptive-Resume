@@ -4,10 +4,34 @@ import path from "path";
 import { createHash } from "crypto";
 import { createNeonDnsFallbackSocket } from "./neonDnsFallback";
 
-const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres@localhost:5432/resume_maker";
+function loadEnvFileIfUnset(filePath: string) {
+  if (process.env.DATABASE_URL || !fs.existsSync(filePath)) return;
+  try {
+    const content = fs.readFileSync(filePath, "utf8");
+    for (const rawLine of content.split(/\r?\n/)) {
+      const match = rawLine.match(/^\s*([^#=]+?)\s*=\s*(.*)$/);
+      if (!match) continue;
+      const key = match[1].trim();
+      const value = match[2].trim().replace(/^["']|["']$/g, "");
+      if (key && !process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    // Ignore optional env file read issues
+  }
+}
 
 export async function runMigrations() {
+  if (!process.env.DATABASE_URL) {
+    loadEnvFileIfUnset(path.resolve(process.cwd(), ".env.local"));
+  }
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.NEON_DATABASE_URL ||
+    "postgresql://postgres@localhost:5432/resume_maker";
+
   console.log("Starting database migrations on:", connectionString.replace(/:[^:@]+@/, ":***@"));
 
   const sql = postgres(connectionString, {

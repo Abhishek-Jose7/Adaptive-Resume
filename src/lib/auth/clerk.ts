@@ -52,9 +52,9 @@ export async function getAuthenticatedUser(request?: Request): Promise<Authentic
 
     const testSubject = `clerk_sub_${testUserId}`;
 
-    // Upsert app-local user record
+    // Upsert app-local user record using core columns only
     const [existing] = await db
-      .select()
+      .select({ id: users.id, username: users.username })
       .from(users)
       .where(or(eq(users.id, testUserId), eq(users.clerkSubject, testSubject)))
       .limit(1);
@@ -92,6 +92,34 @@ export async function getAuthenticatedUser(request?: Request): Promise<Authentic
     throw new AuthError("Authentication required", "UNAUTHENTICATED");
   }
 
+  // Check app-local DB first using the signed session cookie's userId so we skip external Clerk API round-trips on returning requests
+  const [existingUser] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      username: users.username,
+      clerkSubject: users.clerkSubject,
+    })
+    .from(users)
+    .where(eq(users.clerkSubject, session.userId))
+    .limit(1);
+
+  if (existingUser) {
+    if (!isEmailAllowed(existingUser.email)) {
+      throw new AuthError(
+        "Your account is not authorized during the personal access preview.",
+        "FORBIDDEN"
+      );
+    }
+    return {
+      userId: existingUser.id,
+      email: existingUser.email,
+      username: existingUser.username,
+      clerkSubject: existingUser.clerkSubject,
+    };
+  }
+
+  // First-time login: fetch full user metadata from Clerk
   const clerkUser = await currentUser();
   const primaryEmailObj =
     clerkUser?.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId) ||
@@ -105,22 +133,6 @@ export async function getAuthenticatedUser(request?: Request): Promise<Authentic
       "Your account is not authorized during the personal access preview.",
       "FORBIDDEN"
     );
-  }
-
-  // Sync to app-local users table
-  const [existingUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.clerkSubject, session.userId))
-    .limit(1);
-
-  if (existingUser) {
-    return {
-      userId: existingUser.id,
-      email: existingUser.email,
-      username: existingUser.username,
-      clerkSubject: existingUser.clerkSubject,
-    };
   }
 
   // Create new app-local user record

@@ -67,13 +67,27 @@ export class ResumeService {
    */
   static async assembleInitialDocFromVault(userId: string, jobId?: string | null): Promise<Partial<ResumeDoc>> {
     const [[user], jdRows, entriesRaw, bulletsRaw] = await Promise.all([
-      db.select().from(users).where(eq(users.id, userId)).limit(1),
+      db
+        .select({
+          displayName: users.displayName,
+          email: users.email,
+          contactEmail: users.contactEmail,
+          phone: users.phone,
+          location: users.location,
+          headline: users.headline,
+          githubUrl: users.githubUrl,
+          linkedinUrl: users.linkedinUrl,
+          portfolioUrl: users.portfolioUrl,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1),
       jobId
         ? db
-            .select()
-            .from(jdAnalyses)
-            .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
-            .limit(1)
+          .select()
+          .from(jdAnalyses)
+          .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
+          .limit(1)
         : Promise.resolve([]),
       db
         .select()

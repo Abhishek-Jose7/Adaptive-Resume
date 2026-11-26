@@ -9,6 +9,9 @@ import { buildStarAndQuestionPrep } from "@/lib/services/interviewPrepService";
 import { buildDomainGroupedSkillBadges } from "@/lib/services/portfolioSkillGrouping";
 import { sortResumeDocChronologically, compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
+import { countIndividualSkills } from "@/lib/cache/vaultClientCache";
+import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
+import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
 import { ResumeDoc } from "@/types/resume";
 
 describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () => {
@@ -326,5 +329,66 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     const recommendedStep = AutoFitLadder.recommendedStepForOnePage(sortedDoc);
     expect(recommendedStep).toBeGreaterThanOrEqual(1);
     expect(recommendedStep).toBeLessThanOrEqual(7);
+  });
+
+  it("counts all unique individual skills across skill groups instead of category count", () => {
+    const count = countIndividualSkills([
+      {
+        entryType: "skill_group",
+        title: "Languages & Backend",
+        bullets: [
+          { text: "Python, TypeScript, SQL" },
+          { text: "Node.js" },
+        ],
+      },
+      {
+        entryType: "skill_group",
+        title: "Cloud & Security",
+        bullets: [
+          { text: "Cloud Security: AWS, Docker, SQL" }, // SQL deduplicated
+        ],
+      },
+      {
+        entryType: "experience",
+        title: "Engineer",
+        bullets: [{ text: "Built APIs with Redis" }],
+      },
+    ]);
+
+    expect(count).toBe(6); // Python, TypeScript, SQL, Node.js, AWS, Docker
+  });
+
+  it("synthesizes specific role-fit strengths and unclear gaps like Embeddings from Career Vault", () => {
+    const jd = `
+      AI Systems Engineer
+      We are looking for an engineer experienced with LLMs, AI agents, RAG, and text embeddings using FastAPI and PostgreSQL.
+    `;
+
+    const insight = analyzeRoleFitAgainstVault(jd, [
+      {
+        id: "proj_1",
+        entryType: "project",
+        title: "Nyaaya AI — Legal Awareness Platform",
+        bullets: [
+          { text: "Built multi-step LLM agent workflows with RAG orchestration and FastAPI services." },
+        ],
+      },
+      {
+        id: "sk_1",
+        entryType: "skill_group",
+        title: "Databases",
+        bullets: [{ text: "PostgreSQL, Redis" }],
+      },
+    ]);
+
+    expect(insight.extractedTitle).toBe("AI Systems Engineer");
+    expect(insight.matchedSkills).toEqual(expect.arrayContaining(["LLMs", "AI Agents", "RAG", "FastAPI", "PostgreSQL"]));
+    expect(insight.missingSkills).toContain("Embeddings");
+    expect(insight.summaryInsight).toContain("Nyaaya AI");
+    expect(insight.summaryInsight).toContain("Embeddings");
+
+    const parsedJd = JDAnalysisService.analyzeDeterministic(jd);
+    const canonicals = parsedJd.keywords.map((k) => k.canonical);
+    expect(canonicals).toEqual(expect.arrayContaining(["LLMs", "AI Agents", "Embeddings", "RAG", "FastAPI", "PostgreSQL"]));
   });
 });

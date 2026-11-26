@@ -61,7 +61,25 @@ function profileUrlSchema() {
 export async function GET(req: NextRequest) {
   try {
     const authUser = await getAuthenticatedUser(req);
-    const [user] = await db.select().from(users).where(eq(users.id, authUser.userId)).limit(1);
+    const [user] = await db
+      .select({
+        id: users.id,
+        clerkSubject: users.clerkSubject,
+        username: users.username,
+        displayName: users.displayName,
+        email: users.email,
+        contactEmail: users.contactEmail,
+        phone: users.phone,
+        location: users.location,
+        headline: users.headline,
+        githubUrl: users.githubUrl,
+        linkedinUrl: users.linkedinUrl,
+        portfolioUrl: users.portfolioUrl,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.id, authUser.userId))
+      .limit(1);
 
     if (!user) {
       return apiError("NOT_FOUND", "User profile not found", 404);

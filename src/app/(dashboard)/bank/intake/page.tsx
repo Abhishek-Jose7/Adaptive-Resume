@@ -8,6 +8,7 @@ import { StagingReviewTable, StagedItemView } from "@/components/intake/StagingR
 import { FolderGit2, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 
 export default function DataIntakePage() {
   const router = useRouter();
@@ -84,6 +85,7 @@ export default function DataIntakePage() {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error?.message || "Couldn’t save those details. Please try again.");
       const result = payload;
+      invalidateVaultCache();
 
       setMessage(`Saved ${result.committedCount} experience details.`);
       setStagedItems((prev) =>

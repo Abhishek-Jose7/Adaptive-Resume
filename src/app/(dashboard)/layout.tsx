@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { FigmaIcon, FigmaIconName, FigmaLogo } from "@/components/ui/FigmaIcon";
+import { fetchBankEntriesCached, getCachedVaultSnapshot } from "@/lib/cache/vaultClientCache";
 
 const navItems: Array<{
   label: string;
@@ -34,17 +35,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setMounted(true);
-    fetch("/api/v1/bank/entries?limit=100")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.items && Array.isArray(data.items)) {
-          const total = data.items.reduce(
-            (acc: number, entry: { bullets?: Array<unknown> }) =>
-              acc + Math.max(1, entry.bullets?.length || 1),
-            0,
-          );
-          setFactCount(total);
-        }
+    const computeCount = (items: Array<{ bullets?: Array<unknown> }>) =>
+      items.reduce(
+        (acc, entry) => acc + Math.max(1, entry.bullets?.length || 1),
+        0,
+      );
+
+    const cached = getCachedVaultSnapshot();
+    if (cached?.items) {
+      setFactCount(computeCount(cached.items));
+    }
+
+    fetchBankEntriesCached()
+      .then((snapshot) => {
+        setFactCount(computeCount(snapshot.items));
       })
       .catch(() => {});
   }, []);

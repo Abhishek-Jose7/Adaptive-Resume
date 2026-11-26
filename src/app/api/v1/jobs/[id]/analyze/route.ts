@@ -41,7 +41,7 @@ export async function POST(
       return apiError("NOT_FOUND", "Target job not found", 404);
     }
 
-    const promptVersion = "v1.1";
+    const promptVersion = "v1.2";
 
     // Check cache by jobId and promptVersion (PRD Section 6.5 N4 / 7.7)
     const [cached] = await db

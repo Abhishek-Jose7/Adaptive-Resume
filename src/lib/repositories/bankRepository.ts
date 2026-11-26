@@ -79,36 +79,42 @@ export class BankRepository {
 
     const entryIds = entriesPage.map((e) => e.id);
 
-    // 2. Batched fetch for all bullets belonging to these entries (1 query)
-    const rawBullets = await db
-      .select()
-      .from(achievementBullets)
-      .where(
-        and(
-          eq(achievementBullets.userId, userId),
-          inArray(achievementBullets.entryId, entryIds),
-          isNull(achievementBullets.deletedAt)
+    // 2 & 3. Fetch bullets (ordered by sortOrder, then createdAt, then id) and facts in parallel
+    // Saving a full DB round-trip over remote Postgres connections
+    const [rawBullets, rawFacts] = await Promise.all([
+      db
+        .select()
+        .from(achievementBullets)
+        .where(
+          and(
+            eq(achievementBullets.userId, userId),
+            inArray(achievementBullets.entryId, entryIds),
+            isNull(achievementBullets.deletedAt)
+          )
         )
-      )
-      .orderBy(achievementBullets.sortOrder, achievementBullets.id);
-
-    const bulletIds = rawBullets.map((b) => b.id);
-
-    // 3. Batched fetch for all facts belonging to either these bullets or entries (1 query)
-    const rawFacts = bulletIds.length > 0 || entryIds.length > 0
-      ? await db
-          .select()
-          .from(bulletFacts)
-          .where(
-            and(
-              eq(bulletFacts.userId, userId),
-              or(
-                bulletIds.length > 0 ? inArray(bulletFacts.bulletId, bulletIds) : sql`false`,
-                entryIds.length > 0 ? inArray(bulletFacts.entryId, entryIds) : sql`false`
-              )
+        .orderBy(achievementBullets.sortOrder, achievementBullets.createdAt, achievementBullets.id),
+      db
+        .select()
+        .from(bulletFacts)
+        .where(
+          and(
+            eq(bulletFacts.userId, userId),
+            or(
+              inArray(bulletFacts.entryId, entryIds),
+              sql`EXISTS (
+                SELECT 1 FROM ${achievementBullets} b
+                WHERE b.id = ${bulletFacts.bulletId}
+                  AND b.user_id = ${userId}
+                  AND b.entry_id IN (${sql.join(
+                    entryIds.map((id) => sql`${id}`),
+                    sql`, `
+                  )})
+                  AND b.deleted_at IS NULL
+              )`
             )
           )
-      : [];
+        ),
+    ]);
 
     // Group facts by bulletId and entryId in memory (zero extra database round-trips)
     const factsByBulletId = new Map<string, BulletFact[]>();
@@ -216,26 +222,37 @@ export class BankRepository {
 
     if (!entry) return null;
 
-    const bullets = await db
-      .select()
-      .from(achievementBullets)
-      .where(and(eq(achievementBullets.userId, userId), eq(achievementBullets.entryId, entryId), isNull(achievementBullets.deletedAt)))
-      .orderBy(achievementBullets.sortOrder);
-
-    const bulletIds = bullets.map((b) => b.id);
-
-    const rawFacts = await db
-      .select()
-      .from(bulletFacts)
-      .where(
-        and(
-          eq(bulletFacts.userId, userId),
-          or(
-            bulletIds.length > 0 ? inArray(bulletFacts.bulletId, bulletIds) : sql`false`,
-            eq(bulletFacts.entryId, entryId)
+    const [bullets, rawFacts] = await Promise.all([
+      db
+        .select()
+        .from(achievementBullets)
+        .where(
+          and(
+            eq(achievementBullets.userId, userId),
+            eq(achievementBullets.entryId, entryId),
+            isNull(achievementBullets.deletedAt)
           )
         )
-      );
+        .orderBy(achievementBullets.sortOrder, achievementBullets.createdAt, achievementBullets.id),
+      db
+        .select()
+        .from(bulletFacts)
+        .where(
+          and(
+            eq(bulletFacts.userId, userId),
+            or(
+              eq(bulletFacts.entryId, entryId),
+              sql`EXISTS (
+                SELECT 1 FROM ${achievementBullets} b
+                WHERE b.id = ${bulletFacts.bulletId}
+                  AND b.user_id = ${userId}
+                  AND b.entry_id = ${entryId}
+                  AND b.deleted_at IS NULL
+              )`
+            )
+          )
+        ),
+    ]);
 
     const factsByBulletId = new Map<string, BulletFact[]>();
     const entryFacts: BulletFact[] = [];
@@ -572,19 +589,21 @@ export class BankRepository {
     assertValidUserId(userId);
     const now = new Date();
     await db.transaction(async (tx) => {
-      for (let idx = 0; idx < orderedBulletIds.length; idx += 1) {
-        await tx
-          .update(achievementBullets)
-          .set({ sortOrder: idx, updatedAt: now })
-          .where(
-            and(
-              eq(achievementBullets.userId, userId),
-              eq(achievementBullets.entryId, entryId),
-              eq(achievementBullets.id, orderedBulletIds[idx]),
-              isNull(achievementBullets.deletedAt)
+      await Promise.all(
+        orderedBulletIds.map((bulletId, idx) =>
+          tx
+            .update(achievementBullets)
+            .set({ sortOrder: idx, updatedAt: now })
+            .where(
+              and(
+                eq(achievementBullets.userId, userId),
+                eq(achievementBullets.entryId, entryId),
+                eq(achievementBullets.id, bulletId),
+                isNull(achievementBullets.deletedAt)
+              )
             )
-          );
-      }
+        )
+      );
     });
   }
 

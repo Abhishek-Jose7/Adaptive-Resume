@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ResumeBulletDoc } from "@/types/resume";
 import { ResumeDocStore } from "@/lib/editor/resumeDocStore";
+import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 import {
   Sparkles,
   ShieldCheck,
@@ -215,6 +216,7 @@ export function BulletAssistantControls({
         });
       }
       await onProvenanceRefresh();
+      invalidateVaultCache();
       setSyncToast(
         result.action === "created"
           ? `Added to Career Vault (${result.extractedFactsCount || 0} metrics indexed)`

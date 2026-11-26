@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowUpRight, ClipboardPaste, FileText, LoaderCircle, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
 import type { ResumeDoc, ResumeBulletDoc, ResumeSectionDoc, ResumeItemDoc } from "@/types/resume";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
+import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 
 type WorkspaceTab = "write" | "history";
 type PreviewPane = "job" | "resume";
@@ -130,6 +131,7 @@ export function AdaptiveResumeWorkspace() {
     try {
       const pendingDesc = sessionStorage.getItem("pending_job_desc");
       if (pendingDesc && pendingDesc.trim()) {
+        sessionStorage.removeItem("pending_job_desc");
         setJobText(pendingDesc);
         const titleMatch = pendingDesc.match(/(?:title|role|position|looking for a|seeking a)\s*:?\s*([A-Za-z0-9\s-]{4,40})/i);
         if (titleMatch) {
@@ -344,13 +346,12 @@ export function AdaptiveResumeWorkspace() {
     };
   };
 
-  const handleTailor = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const runTailorPipeline = async (directToDraft: boolean) => {
     setBusy(true);
     setError(null);
     setRun(null);
     setJob(null);
-    setStep("Saving the job description…");
+    setStep(directToDraft ? "Tailoring your draft…" : "Saving the job description…");
     try {
       const jobPayload = await readJson<{ job: JobSummary }>(await fetch("/api/v1/jobs", {
         method: "POST",
@@ -360,8 +361,23 @@ export function AdaptiveResumeWorkspace() {
       const savedJob = jobPayload.job;
       setJob(savedJob);
 
-      setStep("Picking out the experience this role asks for…");
+      setStep("Analysing role requirements…");
       await readJson(await fetch(`/api/v1/jobs/${savedJob.id}/analyze`, { method: "POST" }));
+
+      if (directToDraft) {
+        setStep("Building your tailored draft…");
+        const created = await readJson<{ id: string }>(await fetch("/api/v1/resumes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `${savedJob.title || "Target role"} resume`,
+            jobId: savedJob.id,
+          }),
+        }));
+        invalidateVaultCache();
+        router.push(`/resumes/${created.id}/edit`);
+        return;
+      }
 
       setStep("Building a first draft from your records…");
       const [runResponse, entries] = await Promise.all([
@@ -385,6 +401,11 @@ export function AdaptiveResumeWorkspace() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleTailor = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await runTailorPipeline(true);
   };
 
   const updateResult = async (result: TailoredResult, decision: "accept" | "reject") => {
@@ -417,6 +438,7 @@ export function AdaptiveResumeWorkspace() {
           initialDoc: buildResumeDocument(),
         }),
       }));
+      invalidateVaultCache();
       router.push(`/resumes/${created.id}/edit`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We couldn’t save this resume.");
@@ -481,9 +503,19 @@ export function AdaptiveResumeWorkspace() {
                 </label>
                 <div className="workspace-form-footer">
                   <span>{jobText.length.toLocaleString()} / 30,000</span>
-                  <button className="workspace-primary-button" type="submit" disabled={busy || jobText.trim().length < 10}>
-                    {busy ? <><LoaderCircle size={16} className="spin" aria-hidden="true" />{step}</> : <>Make my resume <ArrowUpRight size={16} aria-hidden="true" /></>}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="workspace-secondary-link"
+                      disabled={busy || jobText.trim().length < 10}
+                      onClick={() => void runTailorPipeline(false)}
+                    >
+                      Preview bullets first
+                    </button>
+                    <button className="workspace-primary-button" type="submit" disabled={busy || jobText.trim().length < 10}>
+                      {busy ? <><LoaderCircle size={16} className="spin" aria-hidden="true" />{step}</> : <>Make my resume <ArrowUpRight size={16} aria-hidden="true" /></>}
+                    </button>
+                  </div>
                 </div>
               </form>
 

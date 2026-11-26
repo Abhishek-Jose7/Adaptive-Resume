@@ -12,6 +12,12 @@ import { Plus, Search, Copy, RefreshCw, UploadCloud, CheckCircle } from "lucide-
 import Link from "next/link";
 import { Tabs } from "@/components/ui/Tabs";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
+import {
+  fetchBankEntriesCached,
+  getCachedVaultSnapshot,
+  invalidateVaultCache,
+  setCachedVaultSnapshot,
+} from "@/lib/cache/vaultClientCache";
 
 export default function DataBankPage() {
   const [viewMode, setViewMode] = useState<"facts" | "graph">("facts");
@@ -26,6 +32,7 @@ export default function DataBankPage() {
   const [duplicateReport, setDuplicateReport] = useState<any>(null);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Quantification Assistant modal state
   const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
@@ -34,32 +41,57 @@ export default function DataBankPage() {
     bullet: AchievementBullet;
   } | null>(null);
 
-  const fetchEntries = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (selectedType !== "all") params.set("entryType", selectedType);
-      if (searchQuery.trim()) params.set("q", searchQuery.trim());
+  const fetchEntries = useCallback(async (forceRefresh = false) => {
+    const isUnfiltered = selectedType === "all" && !searchQuery.trim();
+    if (isUnfiltered && !forceRefresh) {
+      const cached = getCachedVaultSnapshot();
+      if (cached?.items) {
+        const sortedCached = [...cached.items].sort((a, b) => compareReverseChronological(a, b));
+        setEntries(sortedCached);
+        setVaultEntries(sortedCached);
+        if (cached.completeness) setCompleteness(cached.completeness);
+        setLoading(false);
+      }
+    } else {
+      setLoading(true);
+    }
 
-      const res = await fetch(`/api/v1/bank/entries?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load entries");
-      const data = await res.json();
-      const rawItems: BankEntry[] = data.items || [];
+    setLoadError(null);
+    try {
+      let rawItems: BankEntry[] = [];
+      let comp: CompletenessReport | undefined;
+
+      if (isUnfiltered) {
+        const snapshot = await fetchBankEntriesCached({ forceRefresh });
+        rawItems = snapshot.items || [];
+        comp = snapshot.completeness;
+      } else {
+        const params = new URLSearchParams();
+        if (selectedType !== "all") params.set("entryType", selectedType);
+        if (searchQuery.trim()) params.set("q", searchQuery.trim());
+
+        const res = await fetch(`/api/v1/bank/entries?${params.toString()}`);
+        if (!res.ok) throw new Error("Could not load Career Vault entries. Please retry.");
+        const data = await res.json();
+        rawItems = data.items || [];
+        comp = data.completeness;
+      }
+
       const items = [...rawItems].sort((a, b) => compareReverseChronological(a, b));
       setEntries(items);
-      if (selectedType === "all" && !searchQuery.trim()) {
+      if (isUnfiltered) {
         setVaultEntries(items);
       } else {
-        fetch("/api/v1/bank/entries")
-          .then((r) => (r.ok ? r.json() : null))
-          .then((allData) => {
-            if (allData?.items) setVaultEntries(allData.items);
+        fetchBankEntriesCached()
+          .then((snap) => {
+            if (snap?.items) setVaultEntries(snap.items);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
-      setCompleteness(data.completeness);
+      setCompleteness(comp);
     } catch (err: any) {
       console.error(err);
+      setLoadError(err?.message || "Could not load your Career Vault right now.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +103,7 @@ export default function DataBankPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchEntries();
+    fetchEntries(true);
   };
 
   const handleSaveEntry = async (data: any) => {
@@ -90,16 +122,18 @@ export default function DataBankPage() {
       });
       if (!res.ok) throw new Error("Failed to create entry");
     }
-    await fetchEntries();
+    invalidateVaultCache();
+    await fetchEntries(true);
   };
 
   const handleDeleteEntry = async (id: string) => {
     if (!confirm("Are you sure you want to delete this entry?")) return;
     const res = await fetch(`/api/v1/bank/entries/${id}`, { method: "DELETE" });
     if (res.ok) {
+      invalidateVaultCache();
       setNotification("Entry deleted. Every resume built from it will ask again.");
       setTimeout(() => setNotification(null), 4000);
-      await fetchEntries();
+      await fetchEntries(true);
     } else {
       setNotification("Could not delete entry. Please try again.");
       setTimeout(() => setNotification(null), 4000);
@@ -113,7 +147,8 @@ export default function DataBankPage() {
       body: JSON.stringify({ text }),
     });
     if (res.ok) {
-      await fetchEntries();
+      invalidateVaultCache();
+      await fetchEntries(true);
     } else {
       setNotification("Could not add bullet. Please try again.");
       setTimeout(() => setNotification(null), 4000);
@@ -136,25 +171,49 @@ export default function DataBankPage() {
       body: JSON.stringify({ ...updated, expectedRowVersion }),
     });
     if (res.ok) {
-      await fetchEntries();
+      invalidateVaultCache();
+      await fetchEntries(true);
     }
   };
 
   const handleDeleteBullet = async (bulletId: string) => {
     const res = await fetch(`/api/v1/bank/bullets/${bulletId}`, { method: "DELETE" });
     if (res.ok) {
-      await fetchEntries();
+      invalidateVaultCache();
+      await fetchEntries(true);
     }
   };
 
   const handleReorderBullets = async (entryId: string, bulletIds: string[]) => {
+    const reorderBulletsList = (list: BankEntry[]) =>
+      list.map((entry) => {
+        if (entry.id !== entryId) return entry;
+        const byId = new Map((entry.bullets || []).map((b) => [b.id, b]));
+        const reordered = bulletIds
+          .map((id, idx) => {
+            const found = byId.get(id);
+            return found ? { ...found, sortOrder: idx } : null;
+          })
+          .filter((b): b is AchievementBullet => Boolean(b));
+        return { ...entry, bullets: reordered };
+      });
+
+    // Apply optimistic reorder instantly in UI & cache
+    setEntries((prev) => reorderBulletsList(prev));
+    setVaultEntries((prev) => {
+      const updated = reorderBulletsList(prev);
+      setCachedVaultSnapshot({ items: updated, completeness, fetchedAt: Date.now() });
+      return updated;
+    });
+
     const res = await fetch(`/api/v1/bank/entries/${entryId}/bullets/reorder`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bulletIds }),
     });
-    if (res.ok) {
-      await fetchEntries();
+    if (!res.ok) {
+      invalidateVaultCache();
+      await fetchEntries(true);
     }
   };
 
@@ -234,90 +293,111 @@ export default function DataBankPage() {
         className="mb-5"
       >
 
-      {viewMode === "graph" ? (
-        <CareerGraphView />
-      ) : (
-        <div className="space-y-5">
-          <CompletenessWarning report={completeness} />
+        {viewMode === "graph" ? (
+          <CareerGraphView />
+        ) : (
+          <div className="space-y-5">
+            <CompletenessWarning report={completeness} />
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedType(c.id)}
-                  className="chip"
-                  data-active={selectedType === c.id}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-
-            <form onSubmit={handleSearchSubmit} className="relative lg:w-64">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search the record"
-                className="input pl-8"
-              />
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-graphite" strokeWidth={1.8} />
-            </form>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-[13px] text-graphite">
-              <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
-              Reading your records
-            </div>
-          ) : entries.length === 0 ? (
-            <div className="panel px-6 py-14 text-center">
-              <h3 className="font-display text-[18px] font-semibold">Your experience will show up here</h3>
-              <p className="mx-auto mt-2 max-w-[48ch] text-[13px] leading-relaxed text-graphite">
-                Add a past role or import a resume you already trust. You can update these details whenever you like.
-              </p>
-              <div className="mt-5 flex flex-wrap justify-center gap-2">
-                <button
-                  onClick={() => {
-                    setEntryToEdit(null);
-                    setIsModalOpen(true);
-                  }}
-                  className="btn btn-primary"
-                >
-                  Add the first entry
-                </button>
-                <Link href="/bank/intake" className="btn">
-                  Import a resume
-                </Link>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedType(c.id)}
+                    className="chip"
+                    data-active={selectedType === c.id}
+                  >
+                    {c.label}
+                  </button>
+                ))}
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {entries.map((entry) => (
-                <BankEntryCard
-                  key={entry.id}
-                  entry={entry}
-                  allEntries={vaultEntries.length > 0 ? vaultEntries : entries}
-                  onEdit={(e) => {
-                    setEntryToEdit(e);
-                    setIsModalOpen(true);
-                  }}
-                  onDelete={handleDeleteEntry}
-                  onAddBullet={handleAddBullet}
-                  onUpdateBullet={handleUpdateBullet}
-                  onDeleteBullet={handleDeleteBullet}
-                  onReorderBullets={handleReorderBullets}
-                  onQuantifyBullet={(e, bullet) => {
-                    setQuantifyTarget({ entry: e, bullet });
-                    setIsQuantifyOpen(true);
-                  }}
+
+              <form onSubmit={handleSearchSubmit} className="relative lg:w-64">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search the record"
+                  className="input pl-8"
                 />
-              ))}
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-graphite" strokeWidth={1.8} />
+              </form>
             </div>
-          )}
-        </div>
-      )}
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-20 text-[13px] text-graphite">
+                <RefreshCw className="h-4 w-4 animate-spin text-stamp" />
+                Reading your records
+              </div>
+            ) : loadError && entries.length === 0 ? (
+              <div className="panel border-red-700/25 bg-red-50/40 px-6 py-12 text-center">
+                <h3 className="font-display text-[18px] font-semibold text-ink">
+                  Unable to sync Career Vault right now
+                </h3>
+                <p className="mx-auto mt-2 max-w-[52ch] text-[13px] leading-relaxed text-graphite">
+                  Your saved records are safe. {loadError}
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      setLoading(true);
+                      void fetchEntries(true);
+                    }}
+                    className="btn btn-primary"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    Retry loading Vault
+                  </button>
+                </div>
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="panel px-6 py-14 text-center">
+                <h3 className="font-display text-[18px] font-semibold">Your experience will show up here</h3>
+                <p className="mx-auto mt-2 max-w-[48ch] text-[13px] leading-relaxed text-graphite">
+                  Add a past role or import a resume you already trust. You can update these details whenever you like.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEntryToEdit(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="btn btn-primary"
+                  >
+                    Add the first entry
+                  </button>
+                  <Link href="/bank/intake" className="btn">
+                    Import a resume
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {entries.map((entry) => (
+                  <BankEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    allEntries={vaultEntries.length > 0 ? vaultEntries : entries}
+                    onEdit={(e) => {
+                      setEntryToEdit(e);
+                      setIsModalOpen(true);
+                    }}
+                    onDelete={handleDeleteEntry}
+                    onAddBullet={handleAddBullet}
+                    onUpdateBullet={handleUpdateBullet}
+                    onDeleteBullet={handleDeleteBullet}
+                    onReorderBullets={handleReorderBullets}
+                    onQuantifyBullet={(e, bullet) => {
+                      setQuantifyTarget({ entry: e, bullet });
+                      setIsQuantifyOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Tabs>
 
       <BankEntryModal
@@ -345,7 +425,10 @@ export default function DataBankPage() {
           bulletId={quantifyTarget.bullet.id}
           initialText={quantifyTarget.bullet.text}
           context={quantifyTarget.entry.descriptionContext || quantifyTarget.entry.title}
-          onBulletUpdated={fetchEntries}
+          onBulletUpdated={() => {
+            invalidateVaultCache();
+            void fetchEntries(true);
+          }}
         />
       )}
     </div>

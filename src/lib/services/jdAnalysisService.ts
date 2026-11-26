@@ -1,5 +1,6 @@
 import { JDAnalysis, JDKeyword, JDResponsibility, SeniorityLevel, WorkMode } from "@/types/job";
 import { JDAnalysisSchema } from "@/lib/validation/job";
+import { ROLE_FIT_TAXONOMY } from "@/lib/scoring/roleFitInsight";
 import crypto from "crypto";
 
 export class JDAnalysisService {
@@ -39,33 +40,11 @@ export class JDAnalysisService {
       if (yoeMatch[2]) yearsMax = parseInt(yoeMatch[2], 10);
     }
 
-    // 4. Extract common technical skills & tools with canonical forms and synonyms
-    const skillDictionary: Array<{
-      canonical: string;
-      synonyms: string[];
-      category: "technical_skill" | "tool" | "domain" | "soft_skill";
-      pattern: RegExp;
-    }> = [
-      { canonical: "TypeScript", synonyms: ["TS"], category: "technical_skill", pattern: /\b(typescript|ts)\b/i },
-      { canonical: "JavaScript", synonyms: ["JS", "ES6", "ECMAScript"], category: "technical_skill", pattern: /\b(javascript|js|es6)\b/i },
-      { canonical: "React", synonyms: ["React.js", "ReactJS"], category: "technical_skill", pattern: /\b(react|react\.?js)\b/i },
-      { canonical: "Next.js", synonyms: ["NextJS"], category: "technical_skill", pattern: /\b(next\.?js)\b/i },
-      { canonical: "Node.js", synonyms: ["NodeJS", "Node"], category: "technical_skill", pattern: /\b(node\.?js|node)\b/i },
-      { canonical: "Python", synonyms: ["Py"], category: "technical_skill", pattern: /\b(python)\b/i },
-      { canonical: "PostgreSQL", synonyms: ["Postgres", "PG"], category: "tool", pattern: /\b(postgresql|postgres)\b/i },
-      { canonical: "Rust", synonyms: [], category: "technical_skill", pattern: /\b(rust)\b/i },
-      { canonical: "Kafka", synonyms: ["Apache Kafka"], category: "tool", pattern: /\b(kafka)\b/i },
-      { canonical: "SQL", synonyms: ["RDBMS"], category: "technical_skill", pattern: /\b(sql)\b/i },
-      { canonical: "Docker", synonyms: ["Containerization"], category: "tool", pattern: /\b(docker)\b/i },
-      { canonical: "Kubernetes", synonyms: ["K8s"], category: "tool", pattern: /\b(kubernetes|k8s)\b/i },
-      { canonical: "AWS", synonyms: ["Amazon Web Services"], category: "tool", pattern: /\b(aws|amazon web services)\b/i },
-      { canonical: "GraphQL", synonyms: [], category: "technical_skill", pattern: /\b(graphql)\b/i },
-      { canonical: "REST API", synonyms: ["RESTful", "REST"], category: "technical_skill", pattern: /\b(rest|restful|rest api)\b/i },
-      { canonical: "Tailwind CSS", synonyms: ["Tailwind"], category: "tool", pattern: /\b(tailwind|tailwind\s*css)\b/i },
-      { canonical: "CI/CD", synonyms: ["Continuous Integration"], category: "domain", pattern: /\b(ci\/cd|continuous integration)\b/i },
-      { canonical: "Git", synonyms: ["Version Control"], category: "tool", pattern: /\b(git)\b/i },
-      { canonical: "System Design", synonyms: ["Architecture"], category: "domain", pattern: /\b(system design|distributed systems)\b/i },
-      { canonical: "Cross-functional Leadership", synonyms: ["Collaboration"], category: "soft_skill", pattern: /\b(collaboration|cross-functional|mentoring)\b/i },
+    // 4. Extract common technical skills & tools with canonical forms and aliases
+    const skillDictionary = [
+      ...ROLE_FIT_TAXONOMY,
+      { canonical: "Kafka", aliases: ["Apache Kafka"], category: "tool" as const, pattern: /\b(kafka)\b/i },
+      { canonical: "Cross-functional Leadership", aliases: ["Collaboration"], category: "soft_skill" as const, pattern: /\b(collaboration|cross-functional|mentoring)\b/i },
     ];
 
     const keywords: JDKeyword[] = [];
@@ -81,7 +60,7 @@ export class JDAnalysisService {
         keywords.push({
           id: `kw_${crypto.randomUUID().slice(0, 8)}`,
           canonical: item.canonical,
-          synonyms: item.synonyms,
+          synonyms: item.aliases,
           category: item.category,
           priority: isMustHave ? "must_have" : "nice_to_have",
           importance: isMustHave ? 0.9 : 0.6,
