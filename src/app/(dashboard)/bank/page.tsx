@@ -242,6 +242,64 @@ export default function DataBankPage() {
     { id: "custom", label: "Custom" },
   ];
 
+  const categoryAddMeta: Record<string, { entryType: EntryType; buttonLabel: string; emptyHeading: string; emptyBody: string }> = {
+    all: {
+      entryType: "experience",
+      buttonLabel: "New entry",
+      emptyHeading: "Your experience will show up here",
+      emptyBody: "Add a past role or import a resume you already trust. You can update these details whenever you like.",
+    },
+    experience: {
+      entryType: "experience",
+      buttonLabel: "Add experience",
+      emptyHeading: "No work experience saved yet",
+      emptyBody: "Add a role, internship, or leadership position with its dates and measurable outcomes.",
+    },
+    education: {
+      entryType: "education",
+      buttonLabel: "Add education",
+      emptyHeading: "No education saved yet",
+      emptyBody: "Add your degree, institution, graduation timeline, and honors or coursework.",
+    },
+    project: {
+      entryType: "project",
+      buttonLabel: "Add project",
+      emptyHeading: "No projects saved yet",
+      emptyBody: "Add a project with its tech stack and measurable impact.",
+    },
+    skill_group: {
+      entryType: "skill_group",
+      buttonLabel: "Add skill group",
+      emptyHeading: "No skill groups saved yet",
+      emptyBody: "Group skills by domain (e.g., Languages, AI & GenAI, Backend) so tailored resumes stay scannable.",
+    },
+    certification: {
+      entryType: "certification",
+      buttonLabel: "Add certification",
+      emptyHeading: "No certifications saved yet",
+      emptyBody: "Add credentials or courses along with issuing organization and completion date.",
+    },
+    award: {
+      entryType: "award",
+      buttonLabel: "Add award",
+      emptyHeading: "No awards or hackathon wins yet",
+      emptyBody: "Add hackathon wins, scholarships, or honors to highlight under Achievements.",
+    },
+    volunteer: {
+      entryType: "volunteer",
+      buttonLabel: "Add volunteer role",
+      emptyHeading: "No volunteer roles saved yet",
+      emptyBody: "Add community work, mentoring, or open-source involvement.",
+    },
+    custom: {
+      entryType: "custom",
+      buttonLabel: "Add custom entry",
+      emptyHeading: "No custom entries yet",
+      emptyBody: "Add additional sections like publications, patents, or fellowships.",
+    },
+  };
+  const activeAddMeta = categoryAddMeta[selectedType] || categoryAddMeta.all;
+
   return (
     <div>
       <header className="mb-5 flex flex-col gap-4 border-b border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -271,7 +329,7 @@ export default function DataBankPage() {
             className="btn btn-primary btn-sm"
           >
             <Plus className="h-4 w-4" strokeWidth={1.9} />
-            New entry
+            {activeAddMeta.buttonLabel}
           </button>
         </div>
       </header>
@@ -313,16 +371,31 @@ export default function DataBankPage() {
                 ))}
               </div>
 
-              <form onSubmit={handleSearchSubmit} className="relative lg:w-64">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search the record"
-                  className="input pl-8"
-                />
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-graphite" strokeWidth={1.8} />
-              </form>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedType !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEntryToEdit(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="btn btn-primary btn-sm shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                    {activeAddMeta.buttonLabel}
+                  </button>
+                )}
+                <form onSubmit={handleSearchSubmit} className="relative flex-1 lg:w-64 lg:flex-none">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search the record"
+                    className="input pl-8"
+                  />
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-graphite" strokeWidth={1.8} />
+                </form>
+              </div>
             </div>
 
             {loading ? (
@@ -353,9 +426,9 @@ export default function DataBankPage() {
               </div>
             ) : entries.length === 0 ? (
               <div className="panel px-6 py-14 text-center">
-                <h3 className="font-display text-[18px] font-semibold">Your experience will show up here</h3>
+                <h3 className="font-display text-[18px] font-semibold">{activeAddMeta.emptyHeading}</h3>
                 <p className="mx-auto mt-2 max-w-[48ch] text-[13px] leading-relaxed text-graphite">
-                  Add a past role or import a resume you already trust. You can update these details whenever you like.
+                  {activeAddMeta.emptyBody}
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button
@@ -365,7 +438,8 @@ export default function DataBankPage() {
                     }}
                     className="btn btn-primary"
                   >
-                    Add the first entry
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                    {activeAddMeta.buttonLabel}
                   </button>
                   <Link href="/bank/intake" className="btn">
                     Import a resume
@@ -404,6 +478,7 @@ export default function DataBankPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         entryToEdit={entryToEdit}
+        defaultEntryType={activeAddMeta.entryType}
         existingEntries={vaultEntries.length > 0 ? vaultEntries : entries}
         onSave={handleSaveEntry}
       />
