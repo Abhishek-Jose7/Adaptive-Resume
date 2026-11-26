@@ -25,6 +25,7 @@ import {
   shareLinks,
   providerCredentials,
   userOcrConsents,
+  userSettings,
   auditEvents,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest) {
       ocrConsents,
       userShares,
       credentialsSafe,
+      workspaceSettings,
       userAuditEvents,
     ] = await Promise.all([
       db.select().from(bankEntries).where(eq(bankEntries.userId, userId)),
@@ -102,10 +104,11 @@ export async function GET(req: NextRequest) {
         })
         .from(providerCredentials)
         .where(eq(providerCredentials.userId, userId)),
+      db.select().from(userSettings).where(eq(userSettings.userId, userId)),
       db.select().from(auditEvents).where(eq(auditEvents.userId, userId)),
     ]);
 
-    const exportedTableCount = 24; // users + 23 tables queried above
+    const exportedTableCount = 25; // users + 24 tables queried above
 
     // Record this account export audit event
     await db.insert(auditEvents).values({
@@ -166,6 +169,7 @@ export async function GET(req: NextRequest) {
       accountGovernance: {
         quotas,
         ocrConsents,
+        workspaceSettings,
         providerCredentialsMetadata: credentialsSafe,
         auditEvents: userAuditEvents,
       },

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { UsageLimitsDashboard } from "@/components/usage/UsageLimitsDashboard";
+import { SettingsNav } from "@/components/settings/SettingsNav";
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
@@ -16,6 +17,8 @@ export default function UsagePage() {
           What this month has cost you, and what is left. No card on file, no trial that quietly ends.
         </p>
       </header>
+
+      <SettingsNav />
 
       <UsageLimitsDashboard />
 

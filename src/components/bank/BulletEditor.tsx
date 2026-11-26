@@ -3,13 +3,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { AchievementBullet, BankEntry } from "@/types/bank";
 import { FactBadge } from "./FactBadge";
-import { Trash2, Edit2, ShieldAlert, Sparkles, Wand2, Check, X } from "lucide-react";
+import { Trash2, Edit2, ShieldAlert, Sparkles, Wand2, Check, X, ArrowUp, ArrowDown } from "lucide-react";
 import { getBulletSuggestions } from "@/lib/services/vaultSuggestionService";
 
 interface BulletEditorProps {
   bullet: AchievementBullet;
   entry?: BankEntry;
   allEntries?: BankEntry[];
+  isFirst?: boolean;
+  isLast?: boolean;
+  onMoveUp?: () => Promise<void> | void;
+  onMoveDown?: () => Promise<void> | void;
   onUpdate: (updated: Partial<AchievementBullet>) => Promise<void>;
   onDelete: () => Promise<void>;
   onQuantify?: (bullet: AchievementBullet) => void;
@@ -25,6 +29,10 @@ export function BulletEditor({
   bullet,
   entry,
   allEntries,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
   onUpdate,
   onDelete,
   onQuantify,
@@ -292,6 +300,30 @@ export function BulletEditor({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          {onMoveUp && (
+            <button
+              type="button"
+              onClick={onMoveUp}
+              disabled={isFirst}
+              className="btn btn-icon disabled:opacity-25"
+              title="Move bullet up"
+              aria-label="Move bullet up"
+            >
+              <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.7} />
+            </button>
+          )}
+          {onMoveDown && (
+            <button
+              type="button"
+              onClick={onMoveDown}
+              disabled={isLast}
+              className="btn btn-icon disabled:opacity-25"
+              title="Move bullet down"
+              aria-label="Move bullet down"
+            >
+              <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.7} />
+            </button>
+          )}
           {entry?.entryType !== "skill_group" && (
             <button
               type="button"

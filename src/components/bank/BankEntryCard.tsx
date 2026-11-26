@@ -14,6 +14,7 @@ interface BankEntryCardProps {
   onAddBullet: (entryId: string, text: string) => Promise<void>;
   onUpdateBullet: (bulletId: string, updated: Partial<AchievementBullet>) => Promise<void>;
   onDeleteBullet: (bulletId: string) => Promise<void>;
+  onReorderBullets?: (entryId: string, bulletIds: string[]) => Promise<void>;
   onQuantifyBullet?: (entry: BankEntry, bullet: AchievementBullet) => void;
 }
 
@@ -37,6 +38,7 @@ export function BankEntryCard({
   onAddBullet,
   onUpdateBullet,
   onDeleteBullet,
+  onReorderBullets,
   onQuantifyBullet,
 }: BankEntryCardProps) {
   const [isAddingBullet, setIsAddingBullet] = useState(false);
@@ -163,17 +165,30 @@ export function BankEntryCard({
 
         {bulletCount > 0 ? (
           <div className="space-y-1.5">
-            {entry.bullets?.map((bullet) => (
-              <BulletEditor
-                key={bullet.id}
-                bullet={bullet}
-                entry={entry}
-                allEntries={allEntries}
-                onUpdate={(updated) => onUpdateBullet(bullet.id, updated)}
-                onDelete={() => onDeleteBullet(bullet.id)}
-                onQuantify={onQuantifyBullet ? () => onQuantifyBullet(entry, bullet) : undefined}
-              />
-            ))}
+            {(entry.bullets || []).map((bullet, idx, arr) => {
+              const swapBullets = async (targetIdx: number) => {
+                if (!onReorderBullets) return;
+                const next = [...arr];
+                const [moved] = next.splice(idx, 1);
+                next.splice(targetIdx, 0, moved);
+                await onReorderBullets(entry.id, next.map((b) => b.id));
+              };
+              return (
+                <BulletEditor
+                  key={bullet.id}
+                  bullet={bullet}
+                  entry={entry}
+                  allEntries={allEntries}
+                  isFirst={idx === 0}
+                  isLast={idx === arr.length - 1}
+                  onMoveUp={onReorderBullets ? () => swapBullets(idx - 1) : undefined}
+                  onMoveDown={onReorderBullets ? () => swapBullets(idx + 1) : undefined}
+                  onUpdate={(updated) => onUpdateBullet(bullet.id, updated)}
+                  onDelete={() => onDeleteBullet(bullet.id)}
+                  onQuantify={onQuantifyBullet ? () => onQuantifyBullet(entry, bullet) : undefined}
+                />
+              );
+            })}
           </div>
         ) : (
           <p className="border border-dashed border-rule px-3 py-4 text-center text-[12px] text-graphite">

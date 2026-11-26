@@ -2,7 +2,17 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { AlertCircle, Eye, ShieldCheck, ExternalLink } from "lucide-react";
+
+interface DomainSkillGroup {
+  domain: string;
+  skills: Array<{
+    name: string;
+    evidenceCount: number;
+    source: "career_graph" | "skill_group";
+  }>;
+}
 
 interface PublicProfileData {
   user: {
@@ -12,8 +22,15 @@ interface PublicProfileData {
     headline?: string;
     bio?: string;
     location?: string;
+    githubUrl?: string;
+    linkedinUrl?: string;
+    portfolioUrl?: string;
+    portfolioViews?: number;
     createdAt: string;
   };
+  theme?: "editorial" | "modern" | "minimal";
+  showViewCounters?: boolean;
+  domainSkillBadges?: DomainSkillGroup[];
   portfolio: Array<{
     id: string;
     entryType: string;
@@ -28,18 +45,60 @@ interface PublicProfileData {
   }>;
 }
 
+const THEME_STYLES: Record<
+  "editorial" | "modern" | "minimal",
+  {
+    wrapper: string;
+    headerBorder: string;
+    headingFont: string;
+    badge: string;
+    card: string;
+  }
+> = {
+  editorial: {
+    wrapper: "min-h-screen bg-paper text-ink",
+    headerBorder: "border-b border-ink pb-6",
+    headingFont: "font-display",
+    badge: "border border-press/30 bg-press-soft text-press",
+    card: "border-t border-rule pt-4",
+  },
+  modern: {
+    wrapper: "min-h-screen bg-[#f4f7f5] text-[#0f241d]",
+    headerBorder: "border-b-2 border-[#315849] pb-6",
+    headingFont: "font-sans",
+    badge: "border border-[#315849]/30 bg-white text-[#1e3a2f]",
+    card: "rounded-lg border border-[#becbbf] bg-white p-4",
+  },
+  minimal: {
+    wrapper: "min-h-screen bg-white text-black",
+    headerBorder: "border-b border-black pb-6",
+    headingFont: "font-mono",
+    badge: "border border-black bg-white text-black",
+    card: "border-b border-gray-200 pb-4",
+  },
+};
+
 export default function PublicUserProfilePage({
   params,
 }: {
   params: Promise<{ username: string }>;
 }) {
   const { username } = use(params);
+  const searchParams = useSearchParams();
+  const isPreview = searchParams.get("preview") === "1";
+  const themeQuery = searchParams.get("theme");
+
   const [data, setData] = useState<PublicProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/v1/public/u/${username}`)
+    const query = new URLSearchParams();
+    if (isPreview) query.set("preview", "1");
+    if (themeQuery) query.set("theme", themeQuery);
+    const qs = query.toString();
+
+    fetch(`/api/v1/public/u/${username}${qs ? `?${qs}` : ""}`)
       .then((res) => {
         if (!res.ok) {
           throw new Error("This profile does not exist or has not published public records.");
@@ -55,7 +114,7 @@ export default function PublicUserProfilePage({
       .finally(() => {
         setLoading(false);
       });
-  }, [username]);
+  }, [username, isPreview, themeQuery]);
 
   if (loading) {
     return (
@@ -84,7 +143,10 @@ export default function PublicUserProfilePage({
     );
   }
 
-  const { user, portfolio } = data;
+  const { user, portfolio, domainSkillBadges = [] } = data;
+  const activeTheme = data.theme && THEME_STYLES[data.theme] ? data.theme : "editorial";
+  const themeStyle = THEME_STYLES[activeTheme];
+
   const experienceEntries = portfolio.filter((p) => p.entryType === "experience");
   const educationEntries = portfolio.filter((p) => p.entryType === "education");
   const projectEntries = portfolio.filter(
@@ -92,14 +154,31 @@ export default function PublicUserProfilePage({
   );
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className={themeStyle.wrapper}>
       <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
-        <header className="border-b border-ink pb-6">
+        {isPreview && (
+          <div className="mb-4 flex items-center justify-between border border-stamp/40 bg-stamp-soft px-3 py-2 text-[11.5px] text-ink">
+            <span>Owner Preview Mode · Theme: <strong>{activeTheme}</strong> (views not counted)</span>
+            <Link href="/profile" className="font-medium text-stamp hover:underline">
+              Back to Profile
+            </Link>
+          </div>
+        )}
+
+        <header className={themeStyle.headerBorder}>
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-            <h1 className="font-display text-[clamp(2rem,5vw,2.9rem)] font-semibold leading-none tracking-tightest">
+            <h1 className={`${themeStyle.headingFont} text-[clamp(2rem,5vw,2.9rem)] font-semibold leading-none tracking-tightest`}>
               {user.fullName || `@${user.username}`}
             </h1>
-            <p className="font-mono text-[10.5px] text-graphite">public record · facts only</p>
+            <div className="flex items-center gap-3 font-mono text-[10.5px] text-graphite">
+              <span>public record · facts only</span>
+              {data.showViewCounters && typeof user.portfolioViews === "number" && (
+                <span className="inline-flex items-center gap-1 rounded border border-rule bg-sheet px-2 py-0.5 text-ink">
+                  <Eye className="h-3 w-3" />
+                  {user.portfolioViews} views
+                </span>
+              )}
+            </div>
           </div>
 
           {user.headline && (
@@ -109,6 +188,21 @@ export default function PublicUserProfilePage({
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-graphite">
             {user.location && <span>{user.location}</span>}
             <span className="font-mono text-[11px]">@{user.username}</span>
+            {user.githubUrl && (
+              <a href={user.githubUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-stamp hover:underline">
+                GitHub <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {user.linkedinUrl && (
+              <a href={user.linkedinUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-stamp hover:underline">
+                LinkedIn <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {user.portfolioUrl && (
+              <a href={user.portfolioUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-stamp hover:underline">
+                Website <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
 
           {user.bio && (
@@ -117,6 +211,41 @@ export default function PublicUserProfilePage({
         </header>
 
         <div className="mt-10 space-y-10">
+          {domainSkillBadges.length > 0 && (
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="rule-label text-[12px]">verified skills by domain</h2>
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-graphite">
+                  <ShieldCheck className="h-3 w-3 text-press" /> derived from career graph
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {domainSkillBadges.map((group) => (
+                  <div key={group.domain} className={themeStyle.card}>
+                    <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-graphite mb-2">
+                      {group.domain}
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.skills.map((skill) => (
+                        <span
+                          key={skill.name}
+                          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11.5px] font-medium ${themeStyle.badge}`}
+                        >
+                          {skill.name}
+                          {skill.evidenceCount > 1 && (
+                            <span className="font-mono text-[10px] opacity-75">
+                              ×{skill.evidenceCount}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {experienceEntries.length > 0 && (
             <section>
               <h2 className="rule-label mb-4 text-[12px]">experience</h2>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Key, ShieldCheck, CheckCircle2, AlertCircle, Trash2, RefreshCw, Plus } from "lucide-react";
+import { SettingsNav } from "@/components/settings/SettingsNav";
 
 interface CredentialSummary {
   id: string;
@@ -129,6 +130,8 @@ export default function ProvidersSettingsPage() {
           Choose how resume suggestions are prepared. You can add your own AI service key, or use the built-in option.
         </p>
       </div>
+
+      <SettingsNav />
 
       {statusMessage && (
         <div

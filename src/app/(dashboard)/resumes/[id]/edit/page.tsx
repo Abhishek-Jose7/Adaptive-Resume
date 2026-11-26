@@ -199,7 +199,7 @@ export default function ResumeEditorPage() {
             pane === "form" ? "block" : "hidden"
           }`}
         >
-          <EditorFormPanel store={store} editorState={editorState} />
+          <EditorFormPanel store={store} editorState={editorState} resumeId={resumeId} />
         </div>
 
         <div

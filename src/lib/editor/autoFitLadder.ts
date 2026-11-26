@@ -21,6 +21,21 @@ export class AutoFitLadder {
   private static readonly MAX_PAGE_ESTIMATED_CHARS = 3800; // ~1 page standard US Letter / A4
 
   /**
+   * Recommends the minimum AutoFit ladder step (1..7) needed to fit the document cleanly
+   * onto a single A4/LETTER resume page without hiding content.
+   */
+  static recommendedStepForOnePage(doc: ResumeDoc): number {
+    const totalChars = this.calculateTotalChars(doc);
+    if (totalChars <= 2000) return 1;
+    if (totalChars <= 2400) return 2;
+    if (totalChars <= 2800) return 3;
+    if (totalChars <= 3200) return 4;
+    if (totalChars <= 3600) return 5;
+    if (totalChars <= 3900) return 6;
+    return 7;
+  }
+
+  /**
    * Calculates deterministic auto-fit ladder settings for 1-page fit
    * PRD Section 10.6
    */
@@ -96,25 +111,41 @@ export class AutoFitLadder {
   private static calculateTotalChars(doc: ResumeDoc): number {
     let count = 0;
     if (doc.profile.summary) count += doc.profile.summary.length;
-    for (const exp of doc.experience || []) {
-      count += (exp.position || (exp as any).role || "").length + (exp.company || (exp as any).organization || "").length;
+
+    const exps = doc.experience && doc.experience.length > 0
+      ? doc.experience
+      : doc.sections?.find((s) => s.type === "experience")?.items || [];
+    for (const exp of exps as any[]) {
+      count += (exp.position || exp.title || exp.role || "").length + (exp.company || exp.organization || "").length;
       for (const b of exp.bullets || []) {
-        count += (b.text || "").length;
+        count += (typeof b === "string" ? b : b.text || "").length;
       }
     }
-    for (const edu of doc.education || []) {
-      count += ((edu as any).institution || (edu as any).school || (edu as any).organization || "").length + (edu.degree || "").length;
+
+    const edus = doc.education && doc.education.length > 0
+      ? doc.education
+      : doc.sections?.find((s) => s.type === "education")?.items || [];
+    for (const edu of edus as any[]) {
+      count += (edu.institution || edu.school || edu.organization || "").length + (edu.degree || edu.title || "").length;
     }
-    for (const proj of doc.projects || []) {
-      count += ((proj as any).name || (proj as any).title || "").length + ((proj as any).description || "").length;
+
+    const projs = doc.projects && doc.projects.length > 0
+      ? doc.projects
+      : doc.sections?.find((s) => s.type === "projects")?.items || [];
+    for (const proj of projs as any[]) {
+      count += (proj.name || proj.title || "").length + (proj.description || "").length;
       for (const b of proj.bullets || []) {
-        count += (b.text || "").length;
+        count += (typeof b === "string" ? b : b.text || "").length;
       }
     }
-    for (const s of doc.skills || []) {
-      count += ((s as any).name || (s as any).category || "").length;
-      if (Array.isArray((s as any).items)) {
-        count += (s as any).items.join(" ").length;
+
+    const skills = doc.skills && doc.skills.length > 0
+      ? doc.skills
+      : doc.sections?.find((s) => s.type === "skills")?.items || [];
+    for (const s of skills as any[]) {
+      count += (s.name || s.title || s.category || "").length;
+      if (Array.isArray(s.items)) {
+        count += s.items.join(" ").length;
       }
     }
     return count;

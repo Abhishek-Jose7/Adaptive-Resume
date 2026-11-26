@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 type ProfileFields = {
+  username: string;
   displayName: string;
   field: string;
   headline: string;
@@ -29,9 +30,12 @@ type ProfileFields = {
   linkedinUrl: string;
   portfolioUrl: string;
   accountEmail: string;
+  portfolioTheme: "editorial" | "modern" | "minimal";
+  showViewCounters: boolean;
 };
 
 const emptyProfile: ProfileFields = {
+  username: "",
   displayName: "",
   field: "Software Engineering & Systems",
   headline: "",
@@ -42,6 +46,8 @@ const emptyProfile: ProfileFields = {
   linkedinUrl: "",
   portfolioUrl: "",
   accountEmail: "",
+  portfolioTheme: "editorial",
+  showViewCounters: true,
 };
 
 const targetFields = [
@@ -65,10 +71,15 @@ export default function ProfilePage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/v1/me", { cache: "no-store" })
-      .then(async (response) => {
+    Promise.all([
+      fetch("/api/v1/me", { cache: "no-store" }),
+      fetch("/api/v1/settings", { cache: "no-store" }).catch(() => null),
+    ])
+      .then(async ([response, settingsRes]) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error?.message || "Couldn’t load your profile.");
+        const settingsJson = settingsRes && settingsRes.ok ? await settingsRes.json() : null;
+        const settingsData = settingsJson?.data ?? settingsJson ?? {};
         if (!active) return;
 
         // Extract field from headline or default
@@ -84,6 +95,7 @@ export default function ProfilePage() {
         }
 
         setProfile({
+          username: body.username || "",
           displayName: body.displayName || "",
           field: detectedField,
           headline: pureHeadline || body.headline || "",
@@ -94,6 +106,15 @@ export default function ProfilePage() {
           linkedinUrl: body.linkedinUrl || "",
           portfolioUrl: body.portfolioUrl || "",
           accountEmail: body.accountEmail || "",
+          portfolioTheme:
+            settingsData.portfolioTheme &&
+            ["editorial", "modern", "minimal"].includes(settingsData.portfolioTheme)
+              ? settingsData.portfolioTheme
+              : "editorial",
+          showViewCounters:
+            typeof settingsData.showViewCounters === "boolean"
+              ? settingsData.showViewCounters
+              : true,
         });
       })
       .catch((error) => {
@@ -107,7 +128,7 @@ export default function ProfilePage() {
     };
   }, []);
 
-  const update = (key: keyof ProfileFields, value: string) => {
+  const update = (key: keyof ProfileFields, value: string | boolean) => {
     setProfile((current) => ({ ...current, [key]: value }));
     setMessage(null);
   };
@@ -123,25 +144,40 @@ export default function ProfilePage() {
       : profile.headline;
 
     try {
-      const response = await fetch("/api/v1/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName: profile.displayName.trim() || undefined,
-          headline: combinedHeadline.slice(0, 160) || undefined,
-          contactEmail: profile.contactEmail.trim() || undefined,
-          phone: profile.phone.trim() || undefined,
-          location: profile.location.trim() || undefined,
-          githubUrl: profile.githubUrl.trim() || undefined,
-          linkedinUrl: profile.linkedinUrl.trim() || undefined,
-          portfolioUrl: profile.portfolioUrl.trim() || undefined,
+      const [response, settingsRes] = await Promise.all([
+        fetch("/api/v1/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: profile.username.trim().toLowerCase() || undefined,
+            displayName: profile.displayName.trim() || undefined,
+            headline: combinedHeadline.slice(0, 160) || undefined,
+            contactEmail: profile.contactEmail.trim() || undefined,
+            phone: profile.phone.trim() || undefined,
+            location: profile.location.trim() || undefined,
+            githubUrl: profile.githubUrl.trim() || undefined,
+            linkedinUrl: profile.linkedinUrl.trim() || undefined,
+            portfolioUrl: profile.portfolioUrl.trim() || undefined,
+          }),
         }),
-      });
+        fetch("/api/v1/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            portfolioTheme: profile.portfolioTheme,
+            showViewCounters: profile.showViewCounters,
+          }),
+        }),
+      ]);
 
       const body = await response.json();
       if (!response.ok) throw new Error(body.error?.message || "Couldn’t save your profile.");
+      if (!settingsRes.ok) {
+        const errBody = await settingsRes.json().catch(() => ({}));
+        throw new Error(errBody.error?.message || "Couldn’t save portfolio settings.");
+      }
 
-      setMessage({ type: "success", text: "Profile and career field saved successfully." });
+      setMessage({ type: "success", text: "Profile, public handle, and portfolio theme saved successfully." });
     } catch (error) {
       setMessage({
         type: "error",
@@ -362,6 +398,58 @@ export default function ProfilePage() {
                       className="w-full h-10 pl-9 pr-3 rounded border border-[rgba(16,36,28,0.2)] bg-white text-[13px] text-[#10241c] focus:outline-none focus:border-[#a98452]"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Hosted Public Portfolio & Analytics */}
+              <div className="mt-4 grid grid-cols-1 gap-4 rounded border border-[rgba(16,36,28,0.14)] bg-[#faf8f2] p-4 sm:grid-cols-3">
+                <div>
+                  <label className="block font-mono text-[11px] font-bold uppercase tracking-wide text-[#10241c] mb-1.5">
+                    Public Record Handle (/u/...)
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.username}
+                    onChange={(e) => update("username", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    placeholder="e.g. abhishek-dev"
+                    className="w-full h-10 px-3 rounded border border-[rgba(16,36,28,0.2)] bg-white font-mono text-[12.5px] text-[#10241c] focus:outline-none focus:border-[#a98452]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-mono text-[11px] font-bold uppercase tracking-wide text-[#10241c] mb-1.5">
+                    Public Portfolio Theme
+                  </label>
+                  <select
+                    value={profile.portfolioTheme}
+                    onChange={(e) => update("portfolioTheme", e.target.value)}
+                    className="w-full h-10 px-3 rounded border border-[rgba(16,36,28,0.2)] bg-white text-[12.5px] text-[#10241c] focus:outline-none focus:border-[#a98452]"
+                  >
+                    <option value="editorial">Editorial Paper</option>
+                    <option value="modern">Modern Slate</option>
+                    <option value="minimal">Minimalist Contrast</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col justify-between gap-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#10241c]">
+                    <input
+                      type="checkbox"
+                      checked={profile.showViewCounters}
+                      onChange={(e) => update("showViewCounters", e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span>Show view counter on public links</span>
+                  </label>
+                  {profile.username && (
+                    <Link
+                      href={`/u/${profile.username}?preview=1&theme=${profile.portfolioTheme}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#a98452] hover:underline"
+                    >
+                      Preview /u/{profile.username} <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

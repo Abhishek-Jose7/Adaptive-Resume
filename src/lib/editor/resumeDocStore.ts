@@ -143,6 +143,17 @@ export class ResumeDocStore {
     this.pushState(newDoc);
   }
 
+  setPageSize(size: "A4" | "LETTER") {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      page: {
+        ...this.state.doc.page,
+        size,
+      },
+    };
+    this.pushState(newDoc);
+  }
+
   // Experience Actions
   addExperience(exp: ResumeExperience) {
     const newDoc: ResumeDoc = {
@@ -451,5 +462,90 @@ export class ResumeDocStore {
       experience: result,
     };
     this.pushState(newDoc);
+  }
+
+  reorderExperienceBullets(expId: string, startIndex: number, endIndex: number) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      experience: (this.state.doc.experience || []).map((exp) => {
+        if (exp.id !== expId) return exp;
+        const bullets = Array.from(exp.bullets || []);
+        if (
+          startIndex < 0 ||
+          endIndex < 0 ||
+          startIndex >= bullets.length ||
+          endIndex >= bullets.length
+        ) {
+          return exp;
+        }
+        const [moved] = bullets.splice(startIndex, 1);
+        bullets.splice(endIndex, 0, moved);
+        return { ...exp, bullets };
+      }),
+    };
+    this.pushState(newDoc);
+  }
+
+  // Certification Actions
+  addCertification(cert: ResumeCertification) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      certifications: [...(this.state.doc.certifications || []), cert],
+    };
+    this.pushState(newDoc);
+  }
+
+  updateCertification(id: string, updates: Partial<ResumeCertification>) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      certifications: (this.state.doc.certifications || []).map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      ),
+    };
+    this.pushState(newDoc);
+  }
+
+  removeCertification(id: string) {
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      certifications: (this.state.doc.certifications || []).filter((c) => c.id !== id),
+    };
+    this.pushState(newDoc);
+  }
+
+  // Bullet provenance / AI rewrite replacement helpers
+  updateBulletWithProvenance(
+    section: "experience" | "projects",
+    parentId: string,
+    bulletId: string,
+    updates: Partial<ResumeBullet>
+  ) {
+    if (section === "experience") {
+      const newDoc: ResumeDoc = {
+        ...this.state.doc,
+        experience: (this.state.doc.experience || []).map((e) =>
+          e.id === parentId
+            ? {
+                ...e,
+                bullets: e.bullets.map((b) => (b.id === bulletId ? { ...b, ...updates } : b)),
+              }
+            : e
+        ),
+      };
+      this.pushState(newDoc);
+    } else {
+      const newDoc: ResumeDoc = {
+        ...this.state.doc,
+        projects: (this.state.doc.projects || []).map((p) =>
+          p.id === parentId
+            ? {
+                ...p,
+                bullets: p.bullets.map((b) => (b.id === bulletId ? { ...b, ...updates } : b)),
+              }
+            : p
+        ),
+      };
+      this.pushState(newDoc);
+    }
   }
 }

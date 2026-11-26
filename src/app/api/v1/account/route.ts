@@ -14,6 +14,14 @@ import {
   coverLetters,
   providerCredentials,
   shareLinks,
+  userSettings,
+  userOcrConsents,
+  ocrRateLimits,
+  userUsageQuotas,
+  projectMetadata,
+  careerGraphEdges,
+  quantificationInterviews,
+  applicationInterviews,
   auditEvents,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -31,14 +39,22 @@ export async function DELETE(req: NextRequest) {
       await tx.delete(shareLinks).where(eq(shareLinks.userId, userId));
       await tx.delete(providerCredentials).where(eq(providerCredentials.userId, userId));
       await tx.delete(coverLetters).where(eq(coverLetters.userId, userId));
+      await tx.delete(applicationInterviews).where(eq(applicationInterviews.userId, userId));
       await tx.delete(applications).where(eq(applications.userId, userId));
       await tx.delete(resumeVersions).where(eq(resumeVersions.userId, userId));
       await tx.delete(resumeDocuments).where(eq(resumeDocuments.userId, userId));
       await tx.delete(jdAnalyses).where(eq(jdAnalyses.userId, userId));
       await tx.delete(jobs).where(eq(jobs.userId, userId));
+      await tx.delete(quantificationInterviews).where(eq(quantificationInterviews.userId, userId));
+      await tx.delete(projectMetadata).where(eq(projectMetadata.userId, userId));
+      await tx.delete(careerGraphEdges).where(eq(careerGraphEdges.userId, userId));
       await tx.delete(bulletFacts).where(eq(bulletFacts.userId, userId));
       await tx.delete(achievementBullets).where(eq(achievementBullets.userId, userId));
       await tx.delete(bankEntries).where(eq(bankEntries.userId, userId));
+      await tx.delete(ocrRateLimits).where(eq(ocrRateLimits.userId, userId));
+      await tx.delete(userOcrConsents).where(eq(userOcrConsents.userId, userId));
+      await tx.delete(userUsageQuotas).where(eq(userUsageQuotas.userId, userId));
+      await tx.delete(userSettings).where(eq(userSettings.userId, userId));
       await tx.delete(auditEvents).where(eq(auditEvents.userId, userId));
       await tx.delete(users).where(eq(users.id, userId));
     });

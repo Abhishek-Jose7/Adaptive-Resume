@@ -472,6 +472,21 @@ export class BankRepository {
     assertValidUserId(userId);
     const bulletId = `bullet_${crypto.randomUUID()}`;
 
+      const currentBullets = await db
+        .select({ sortOrder: achievementBullets.sortOrder })
+        .from(achievementBullets)
+        .where(
+          and(
+            eq(achievementBullets.userId, userId),
+            eq(achievementBullets.entryId, entryId),
+            isNull(achievementBullets.deletedAt)
+          )
+        );
+      const nextSortOrder =
+        data.sortOrder !== undefined
+          ? data.sortOrder
+          : currentBullets.reduce((max, b) => Math.max(max, b.sortOrder ?? 0), -1) + 1;
+
     await db.transaction(async (tx) => {
       await tx.insert(achievementBullets).values({
         id: bulletId,
@@ -482,7 +497,7 @@ export class BankRepository {
         visibility: data.visibility || "private",
         verificationStatus: data.verificationStatus || "unverified",
         usagePolicy: data.usagePolicy || "eligible",
-        sortOrder: data.sortOrder || 0,
+        sortOrder: nextSortOrder,
         rowVersion: 1,
       });
 
@@ -544,6 +559,33 @@ export class BankRepository {
       .returning({ id: achievementBullets.id });
 
     return updated.length > 0;
+  }
+
+  /**
+   * Reorders bullets inside a Career Vault entry atomically.
+   */
+  static async reorderBullets(
+    userId: string,
+    entryId: string,
+    orderedBulletIds: string[]
+  ): Promise<void> {
+    assertValidUserId(userId);
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      for (let idx = 0; idx < orderedBulletIds.length; idx += 1) {
+        await tx
+          .update(achievementBullets)
+          .set({ sortOrder: idx, updatedAt: now })
+          .where(
+            and(
+              eq(achievementBullets.userId, userId),
+              eq(achievementBullets.entryId, entryId),
+              eq(achievementBullets.id, orderedBulletIds[idx]),
+              isNull(achievementBullets.deletedAt)
+            )
+          );
+      }
+    });
   }
 
   /**

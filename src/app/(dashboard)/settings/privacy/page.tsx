@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Download, Trash2, AlertTriangle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { SettingsNav } from "@/components/settings/SettingsNav";
 
 export default function PrivacySettingsPage() {
   const [downloading, setDownloading] = useState(false);
@@ -64,6 +65,8 @@ export default function PrivacySettingsPage() {
           everything attached to it.
         </p>
       </header>
+
+      <SettingsNav />
 
       {deleteStatus && (
         <div className="mb-5 flex items-start gap-2 border border-press/30 bg-press-soft px-3 py-2 text-[12.5px] text-press">

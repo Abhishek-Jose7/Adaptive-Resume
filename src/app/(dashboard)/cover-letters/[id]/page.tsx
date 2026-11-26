@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Save, Copy, Check, Printer } from "lucide-react";
 import Link from "next/link";
@@ -26,7 +26,7 @@ export default function CoverLetterDetailPage() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const fetchLetter = async () => {
+  const fetchLetter = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/cover-letters/${letterId}`);
@@ -42,11 +42,11 @@ export default function CoverLetterDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [letterId]);
 
   useEffect(() => {
     if (letterId) fetchLetter();
-  }, [letterId]);
+  }, [letterId, fetchLetter]);
 
   const handleSave = async () => {
     setSaving(true);

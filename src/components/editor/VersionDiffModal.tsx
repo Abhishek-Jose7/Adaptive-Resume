@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   GitCompare,
   GitBranch,
@@ -53,7 +53,7 @@ export function VersionDiffModal({
     }
   }, [versions]);
 
-  const fetchDiff = async () => {
+  const fetchDiff = useCallback(async () => {
     if (!baseId || !targetId) return;
     setLoading(true);
     try {
@@ -67,13 +67,13 @@ export function VersionDiffModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [baseId, targetId]);
 
   useEffect(() => {
     if (isOpen && baseId && targetId) {
       fetchDiff();
     }
-  }, [isOpen, baseId, targetId]);
+  }, [isOpen, baseId, targetId, fetchDiff]);
 
   if (!isOpen) return null;
 

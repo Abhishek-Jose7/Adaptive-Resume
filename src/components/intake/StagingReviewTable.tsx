@@ -74,12 +74,15 @@ export function StagingReviewTable({ items, onCommitSelected, onRejectItems }: S
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const itemIdsSignature = items.map((i) => i.id).join("|");
+  const pendingItemIds = items
+    .filter((item) => item.status === "pending")
+    .map((item) => item.id);
+  const pendingSignature = pendingItemIds.join("|");
   useEffect(() => {
-    setSelectedIds(new Set(items.filter((item) => item.status === "pending").map((item) => item.id)));
+    setSelectedIds(new Set(pendingSignature ? pendingSignature.split("|") : []));
     setEdits({});
     setEditingId(null);
-  }, [itemIdsSignature]);
+  }, [pendingSignature]);
 
   const pendingItems = items.filter((item) => item.status === "pending");
   const allSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.has(item.id));

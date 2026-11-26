@@ -2,6 +2,7 @@ import { db } from "../db/client";
 import { applications, jobs, resumeVersions, coverLetters, applicationInterviews } from "../db/schema";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { ApplicationInterview } from "@/types/bank";
+import { computeStaleStageInfo } from "@/lib/utils/applicationStageUtils";
 
 export type ApplicationStatus =
   | "Saved"
@@ -57,7 +58,10 @@ export class ApplicationService {
       )
       .orderBy(desc(applications.updatedAt));
 
-    return list;
+    return list.map((item) => ({
+      ...item,
+      ...computeStaleStageInfo(item),
+    }));
   }
 
   /**

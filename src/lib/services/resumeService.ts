@@ -1,11 +1,24 @@
 import { db } from "../db/client";
-import { resumeDocuments, resumeVersions, jobs } from "../db/schema";
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import {
+  resumeDocuments,
+  resumeVersions,
+  jobs,
+  jdAnalyses,
+  users,
+  bankEntries,
+  achievementBullets,
+} from "../db/schema";
+import { eq, and, desc, asc, sql, isNull } from "drizzle-orm";
 import { ResumeDoc } from "@/types/resume";
 import { createHash } from "crypto";
 import { PlainTextSerializer } from "../export/plainTextSerializer";
 import { DocxGenerator } from "../export/docxGenerator";
 import { UsageLimitService } from "./usageLimitService";
+import { SettingsService } from "./settingsService";
+import { BulletRetriever } from "../tailoring/bulletRetriever";
+import { compareReverseChronological, sortResumeDocChronologically } from "../utils/resumeOrderUtils";
+import { JDAnalysis } from "@/types/job";
+import { BankEntry, AchievementBullet } from "@/types/bank";
 
 export class ResumeService {
   /**
@@ -49,6 +62,168 @@ export class ResumeService {
   }
 
   /**
+   * Assembles a role-tailored, reverse-chronological, Vault-ordered one-page starter doc
+   * whenever createResume is called without an explicit initialDoc (e.g. from /jobs/[id]).
+   */
+  static async assembleInitialDocFromVault(userId: string, jobId?: string | null): Promise<Partial<ResumeDoc>> {
+    const [[user], jdRows, entriesRaw, bulletsRaw] = await Promise.all([
+      db.select().from(users).where(eq(users.id, userId)).limit(1),
+      jobId
+        ? db
+            .select()
+            .from(jdAnalyses)
+            .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
+            .limit(1)
+        : Promise.resolve([]),
+      db
+        .select()
+        .from(bankEntries)
+        .where(and(eq(bankEntries.userId, userId), isNull(bankEntries.deletedAt))),
+      db
+        .select()
+        .from(achievementBullets)
+        .where(and(eq(achievementBullets.userId, userId), isNull(achievementBullets.deletedAt)))
+        .orderBy(asc(achievementBullets.sortOrder), asc(achievementBullets.id)),
+    ]);
+
+    if (entriesRaw.length === 0) return {};
+
+    const bulletsByEntry = new Map<string, AchievementBullet[]>();
+    for (const b of bulletsRaw) {
+      const list = bulletsByEntry.get(b.entryId) || [];
+      list.push(b as unknown as AchievementBullet);
+      bulletsByEntry.set(b.entryId, list);
+    }
+
+    const fullEntries: BankEntry[] = entriesRaw.map((e) => ({
+      ...(e as unknown as BankEntry),
+      bullets: bulletsByEntry.get(e.id) || [],
+    }));
+
+    const jdAnalysis = jdRows[0]?.analysisJson as unknown as JDAnalysis | undefined;
+    const relevanceMap = new Map<string, number>();
+
+    if (jdAnalysis) {
+      const retrieval = BulletRetriever.retrieveCandidates(fullEntries, jdAnalysis, 4200);
+      for (const c of retrieval.candidates) {
+        relevanceMap.set(c.bullet.id, c.scoreBreakdown.totalScore);
+      }
+    }
+
+    const links: Array<{ label: string; url: string }> = [];
+    if (user?.githubUrl) links.push({ label: "GitHub", url: user.githubUrl });
+    if (user?.linkedinUrl) links.push({ label: "LinkedIn", url: user.linkedinUrl });
+    if (user?.portfolioUrl) links.push({ label: "Portfolio", url: user.portfolioUrl });
+
+    const profileEntry = fullEntries.find((e) => e.entryType === "profile" && e.descriptionContext);
+
+    const selectBulletsForEntry = (entry: BankEntry, maxBullets: number) => {
+      const eligible = (entry.bullets || []).filter((b) => b.usagePolicy !== "never_use");
+      if (!jdAnalysis || eligible.length <= maxBullets) {
+        // Respect curated Vault sortOrder strictly when all fit
+        return eligible.slice(0, maxBullets);
+      }
+      // Choose highest-scoring bullets for the target role, then sort chosen bullets by curated Vault sortOrder
+      const topByRole = [...eligible]
+        .sort((a, b) => (relevanceMap.get(b.id) ?? 0) - (relevanceMap.get(a.id) ?? 0) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .slice(0, maxBullets);
+
+      return topByRole.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    };
+
+    const experience = fullEntries
+      .filter((e) => e.entryType === "experience")
+      .sort(compareReverseChronological)
+      .slice(0, 4)
+      .map((e) => ({
+        id: e.id,
+        company: e.organization || "",
+        position: e.title,
+        startDate: e.startDate || "",
+        endDate: e.endDate || null,
+        isCurrent: Boolean(e.isCurrent),
+        location: e.location || undefined,
+        bullets: selectBulletsForEntry(e, 4).map((b) => ({
+          id: b.id,
+          text: b.text,
+          provenance: "bank" as const,
+          sourceBulletIds: [b.id],
+          sourceFactIds: [],
+          validatorStatus: "not_applicable" as const,
+        })),
+      }));
+
+    const projects = fullEntries
+      .filter((e) => e.entryType === "project")
+      .slice(0, 3)
+      .map((e) => ({
+        id: e.id,
+        name: e.title,
+        role: e.organization || undefined,
+        description: e.descriptionContext || undefined,
+        bullets: selectBulletsForEntry(e, 2).map((b) => ({
+          id: b.id,
+          text: b.text,
+          provenance: "bank" as const,
+          sourceBulletIds: [b.id],
+          sourceFactIds: [],
+          validatorStatus: "not_applicable" as const,
+        })),
+      }));
+
+    const education = fullEntries
+      .filter((e) => e.entryType === "education")
+      .sort(compareReverseChronological)
+      .map((e) => ({
+        id: e.id,
+        institution: e.organization || e.title,
+        degree: e.title,
+        startDate: e.startDate || "",
+        endDate: e.endDate || (e.isCurrent ? "Present" : ""),
+      }));
+
+    const skills: Array<{ name: string; category?: string }> = [];
+    const seenSkill = new Set<string>();
+    for (const s of fullEntries.filter((e) => e.entryType === "skill_group")) {
+      for (const b of s.bullets || []) {
+        for (const token of b.text.split(/[,•|\n]/).map((t) => t.trim()).filter(Boolean)) {
+          const lower = token.toLowerCase();
+          if (seenSkill.has(lower)) continue;
+          seenSkill.add(lower);
+          skills.push({ name: token, category: s.title });
+        }
+      }
+    }
+
+    const certifications = fullEntries
+      .filter((e) => e.entryType === "certification")
+      .map((c) => ({
+        id: c.id,
+        name: c.title,
+        issuer: c.organization || "",
+        issueDate: c.startDate || c.endDate || undefined,
+      }));
+
+    return {
+      profile: {
+        name: user?.displayName || "",
+        fullName: user?.displayName || "",
+        headline: user?.headline || "",
+        summary: profileEntry?.descriptionContext || "",
+        email: user?.contactEmail || user?.email || "",
+        phone: user?.phone || "",
+        location: user?.location || "",
+        links,
+      },
+      experience,
+      projects,
+      education,
+      skills,
+      certifications,
+    };
+  }
+
+  /**
    * Creates a new resume document and an initial version
    */
   static async createResume(
@@ -59,8 +234,13 @@ export class ResumeService {
   ) {
     const docId = `res_${crypto.randomUUID()}`;
     const versionId = `ver_${crypto.randomUUID()}`;
+    const userDefaults = await SettingsService.getUserSettings(userId);
+    const resolvedDocSeed =
+      initialDoc || (jobId ? await this.assembleInitialDocFromVault(userId, jobId) : undefined);
+    const resolvedTemplateId = resolvedDocSeed?.template?.id || userDefaults.defaultTemplateId || "classic-ats";
+    const resolvedPageSize = resolvedDocSeed?.page?.size || userDefaults.defaultPageSize || "A4";
 
-    const canonicalDoc: ResumeDoc = {
+    const canonicalDoc: ResumeDoc = sortResumeDocChronologically({
       schemaVersion: 1,
       documentId: docId,
       versionId,
@@ -74,35 +254,35 @@ export class ResumeService {
         phone: "",
         location: "",
         links: [],
-        ...(initialDoc?.profile || {}),
+        ...(resolvedDocSeed?.profile || {}),
       },
-      sections: initialDoc?.sections || [
+      sections: resolvedDocSeed?.sections || [
         { id: "sec_exp", type: "experience", heading: "Experience", visible: true, items: [] },
         { id: "sec_edu", type: "education", heading: "Education", visible: true, items: [] },
         { id: "sec_skills", type: "skills", heading: "Skills", visible: true, items: [] },
         { id: "sec_projects", type: "projects", heading: "Projects", visible: true, items: [] },
       ],
       template: {
-        id: "classic-ats",
+        id: resolvedTemplateId,
         version: "1.0",
         theme: {},
-        ...(initialDoc?.template || {}),
+        ...(resolvedDocSeed?.template || {}),
       },
       page: {
-        size: "LETTER",
+        size: resolvedPageSize,
         targetPages: 1,
-        ...(initialDoc?.page || {}),
+        ...(resolvedDocSeed?.page || {}),
       },
       metadata: {
         createdAt: new Date().toISOString(),
-        ...(initialDoc?.metadata || {}),
+        ...(resolvedDocSeed?.metadata || {}),
       },
-      experience: initialDoc?.experience || [],
-      education: initialDoc?.education || [],
-      skills: initialDoc?.skills || [],
-      projects: initialDoc?.projects || [],
-      certifications: initialDoc?.certifications || [],
-    };
+      experience: resolvedDocSeed?.experience || [],
+      education: resolvedDocSeed?.education || [],
+      skills: resolvedDocSeed?.skills || [],
+      projects: resolvedDocSeed?.projects || [],
+      certifications: resolvedDocSeed?.certifications || [],
+    });
 
     const docJsonString = JSON.stringify(canonicalDoc);
     const contentHash = createHash("sha256").update(docJsonString).digest("hex");

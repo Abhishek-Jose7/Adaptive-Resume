@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { ResumeDoc } from "@/types/resume";
-import { Printer, AlertCircle } from "lucide-react";
+import { Printer, AlertCircle, Eye, Clock } from "lucide-react";
 
 interface ShareViewData {
   id: string;
@@ -14,6 +15,10 @@ interface ShareViewData {
   pageSize?: string;
   allowDownload: boolean;
   expiresAt: string;
+  daysRemaining?: number;
+  isExpiringSoon?: boolean;
+  showViewCounters?: boolean;
+  viewCount?: number;
   authorName?: string;
 }
 
@@ -23,12 +28,15 @@ export default function PublicSharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = use(params);
+  const searchParams = useSearchParams();
+  const isPreview = searchParams.get("preview") === "1";
+
   const [data, setData] = useState<ShareViewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/v1/public/s/${token}`)
+    fetch(`/api/v1/public/s/${token}${isPreview ? "?preview=1" : ""}`)
       .then((res) => {
         if (!res.ok) {
           throw new Error("This shared resume link is invalid, expired, or has been revoked.");
@@ -44,7 +52,7 @@ export default function PublicSharePage({
       .finally(() => {
         setLoading(false);
       });
-  }, [token]);
+  }, [token, isPreview]);
 
   const handlePrint = () => {
     window.print();
@@ -97,7 +105,21 @@ export default function PublicSharePage({
               <p className="truncate text-[13px] font-medium">
                 {data.authorName ? `${data.authorName} — resume` : "Candidate resume"}
               </p>
-              <p className="font-mono text-[10.5px] text-graphite">link open until {expiryDate}</p>
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] text-graphite">
+                <span>link open until {expiryDate}</span>
+                {data.isExpiringSoon && (
+                  <span className="inline-flex items-center gap-0.5 rounded bg-marker-soft px-1.5 py-0.5 text-marker-dark">
+                    <Clock className="h-2.5 w-2.5" />
+                    expires in {data.daysRemaining ?? 0}d
+                  </span>
+                )}
+                {data.showViewCounters && typeof data.viewCount === "number" && (
+                  <span className="inline-flex items-center gap-0.5 rounded border border-rule bg-sheet px-1.5 py-0.5 text-ink">
+                    <Eye className="h-2.5 w-2.5" />
+                    {data.viewCount} views
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

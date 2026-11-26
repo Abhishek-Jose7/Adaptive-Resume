@@ -109,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
           </div>
 
-          <Link href="/settings/providers">
+          <Link href="/settings">
             <FigmaIcon name="lock" size={17} />
             <span>Settings</span>
           </Link>

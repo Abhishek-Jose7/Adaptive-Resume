@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Compass,
   CheckCircle2,
@@ -29,7 +29,7 @@ export function SkillsRoadmapView({ jobId, jobTitle }: SkillsRoadmapViewProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "strong" | "limited" | "unrecorded">("all");
 
-  const fetchRoadmap = async () => {
+  const fetchRoadmap = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/jobs/${jobId}/skills-roadmap`);
@@ -42,13 +42,13 @@ export function SkillsRoadmapView({ jobId, jobTitle }: SkillsRoadmapViewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId]);
 
   useEffect(() => {
     if (jobId) {
       fetchRoadmap();
     }
-  }, [jobId]);
+  }, [jobId, fetchRoadmap]);
 
   const getImportanceBadge = (importance?: string) => {
     switch (importance) {

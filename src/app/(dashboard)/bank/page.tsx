@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BankEntry, CompletenessReport, EntryType, AchievementBullet } from "@/types/bank";
 import { BankEntryCard } from "@/components/bank/BankEntryCard";
 import { BankEntryModal } from "@/components/bank/BankEntryModal";
@@ -11,6 +11,7 @@ import { QuantificationAssistantModal } from "@/components/quantification/Quanti
 import { Plus, Search, Copy, RefreshCw, UploadCloud, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { Tabs } from "@/components/ui/Tabs";
+import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 
 export default function DataBankPage() {
   const [viewMode, setViewMode] = useState<"facts" | "graph">("facts");
@@ -33,7 +34,7 @@ export default function DataBankPage() {
     bullet: AchievementBullet;
   } | null>(null);
 
-  const fetchEntries = async () => {
+  const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -43,12 +44,12 @@ export default function DataBankPage() {
       const res = await fetch(`/api/v1/bank/entries?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load entries");
       const data = await res.json();
-      const items = data.items || [];
+      const rawItems: BankEntry[] = data.items || [];
+      const items = [...rawItems].sort((a, b) => compareReverseChronological(a, b));
       setEntries(items);
       if (selectedType === "all" && !searchQuery.trim()) {
         setVaultEntries(items);
-      } else if (vaultEntries.length === 0) {
-        // Ensure suggestions still have access to full vault entries when starting from a filtered view
+      } else {
         fetch("/api/v1/bank/entries")
           .then((r) => (r.ok ? r.json() : null))
           .then((allData) => {
@@ -62,11 +63,11 @@ export default function DataBankPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedType, searchQuery]);
 
   useEffect(() => {
     fetchEntries();
-  }, [selectedType]);
+  }, [fetchEntries]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,6 +142,17 @@ export default function DataBankPage() {
 
   const handleDeleteBullet = async (bulletId: string) => {
     const res = await fetch(`/api/v1/bank/bullets/${bulletId}`, { method: "DELETE" });
+    if (res.ok) {
+      await fetchEntries();
+    }
+  };
+
+  const handleReorderBullets = async (entryId: string, bulletIds: string[]) => {
+    const res = await fetch(`/api/v1/bank/entries/${entryId}/bullets/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bulletIds }),
+    });
     if (res.ok) {
       await fetchEntries();
     }
@@ -295,6 +307,7 @@ export default function DataBankPage() {
                   onAddBullet={handleAddBullet}
                   onUpdateBullet={handleUpdateBullet}
                   onDeleteBullet={handleDeleteBullet}
+                  onReorderBullets={handleReorderBullets}
                   onQuantifyBullet={(e, bullet) => {
                     setQuantifyTarget({ entry: e, bullet });
                     setIsQuantifyOpen(true);

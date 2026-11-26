@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Sparkles,
   HelpCircle,
@@ -49,33 +49,7 @@ export function QuantificationAssistantModal({
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const loadQuestions = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/v1/quantification?bulletId=${bulletId}&entryId=${entryId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        if (items.length > 0) {
-          setQuestions(
-            items.map((q: any) => ({
-              ...q,
-              isAnswered: q.isAnswered ?? q.status === "answered",
-            }))
-          );
-        } else {
-          // If no questions exist, trigger auto-generation
-          await generateQuestions();
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateQuestions = async () => {
+  const generateQuestions = useCallback(async () => {
     setGenerating(true);
     try {
       const res = await fetch("/api/v1/quantification", {
@@ -105,13 +79,38 @@ export function QuantificationAssistantModal({
     } finally {
       setGenerating(false);
     }
-  };
+  }, [initialText, context, bulletId, entryId]);
+
+  const loadQuestions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/v1/quantification?bulletId=${bulletId}&entryId=${entryId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.items || [];
+        if (items.length > 0) {
+          setQuestions(
+            items.map((q: any) => ({
+              ...q,
+              isAnswered: q.isAnswered ?? q.status === "answered",
+            }))
+          );
+        } else {
+          await generateQuestions();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [bulletId, entryId, generateQuestions]);
 
   useEffect(() => {
     if (isOpen) {
       loadQuestions();
     }
-  }, [isOpen, bulletId]);
+  }, [isOpen, bulletId, loadQuestions]);
 
   if (!isOpen) return null;
 

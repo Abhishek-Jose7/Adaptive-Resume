@@ -5,6 +5,7 @@ import { ResumeDocStore, EditorState } from "@/lib/editor/resumeDocStore";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { AtsLinter } from "@/lib/editor/atsLinter";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
+import { PlainTextSerializer } from "@/lib/export/plainTextSerializer";
 import {
   Undo,
   Redo,
@@ -17,6 +18,9 @@ import {
   Check,
   Share2,
   GitCompare,
+  Terminal,
+  Copy,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { ShareModal } from "@/components/share/ShareModal";
@@ -38,13 +42,17 @@ export function EditorPreviewPanel({
 }: Props) {
   const doc = editorState.doc;
   const [templateId, setTemplateId] = useState<string>(doc.template?.id || "classic-ats");
-  const [autoFitStep, setAutoFitStep] = useState<number>(1);
+  const [autoFitStep, setAutoFitStep] = useState<number>(() =>
+    AutoFitLadder.recommendedStepForOnePage(doc)
+  );
   const [showLintDrawer, setShowLintDrawer] = useState<boolean>(false);
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [showQualityGateModal, setShowQualityGateModal] = useState<boolean>(false);
   const [showVersionDiffModal, setShowVersionDiffModal] = useState<boolean>(false);
   const [resumeVersions, setResumeVersions] = useState<any[]>([]);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"visual" | "ats-text">("visual");
+  const [copiedAtsText, setCopiedAtsText] = useState(false);
 
   const loadVersions = useCallback(async () => {
     try {
@@ -66,6 +74,8 @@ export function EditorPreviewPanel({
 
   const lintReport = useMemo(() => AtsLinter.lint(doc), [doc]);
   const fitSettings = useMemo(() => AutoFitLadder.evaluateFit(doc, autoFitStep), [doc, autoFitStep]);
+  const plainTextPreview = useMemo(() => PlainTextSerializer.serialize(doc), [doc]);
+  const currentPageSize = doc.page?.size === "A4" ? "A4" : "LETTER";
 
   const handleTemplateChange = (newTemplate: string) => {
     setTemplateId(newTemplate);
@@ -144,6 +154,29 @@ export function EditorPreviewPanel({
               <option value="compact-engineer">Compact Engineer</option>
             </select>
 
+            <select
+              value={currentPageSize}
+              onChange={(e) => store.setPageSize(e.target.value as "A4" | "LETTER")}
+              className="border border-rule bg-sheet px-1.5 py-1 text-[11.5px] font-medium text-ink"
+              title="Page size for PDF & DOCX"
+            >
+              <option value="A4">A4</option>
+              <option value="LETTER">Letter</option>
+            </select>
+
+            <button
+              onClick={() => setPreviewMode((m) => (m === "visual" ? "ats-text" : "visual"))}
+              className={`inline-flex items-center gap-1 border px-1.5 py-1 text-[11.5px] font-medium ${
+                previewMode === "ats-text"
+                  ? "border-ink bg-ink text-cream"
+                  : "border-rule bg-sheet text-ink hover:bg-paper-deep"
+              }`}
+              title="Preview exact plain-text parse order read by ATS systems"
+            >
+              {previewMode === "ats-text" ? <Eye className="h-3.5 w-3.5" /> : <Terminal className="h-3.5 w-3.5 text-stamp" />}
+              {previewMode === "ats-text" ? "Visual" : "ATS Parse"}
+            </button>
+
             <button
               onClick={() => setAutoFitStep((prev) => (prev < 8 ? prev + 1 : 1))}
               className="inline-flex items-center gap-1 border border-rule bg-sheet px-1.5 py-1 text-[11.5px] font-medium text-ink hover:bg-paper-deep"
@@ -200,6 +233,7 @@ export function EditorPreviewPanel({
         resumeVersionId={doc.versionId || resumeId}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+        previewDoc={doc}
       />
 
       <QualityGateModal
@@ -251,17 +285,47 @@ export function EditorPreviewPanel({
             </div>
           )}
 
-          <div className="bg-sheet shadow-plate">
-            <TemplateRenderer
-              doc={doc}
-              templateId={templateId}
-              fontSizePt={fitSettings.fontSizePt}
-              lineHeight={fitSettings.lineHeight}
-              sectionGapRem={fitSettings.sectionGapRem}
-              marginInches={fitSettings.marginInches}
-              onElementClick={(section, id) => store.setActiveLocation(section, id)}
-            />
-          </div>
+          {previewMode === "ats-text" ? (
+            <div className="border border-rule bg-sheet p-5 shadow-plate space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-3">
+                <div>
+                  <h3 className="font-display text-[15px] font-semibold text-ink">
+                    Real-Time ATS &amp; Plain-Text Export Simulation
+                  </h3>
+                  <p className="text-[11.5px] text-graphite">
+                    Exact linear text order parsed by recruiter ATS tools and `.txt` export ({plainTextPreview.split(/\s+/).filter(Boolean).length} words · {currentPageSize}).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(plainTextPreview);
+                    setCopiedAtsText(true);
+                    setTimeout(() => setCopiedAtsText(false), 1800);
+                  }}
+                  className="btn btn-sm"
+                >
+                  {copiedAtsText ? <Check className="h-3.5 w-3.5 text-press" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedAtsText ? "Copied" : "Copy text"}
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap break-words font-mono text-[11.5px] leading-relaxed text-ink bg-paper p-4 border border-rule">
+                {plainTextPreview}
+              </pre>
+            </div>
+          ) : (
+            <div className="bg-sheet shadow-plate">
+              <TemplateRenderer
+                doc={doc}
+                templateId={templateId}
+                fontSizePt={fitSettings.fontSizePt}
+                lineHeight={fitSettings.lineHeight}
+                sectionGapRem={fitSettings.sectionGapRem}
+                marginInches={fitSettings.marginInches}
+                onElementClick={(section, id) => store.setActiveLocation(section, id)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

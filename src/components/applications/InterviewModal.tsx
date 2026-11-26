@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   Clock,
@@ -9,13 +9,49 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   RefreshCw,
-  FileText,
-  Building,
-  Briefcase,
+  BookOpen,
+  Sparkles,
+  Copy,
+  Check,
+  Mail,
 } from "lucide-react";
 import { ApplicationInterview } from "@/types/bank";
+
+interface StarStory {
+  id: string;
+  entryTitle: string;
+  organization: string | null;
+  dates: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string | null;
+  citedMetrics: string[];
+  citedTools: string[];
+  matchedKeywords: string[];
+  needsMetricPrompt: boolean;
+}
+
+interface PrepQuestion {
+  id: string;
+  category: string;
+  keyword?: string;
+  roundFocus: string;
+  question: string;
+  groundedCue: string;
+}
+
+interface ApplicationPrepData {
+  starStories: StarStory[];
+  questionChecklist: PrepQuestion[];
+  gapSummary: {
+    totalMissingCount: number;
+    inBankNotOnResumeCount: number;
+    inProfileUnverifiedCount: number;
+    missingFromBankCount: number;
+  } | null;
+}
 
 interface InterviewModalProps {
   isOpen: boolean;
@@ -50,13 +86,21 @@ export function InterviewModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<string>("scheduled");
   const [editFeedback, setEditFeedback] = useState("");
+  const [activeModalTab, setActiveModalTab] = useState<"rounds" | "prep">("rounds");
+  const [prepData, setPrepData] = useState<ApplicationPrepData | null>(null);
+  const [prepLoading, setPrepLoading] = useState(false);
+  const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
+  const [roundEmailDraft, setRoundEmailDraft] = useState<{ title: string; content: string } | null>(null);
+  const [draftingThankYou, setDraftingThankYou] = useState(false);
 
-  const fetchApplicationDetails = async () => {
+  const fetchApplicationDetails = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/applications/${applicationId}`);
       if (res.ok) {
-        const data = await res.json();
+        const json = await res.json();
+        const data = json?.data ?? json;
         setInterviews(data.interviews || []);
         setRoundNumber((data.interviews?.length || 0) + 1);
       }
@@ -65,15 +109,33 @@ export function InterviewModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [applicationId]);
+
+  const fetchPrepPacket = useCallback(async () => {
+    setPrepLoading(true);
+    try {
+      const res = await fetch(`/api/v1/applications/${applicationId}/prep`);
+      if (res.ok) {
+        const json = await res.json();
+        setPrepData(json?.data ?? json);
+      }
+    } catch (err) {
+      console.error("Failed to load interview prep packet", err);
+    } finally {
+      setPrepLoading(false);
+    }
+  }, [applicationId]);
 
   useEffect(() => {
     if (isOpen && applicationId) {
       fetchApplicationDetails();
+      fetchPrepPacket();
       setIsAdding(false);
       setEditingId(null);
+      setRoundEmailDraft(null);
+      setActiveModalTab("rounds");
     }
-  }, [isOpen, applicationId]);
+  }, [isOpen, applicationId, fetchApplicationDetails, fetchPrepPacket]);
 
   if (!isOpen) return null;
 
@@ -206,9 +268,172 @@ export function InterviewModal({
           </button>
         </div>
 
+        {/* Modal Tabs */}
+        <div className="flex border-b border-rule bg-paper-alt px-4 gap-2 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setActiveModalTab("rounds")}
+            className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 ${
+              activeModalTab === "rounds"
+                ? "border-stamp text-ink font-semibold"
+                : "border-transparent text-graphite hover:text-ink"
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Rounds ({interviews.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveModalTab("prep")}
+            className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 ${
+              activeModalTab === "prep"
+                ? "border-stamp text-ink font-semibold"
+                : "border-transparent text-graphite hover:text-ink"
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-stamp" />
+            Vault Interview Prep &amp; Stories ({prepData?.starStories?.length || 0})
+          </button>
+        </div>
+
         {/* Content body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
-          {loading ? (
+          {activeModalTab === "prep" ? (
+            prepLoading ? (
+              <div className="py-16 text-center text-graphite space-y-2">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-stamp" />
+                <p className="text-xs">Mapping STAR / XYZ stories from your Career Vault &amp; Gap Report...</p>
+              </div>
+            ) : !prepData ? (
+              <p className="py-12 text-center text-xs text-graphite">
+                Attach a posting to this application and add Career Vault entries to unlock job-specific prep.
+              </p>
+            ) : (
+              <div className="space-y-5">
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-stamp" />
+                      Behavioral &amp; Technical STAR / XYZ Story Bank
+                    </h4>
+                    <span className="font-mono text-[10px] text-graphite">
+                      grounded in Career Vault only
+                    </span>
+                  </div>
+
+                  {prepData.starStories.length === 0 ? (
+                    <p className="rounded border border-dashed border-rule p-4 text-xs text-graphite">
+                      No Career Vault bullets found yet. Add experience or projects in your Career Vault to generate STAR stories.
+                    </p>
+                  ) : (
+                    prepData.starStories.map((story) => (
+                      <div key={story.id} className="rounded-lg border border-rule bg-sheet p-3.5 space-y-2 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-bold text-ink">
+                              {story.entryTitle}
+                              {story.organization ? ` · ${story.organization}` : ""}
+                            </p>
+                            {story.matchedKeywords.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {story.matchedKeywords.map((kw) => (
+                                  <span
+                                    key={kw}
+                                    className="rounded border border-press/30 bg-press-soft px-1.5 py-0.5 font-mono text-[10px] text-press"
+                                  >
+                                    {kw}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const formatted = `S: ${story.situation}\nT: ${story.task}\nA: ${story.action}\nR: ${story.result || "Discuss real qualitative outcome without unverified numbers."}`;
+                              navigator.clipboard.writeText(formatted);
+                              setCopiedStoryId(story.id);
+                              setTimeout(() => setCopiedStoryId(null), 1800);
+                            }}
+                            className="inline-flex items-center gap-1 rounded border border-rule bg-paper-alt px-2 py-1 text-[11px] text-ink hover:border-stamp"
+                          >
+                            {copiedStoryId === story.id ? <Check className="w-3 h-3 text-press" /> : <Copy className="w-3 h-3" />}
+                            {copiedStoryId === story.id ? "Copied" : "Copy STAR"}
+                          </button>
+                        </div>
+
+                        <dl className="space-y-1 text-[11.5px] leading-relaxed">
+                          <div>
+                            <dt className="inline font-semibold text-graphite">Situation: </dt>
+                            <dd className="inline text-ink">{story.situation}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline font-semibold text-graphite">Task: </dt>
+                            <dd className="inline text-ink">{story.task}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline font-semibold text-graphite">Action: </dt>
+                            <dd className="inline text-ink">{story.action}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline font-semibold text-graphite">Result: </dt>
+                            <dd className="inline text-ink">
+                              {story.result ? (
+                                <span className="font-medium text-press">{story.result}</span>
+                              ) : (
+                                <span className="italic text-marker-dark">
+                                  No metric verified in Vault yet — state actual outcome without guessing numbers.
+                                </span>
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ))
+                  )}
+                </section>
+
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-ink">
+                      Role &amp; Gap Report Question Checklist
+                    </h4>
+                    {prepData.gapSummary && (
+                      <span className="font-mono text-[10px] text-graphite">
+                        {prepData.gapSummary.inBankNotOnResumeCount} in vault · {prepData.gapSummary.missingFromBankCount} gaps
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {prepData.questionChecklist.map((q) => (
+                      <label
+                        key={q.id}
+                        className="flex items-start gap-2.5 rounded-lg border border-rule bg-sheet p-3 text-xs cursor-pointer hover:border-stamp"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(checkedQuestions[q.id])}
+                          onChange={(e) =>
+                            setCheckedQuestions((prev) => ({ ...prev, [q.id]: e.target.checked }))
+                          }
+                          className="mt-0.5 h-3.5 w-3.5"
+                        />
+                        <div className="space-y-1">
+                          <span className="inline-block font-mono text-[10px] uppercase text-stamp">
+                            {q.roundFocus}
+                          </span>
+                          <p className={`font-medium text-ink ${checkedQuestions[q.id] ? "line-through opacity-60" : ""}`}>
+                            {q.question}
+                          </p>
+                          <p className="text-[11px] text-graphite">{q.groundedCue}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )
+          ) : loading ? (
             <div className="py-16 text-center text-graphite space-y-2">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto text-stamp" />
               <p className="text-xs">Loading interview records...</p>
@@ -357,6 +582,35 @@ export function InterviewModal({
 
                         <div className="flex items-center gap-1">
                           <button
+                            type="button"
+                            disabled={draftingThankYou}
+                            onClick={async () => {
+                              setDraftingThankYou(true);
+                              try {
+                                const res = await fetch(`/api/v1/applications/${applicationId}/follow-up`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    kind: "thank_you",
+                                    roundId: int.id,
+                                    saveToCoverLetters: true,
+                                  }),
+                                });
+                                const json = await res.json();
+                                if (res.ok) {
+                                  const payload = json?.data ?? json;
+                                  setRoundEmailDraft({ title: payload.title, content: payload.content });
+                                }
+                              } finally {
+                                setDraftingThankYou(false);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-paper-alt border border-rule hover:border-stamp text-ink rounded text-[11px]"
+                            title="Generate thank-you email grounded in Career Vault facts"
+                          >
+                            <Mail className="w-3 h-3" /> Thank-you
+                          </button>
+                          <button
                             onClick={() => {
                               setEditingId(int.id);
                               setEditStatus(int.status);
@@ -436,6 +690,23 @@ export function InterviewModal({
                       )}
                     </div>
                   ))}
+                  {roundEmailDraft && (
+                    <div className="rounded-lg border border-stamp/40 bg-stamp-soft/40 p-3.5 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-ink">{roundEmailDraft.title} (Saved to Cover Letters)</span>
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard.writeText(roundEmailDraft.content)}
+                          className="inline-flex items-center gap-1 text-stamp font-medium hover:underline"
+                        >
+                          <Copy className="w-3 h-3" /> Copy
+                        </button>
+                      </div>
+                      <pre className="whitespace-pre-wrap font-sans text-[11.5px] leading-relaxed bg-white p-2.5 border border-rule rounded">
+                        {roundEmailDraft.content}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

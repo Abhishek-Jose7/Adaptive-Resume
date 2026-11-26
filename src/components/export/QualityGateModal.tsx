@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -13,8 +13,12 @@ import {
   ExternalLink,
   ChevronRight,
   Info,
+  Copy,
+  Check,
+  Terminal,
 } from "lucide-react";
 import { QualityGateAuditResult } from "@/types/resume";
+import { PlainTextSerializer } from "@/lib/export/plainTextSerializer";
 
 interface QualityGateModalProps {
   isOpen: boolean;
@@ -34,8 +38,10 @@ export function QualityGateModal({
   const [audit, setAudit] = useState<QualityGateAuditResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [acknowledgedWarnings, setAcknowledgedWarnings] = useState(false);
+  const [showAtsPreview, setShowAtsPreview] = useState(false);
+  const [copiedTxt, setCopiedTxt] = useState(false);
 
-  const runAudit = async () => {
+  const runAudit = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/resumes/${resumeId}/quality-gate`, {
@@ -52,14 +58,14 @@ export function QualityGateModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [resumeId, currentDoc]);
 
   useEffect(() => {
     if (isOpen) {
       runAudit();
       setAcknowledgedWarnings(false);
     }
-  }, [isOpen, resumeId]);
+  }, [isOpen, resumeId, runAudit]);
 
   if (!isOpen) return null;
 
@@ -224,6 +230,43 @@ export function QualityGateModal({
                     I acknowledge these quality warnings and want to proceed with document export anyway.
                   </span>
                 </label>
+              )}
+
+              {/* Pre-Download ATS Parser Simulation Preview */}
+              {currentDoc && (
+                <div className="border border-rule rounded-lg bg-sheet overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-rule bg-paper-alt">
+                    <button
+                      type="button"
+                      onClick={() => setShowAtsPreview((v) => !v)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:text-stamp"
+                    >
+                      <Terminal className="w-3.5 h-3.5 text-stamp" />
+                      {showAtsPreview
+                        ? "Hide ATS Plain-Text Parse Preview"
+                        : "Preview Exact ATS Plain-Text Parse Order"}
+                    </button>
+                    {showAtsPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(PlainTextSerializer.serialize(currentDoc));
+                          setCopiedTxt(true);
+                          setTimeout(() => setCopiedTxt(false), 1800);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-stamp hover:underline"
+                      >
+                        {copiedTxt ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        {copiedTxt ? "Copied" : "Copy plain text"}
+                      </button>
+                    )}
+                  </div>
+                  {showAtsPreview && (
+                    <pre className="p-3 text-[11px] font-mono leading-relaxed text-ink whitespace-pre-wrap max-h-56 overflow-y-auto bg-paper">
+                      {PlainTextSerializer.serialize(currentDoc)}
+                    </pre>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { ResumeDoc } from "@/types/resume";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
+import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
 import { Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -54,6 +55,11 @@ export default function ResumePrintPage() {
     );
   }
 
+  const recommendedFit = AutoFitLadder.evaluateFit(
+    doc,
+    AutoFitLadder.recommendedStepForOnePage(doc)
+  );
+
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white p-4 print:p-0">
       {/* Print Controls - Hidden on print */}
@@ -80,8 +86,11 @@ export default function ResumePrintPage() {
         <TemplateRenderer
           doc={doc}
           templateId={templateId}
+          fontSizePt={recommendedFit.fontSizePt}
+          lineHeight={recommendedFit.lineHeight}
+          sectionGapRem={recommendedFit.sectionGapRem}
+          marginInches={recommendedFit.marginInches}
           readOnly={true}
-          marginInches={0.5}
         />
       </div>
 

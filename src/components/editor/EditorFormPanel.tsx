@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ResumeDocStore, EditorState } from "@/lib/editor/resumeDocStore";
+import {
+  BulletAssistantControls,
+  ResumeProvenancePayload,
+} from "@/components/editor/BulletAssistantControls";
 import {
   Plus,
   Trash2,
-  ShieldCheck,
   User,
   Briefcase,
   GraduationCap,
   Code,
   FolderGit2,
   Award,
-  ChevronDown,
-  ChevronRight,
   Pin,
   Sliders,
   ArrowUp,
@@ -25,12 +26,31 @@ import {
 interface Props {
   store: ResumeDocStore;
   editorState: EditorState;
+  resumeId?: string;
 }
 
-export function EditorFormPanel({ store, editorState }: Props) {
+export function EditorFormPanel({ store, editorState, resumeId }: Props) {
   const doc = editorState.doc;
   const [activeTab, setActiveTab] = useState<string>(editorState.activeSection || "profile");
   const [showSectionModal, setShowSectionModal] = useState<boolean>(false);
+  const [provenanceData, setProvenanceData] = useState<ResumeProvenancePayload | null>(null);
+
+  const loadProvenance = useCallback(async () => {
+    if (!resumeId) return;
+    try {
+      const res = await fetch(`/api/v1/resumes/${resumeId}/provenance`, { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        setProvenanceData(json?.data ?? json);
+      }
+    } catch {
+      // Non-blocking provenance fetch
+    }
+  }, [resumeId]);
+
+  useEffect(() => {
+    loadProvenance();
+  }, [loadProvenance]);
 
   const experiences = doc.experience || [];
   const educations = doc.education || [];
@@ -118,6 +138,20 @@ export function EditorFormPanel({ store, editorState }: Props) {
           }`}
         >
           <FolderGit2 className="w-3.5 h-3.5" /> Projects ({projects.length})
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("certifications");
+            store.setActiveLocation("certifications");
+          }}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
+            activeTab === "certifications"
+              ? "border-stamp text-stamp bg-white font-bold"
+              : "border-transparent text-graphite hover:text-ink"
+          }`}
+        >
+          <Award className="w-3.5 h-3.5" /> Certs ({certs.length})
         </button>
 
         <button
@@ -332,13 +366,33 @@ export function EditorFormPanel({ store, editorState }: Props) {
                       className="text-xs border rounded p-1.5"
                     />
                   </div>
-                  <button
-                    onClick={() => store.removeExperience(exp.id)}
-                    className="text-graphite hover:text-alarm p-1"
-                    title="Remove Role"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => store.reorderExperience(idx, idx - 1)}
+                      className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                      title="Move experience up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === experiences.length - 1}
+                      onClick={() => store.reorderExperience(idx, idx + 1)}
+                      className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                      title="Move experience down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => store.removeExperience(exp.id)}
+                      className="text-graphite hover:text-alarm p-1"
+                      title="Remove Role"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Bullets */}
@@ -364,34 +418,71 @@ export function EditorFormPanel({ store, editorState }: Props) {
                     </button>
                   </div>
 
-                  {exp.bullets.map((b) => (
-                    <div key={b.id} className="flex items-start gap-1.5">
-                      <textarea
-                        rows={2}
-                        value={b.text}
-                        onChange={(e) => store.updateExperienceBullet(exp.id, b.id, e.target.value)}
-                        className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
-                          b.pinned ? "border-marker bg-marker-soft" : ""
-                        }`}
+                  {exp.bullets.map((b, bIdx) => (
+                    <div key={b.id} className="space-y-1">
+                      <div className="flex items-start gap-1">
+                        <textarea
+                          rows={2}
+                          value={b.text}
+                          onChange={(e) => store.updateExperienceBullet(exp.id, b.id, e.target.value)}
+                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
+                            b.pinned ? "border-marker bg-marker-soft" : ""
+                          }`}
+                        />
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            disabled={bIdx === 0}
+                            onClick={() => store.reorderExperienceBullets(exp.id, bIdx, bIdx - 1)}
+                            title="Move bullet up"
+                            className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={bIdx === exp.bullets.length - 1}
+                            onClick={() => store.reorderExperienceBullets(exp.id, bIdx, bIdx + 1)}
+                            title="Move bullet down"
+                            className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => store.toggleBulletPin(b.id)}
+                          title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
+                          className={`p-1.5 rounded transition-colors ${
+                            b.pinned
+                              ? "text-white-dark bg-marker hover:bg-marker font-bold"
+                              : "text-ink hover:text-graphite"
+                          }`}
+                        >
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => store.removeExperienceBullet(exp.id, b.id)}
+                          className="text-ink hover:text-alarm p-1.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <BulletAssistantControls
+                        resumeId={resumeId}
+                        store={store}
+                        sectionType="experience"
+                        parentId={exp.id}
+                        entryTitle={exp.position}
+                        organization={exp.company}
+                        location={exp.location}
+                        startDate={exp.startDate}
+                        endDate={exp.endDate}
+                        isCurrent={exp.isCurrent}
+                        bullet={b}
+                        provenanceData={provenanceData}
+                        onProvenanceRefresh={loadProvenance}
                       />
-                      <button
-                        type="button"
-                        onClick={() => store.toggleBulletPin(b.id)}
-                        title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
-                        className={`p-1.5 rounded transition-colors ${
-                          b.pinned
-                            ? "text-white-dark bg-marker hover:bg-marker font-bold"
-                            : "text-ink hover:text-graphite"
-                        }`}
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => store.removeExperienceBullet(exp.id, b.id)}
-                        className="text-ink hover:text-alarm p-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -618,35 +709,111 @@ export function EditorFormPanel({ store, editorState }: Props) {
                   </div>
 
                   {(proj.bullets || []).map((b) => (
-                    <div key={b.id} className="flex items-start gap-1.5">
-                      <textarea
-                        rows={2}
-                        value={b.text}
-                        onChange={(e) => store.updateProjectBullet(proj.id, b.id, e.target.value)}
-                        className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
-                          b.pinned ? "border-marker bg-marker-soft" : ""
-                        }`}
+                    <div key={b.id} className="space-y-1">
+                      <div className="flex items-start gap-1.5">
+                        <textarea
+                          rows={2}
+                          value={b.text}
+                          onChange={(e) => store.updateProjectBullet(proj.id, b.id, e.target.value)}
+                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
+                            b.pinned ? "border-marker bg-marker-soft" : ""
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => store.toggleBulletPin(b.id)}
+                          title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
+                          className={`p-1.5 rounded transition-colors ${
+                            b.pinned
+                              ? "text-white-dark bg-marker hover:bg-marker font-bold"
+                              : "text-ink hover:text-graphite"
+                          }`}
+                        >
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => store.removeProjectBullet(proj.id, b.id)}
+                          className="text-ink hover:text-alarm p-1.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <BulletAssistantControls
+                        resumeId={resumeId}
+                        store={store}
+                        sectionType="projects"
+                        parentId={proj.id}
+                        entryTitle={proj.name}
+                        organization={proj.role}
+                        bullet={b}
+                        provenanceData={provenanceData}
+                        onProvenanceRefresh={loadProvenance}
                       />
-                      <button
-                        type="button"
-                        onClick={() => store.toggleBulletPin(b.id)}
-                        title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
-                        className={`p-1.5 rounded transition-colors ${
-                          b.pinned
-                            ? "text-white-dark bg-marker hover:bg-marker font-bold"
-                            : "text-ink hover:text-graphite"
-                        }`}
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => store.removeProjectBullet(proj.id, b.id)}
-                        className="text-ink hover:text-alarm p-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Certifications Tab */}
+        {activeTab === "certifications" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-sm font-bold text-ink">Certifications &amp; Credentials</h3>
+              <button
+                onClick={() =>
+                  store.addCertification({
+                    id: `cert_${Date.now()}`,
+                    name: "",
+                    issuer: "",
+                    issueDate: "",
+                  })
+                }
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-stamp text-white rounded hover:bg-stamp-dark"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Certification
+              </button>
+            </div>
+
+            {certs.length === 0 && (
+              <p className="text-xs text-graphite">No certifications added to this draft yet.</p>
+            )}
+
+            {certs.map((cert) => (
+              <div key={cert.id} className="border rounded-lg p-3 space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+                    <input
+                      type="text"
+                      value={cert.name}
+                      onChange={(e) => store.updateCertification(cert.id, { name: e.target.value })}
+                      placeholder="Certification Name"
+                      className="text-xs font-semibold border rounded p-1.5"
+                    />
+                    <input
+                      type="text"
+                      value={cert.issuer}
+                      onChange={(e) => store.updateCertification(cert.id, { issuer: e.target.value })}
+                      placeholder="Issuing Organization"
+                      className="text-xs border rounded p-1.5"
+                    />
+                    <input
+                      type="text"
+                      value={cert.issueDate || ""}
+                      onChange={(e) => store.updateCertification(cert.id, { issueDate: e.target.value })}
+                      placeholder="Year / Date"
+                      className="text-xs border rounded p-1.5"
+                    />
+                  </div>
+                  <button
+                    onClick={() => store.removeCertification(cert.id)}
+                    className="text-graphite hover:text-alarm p-1"
+                    title="Remove certification"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}

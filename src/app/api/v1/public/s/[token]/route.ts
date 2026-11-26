@@ -7,9 +7,12 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
+  const isPreview = req.nextUrl.searchParams.get("preview") === "1";
 
   try {
-    const resolved = await ShareService.resolveShareToken(token);
+    const resolved = await ShareService.resolveShareToken(token, {
+      incrementView: !isPreview,
+    });
     if (!resolved) {
       return errorResponse(
         "NOT_FOUND",

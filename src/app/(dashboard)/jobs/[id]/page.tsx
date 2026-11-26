@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { JobRecord, JDAnalysis, JDKeyword } from "@/types/job";
 import { KeywordManager } from "@/components/jobs/KeywordManager";
@@ -26,7 +26,7 @@ export default function JobDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "projects" | "roadmap">("overview");
 
-  const fetchJobData = async () => {
+  const fetchJobData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/jobs/${jobId}`);
@@ -42,11 +42,11 @@ export default function JobDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId]);
 
   useEffect(() => {
     if (jobId) fetchJobData();
-  }, [jobId]);
+  }, [jobId, fetchJobData]);
 
   const handleRunAnalysis = async () => {
     setAnalyzing(true);

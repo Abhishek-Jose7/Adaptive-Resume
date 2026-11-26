@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowUpRight, ClipboardPaste, FileText, LoaderCircle, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
 import type { ResumeDoc, ResumeBulletDoc, ResumeSectionDoc, ResumeItemDoc } from "@/types/resume";
+import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 
 type WorkspaceTab = "write" | "history";
 type PreviewPane = "job" | "resume";
@@ -33,7 +34,9 @@ type BankEntry = {
   startDate?: string | null;
   endDate?: string | null;
   isCurrent?: boolean;
-  bullets?: Array<{ id: string; text: string }>;
+  sortOrder?: number;
+  descriptionContext?: string | null;
+  bullets?: Array<{ id: string; text: string; sortOrder?: number }>;
 };
 type WorkspaceRun = { id: string; results: TailoredResult[] };
 type Profile = {
@@ -148,12 +151,25 @@ export function AdaptiveResumeWorkspace() {
     return map;
   }, [bankEntries]);
 
+  const bulletOrderById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of bankEntries) {
+      (entry.bullets || []).forEach((bullet, idx) => {
+        map.set(bullet.id, typeof bullet.sortOrder === "number" ? bullet.sortOrder : idx);
+      });
+    }
+    return map;
+  }, [bankEntries]);
+
   const buildResumeDocument = (): ResumeDoc => {
-    const groups = new Map<string, { entry: BankEntry; bullets: ResumeBulletDoc[] }>();
-    for (const result of currentResults.filter((item) => item.status === "accepted")) {
+    const groups = new Map<string, { entry: BankEntry; bullets: Array<ResumeBulletDoc & { _vaultOrder: number; _relRank: number }> }>();
+    const acceptedResults = currentResults.filter((item) => item.status === "accepted");
+
+    acceptedResults.forEach((result, relIdx) => {
       const entry = sourceByBulletId.get(result.bulletId);
-      if (!entry) continue;
+      if (!entry) return;
       const group = groups.get(entry.id) || { entry, bullets: [] };
+      const sourceBulletId = result.sourceBulletIds?.[0] || result.bulletId;
       group.bullets.push({
         id: result.bulletId,
         text: result.rewrittenText,
@@ -161,31 +177,141 @@ export function AdaptiveResumeWorkspace() {
         sourceBulletIds: result.sourceBulletIds,
         sourceFactIds: result.sourceFactIds,
         validatorStatus: result.validatorStatus === "passed" ? "passed" : "not_applicable",
+        _vaultOrder: bulletOrderById.get(sourceBulletId) ?? relIdx,
+        _relRank: relIdx,
       });
       groups.set(entry.id, group);
+    });
+
+    const getOrderedGroupBullets = (
+      bullets: Array<ResumeBulletDoc & { _vaultOrder: number; _relRank: number }>
+    ): ResumeBulletDoc[] =>
+      [...bullets]
+        .sort((a, b) => a._vaultOrder - b._vaultOrder || a._relRank - b._relRank)
+        .map(({ _vaultOrder: _vo, _relRank: _rr, ...rest }) => rest);
+
+    const expGroups = [...groups.values()]
+      .filter((g) => sectionType(g.entry.entryType) === "experience")
+      .sort((a, b) => compareReverseChronological(a.entry, b.entry));
+
+    const projGroups = [...groups.values()].filter(
+      (g) => sectionType(g.entry.entryType) === "projects"
+    );
+
+    const eduEntries = bankEntries
+      .filter((e) => e.entryType === "education")
+      .sort(compareReverseChronological);
+
+    const skillEntries = bankEntries.filter((e) => e.entryType === "skill_group");
+    const certEntries = bankEntries.filter((e) => e.entryType === "certification");
+
+    const topExperience = expGroups.map(({ entry, bullets }) => ({
+      id: entry.id,
+      company: entry.organization || "",
+      position: entry.title,
+      startDate: entry.startDate || "",
+      endDate: entry.endDate || null,
+      isCurrent: Boolean(entry.isCurrent),
+      location: entry.location || undefined,
+      bullets: getOrderedGroupBullets(bullets),
+    }));
+
+    const topProjects = projGroups.map(({ entry, bullets }) => ({
+      id: entry.id,
+      name: entry.title,
+      role: entry.organization || undefined,
+      description: entry.descriptionContext || undefined,
+      bullets: getOrderedGroupBullets(bullets),
+    }));
+
+    const topEducation = eduEntries.map((entry) => ({
+      id: entry.id,
+      institution: entry.organization || entry.title,
+      degree: entry.title,
+      startDate: entry.startDate || "",
+      endDate: entry.endDate || (entry.isCurrent ? "Present" : ""),
+    }));
+
+    const topSkills: Array<{ name: string; category?: string }> = [];
+    const seenSkill = new Set<string>();
+    for (const sGroup of skillEntries) {
+      for (const b of sGroup.bullets || []) {
+        for (const token of b.text.split(/[,•|\n]/).map((t) => t.trim()).filter(Boolean)) {
+          const key = token.toLowerCase();
+          if (seenSkill.has(key)) continue;
+          seenSkill.add(key);
+          topSkills.push({ name: token, category: sGroup.title });
+        }
+      }
     }
 
-    const sectionTypes = ["experience", "projects", "education", "skills"];
-    const sections: ResumeSectionDoc[] = sectionTypes.map((type) => {
-      const entries = [...groups.values()].filter((group) => sectionType(group.entry.entryType) === type);
-      const items: ResumeItemDoc[] = entries.map(({ entry, bullets }) => ({
+    const topCertifications = certEntries.map((c) => ({
+      id: c.id,
+      name: c.title,
+      issuer: c.organization || "",
+      issueDate: c.startDate || c.endDate || undefined,
+    }));
+
+    const sectionGroups = {
+      experience: expGroups.map(({ entry, bullets }): ResumeItemDoc => {
+        const ordered = getOrderedGroupBullets(bullets);
+        return {
+          id: entry.id,
+          sourceEntryId: entry.id,
+          sourceBulletIds: ordered.flatMap((b) => b.sourceBulletIds),
+          title: entry.title,
+          organization: entry.organization || undefined,
+          dates: { start: entry.startDate || undefined, end: entry.endDate || undefined, current: entry.isCurrent },
+          location: entry.location || undefined,
+          bullets: ordered,
+        };
+      }),
+      projects: projGroups.map(({ entry, bullets }): ResumeItemDoc => {
+        const ordered = getOrderedGroupBullets(bullets);
+        return {
+          id: entry.id,
+          sourceEntryId: entry.id,
+          sourceBulletIds: ordered.flatMap((b) => b.sourceBulletIds),
+          title: entry.title,
+          organization: entry.organization || undefined,
+          bullets: ordered,
+        };
+      }),
+      education: eduEntries.map((entry): ResumeItemDoc => ({
         id: entry.id,
         sourceEntryId: entry.id,
-        sourceBulletIds: bullets.flatMap((bullet) => bullet.sourceBulletIds),
+        sourceBulletIds: [],
         title: entry.title,
         organization: entry.organization || undefined,
         dates: { start: entry.startDate || undefined, end: entry.endDate || undefined, current: entry.isCurrent },
         location: entry.location || undefined,
-        bullets,
-      }));
-      return {
+        bullets: [],
+      })),
+      skills: skillEntries.map((entry): ResumeItemDoc => ({
+        id: entry.id,
+        sourceEntryId: entry.id,
+        sourceBulletIds: (entry.bullets || []).map((b) => b.id),
+        title: entry.title,
+        bullets: (entry.bullets || []).map((b) => ({
+          id: b.id,
+          text: b.text,
+          provenance: "bank",
+          sourceBulletIds: [b.id],
+          sourceFactIds: [],
+          validatorStatus: "not_applicable",
+        })),
+      })),
+    };
+
+    const sections: ResumeSectionDoc[] = (["experience", "projects", "education", "skills"] as const).map(
+      (type) => ({
         id: `section-${type}`,
         type,
         heading: type[0].toUpperCase() + type.slice(1),
-        visible: items.length > 0,
-        items,
-      };
-    });
+        visible: sectionGroups[type].length > 0,
+        items: sectionGroups[type],
+      })
+    );
 
     return {
       schemaVersion: 1,
@@ -208,13 +334,13 @@ export function AdaptiveResumeWorkspace() {
       },
       sections,
       template: { id: "classic-ats", version: "1.0", theme: {} },
-      page: { size: "LETTER", targetPages: 1 },
+      page: { size: "A4", targetPages: 1 },
       metadata: { createdAt: new Date().toISOString() },
-      experience: [],
-      education: [],
-      skills: [],
-      projects: [],
-      certifications: [],
+      experience: topExperience,
+      education: topEducation,
+      skills: topSkills,
+      projects: topProjects,
+      certifications: topCertifications,
     };
   };
 

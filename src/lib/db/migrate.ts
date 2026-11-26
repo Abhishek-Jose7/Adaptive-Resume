@@ -164,6 +164,15 @@ export async function runMigrations() {
           "users.portfolio_url",
         ],
       },
+      "0007_user_settings_and_analytics.sql": {
+        tables: ["user_settings"],
+        indexes: ["user_settings_user_idx"],
+        columns: [
+          "users.portfolio_views",
+          "share_links.view_count",
+          "share_links.last_viewed_at",
+        ],
+      },
     };
 
     // 3. Read generated migration files in drizzle/

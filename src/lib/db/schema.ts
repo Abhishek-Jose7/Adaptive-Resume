@@ -38,6 +38,7 @@ export const users = pgTable(
     githubUrl: text("github_url"),
     linkedinUrl: text("linkedin_url"),
     portfolioUrl: text("portfolio_url"),
+    portfolioViews: integer("portfolio_views").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -489,6 +490,8 @@ export const shareLinks = pgTable(
     redactionsJson: jsonb("redactions_json").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -719,6 +722,30 @@ export const ocrRateLimits = pgTable(
   (table) => [
     uniqueIndex("ocr_rate_limits_user_window_idx").on(table.userId, table.windowType, table.windowKey),
     index("ocr_rate_limits_expires_idx").on(table.expiresAt),
+  ]
+);
+
+// ==========================================
+// 24. Persisted Workspace & Privacy Settings
+// ==========================================
+export const userSettings = pgTable(
+  "user_settings",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    defaultPageSize: text("default_page_size").notNull().default("A4"),
+    defaultTemplateId: text("default_template_id").notNull().default("classic-ats"),
+    themePreference: text("theme_preference").notNull().default("system"),
+    retentionPolicy: text("retention_policy").notNull().default("discard_raw"),
+    portfolioTheme: text("portfolio_theme").notNull().default("editorial"),
+    showViewCounters: boolean("show_view_counters").notNull().default(true),
+    privacyTermsVersion: text("privacy_terms_version").notNull().default("2026-11-18"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("user_settings_user_idx").on(table.userId),
   ]
 );
 

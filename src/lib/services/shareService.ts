@@ -1,8 +1,9 @@
 import { db } from "../db/client";
 import { shareLinks, resumeVersions, users, auditEvents } from "../db/schema";
-import { eq, and, gt, isNull, desc } from "drizzle-orm";
+import { eq, and, gt, isNull, desc, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { ResumeDoc } from "@/types/resume";
+import { SettingsService } from "./settingsService";
 
 export interface CreateShareLinkInput {
   resumeVersionId: string;
@@ -48,7 +49,7 @@ export class ShareService {
       throw new Error("Resume version not found or unauthorized");
     }
 
-    // Generate secure 32-byte URL-safe token
+    // Generate secure URL-safe token
     const token = randomBytes(24).toString("base64url");
     const tokenHash = createHash("sha256").update(token).digest("hex");
 
@@ -69,7 +70,6 @@ export class ShareService {
       })
       .returning();
 
-    // Log audit event
     await db.insert(auditEvents).values({
       id: `audit_${crypto.randomUUID()}`,
       userId,
@@ -91,9 +91,9 @@ export class ShareService {
   }
 
   /**
-   * Resolves a public share token without requiring authentication
+   * Resolves a public share token without requiring authentication and tracks view analytics.
    */
-  static async resolveShareToken(token: string) {
+  static async resolveShareToken(token: string, options: { incrementView?: boolean } = {}) {
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const now = new Date();
 
@@ -106,6 +106,8 @@ export class ShareService {
         redactionsJson: shareLinks.redactionsJson,
         expiresAt: shareLinks.expiresAt,
         revokedAt: shareLinks.revokedAt,
+        viewCount: shareLinks.viewCount,
+        lastViewedAt: shareLinks.lastViewedAt,
         resumeDocJson: resumeVersions.resumeDocJson,
         templateId: resumeVersions.templateId,
         themeJson: resumeVersions.themeJson,
@@ -127,13 +129,35 @@ export class ShareService {
     if (links.length === 0) return null;
 
     const link = links[0];
+    const ownerSettings = await SettingsService.getUserSettings(link.userId);
+    let currentViewCount = link.viewCount ?? 0;
+    let currentLastViewedAt = link.lastViewedAt;
+
+    if (options.incrementView !== false) {
+      try {
+        const [updated] = await db
+          .update(shareLinks)
+          .set({
+            viewCount: sql`${shareLinks.viewCount} + 1`,
+            lastViewedAt: now,
+          })
+          .where(eq(shareLinks.id, link.id))
+          .returning({ viewCount: shareLinks.viewCount, lastViewedAt: shareLinks.lastViewedAt });
+        if (updated) {
+          currentViewCount = updated.viewCount;
+          currentLastViewedAt = updated.lastViewedAt;
+        }
+      } catch {
+        // Resilient if view columns haven't migrated in an external environment
+      }
+    }
+
     const rawDoc = link.resumeDocJson as unknown as ResumeDoc;
     const redactions = (link.redactionsJson as any) || {};
     const scope = (link.scopeJson as any) || {};
 
-    let docCopy: ResumeDoc = JSON.parse(JSON.stringify(rawDoc));
+    const docCopy: ResumeDoc = JSON.parse(JSON.stringify(rawDoc));
 
-    // Redact contact information if requested
     if (redactions.redactContact && docCopy.profile) {
       docCopy.profile = {
         ...docCopy.profile,
@@ -143,6 +167,11 @@ export class ShareService {
       };
     }
 
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil((link.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
     return {
       id: link.id,
       resumeDoc: docCopy,
@@ -151,15 +180,21 @@ export class ShareService {
       pageSize: link.pageSize,
       allowDownload: scope.allowDownload !== false,
       expiresAt: link.expiresAt,
+      daysRemaining,
+      isExpiringSoon: daysRemaining <= 5,
       authorName: link.authorName,
+      showViewCounters: ownerSettings.showViewCounters,
+      viewCount: ownerSettings.showViewCounters ? currentViewCount : undefined,
+      lastViewedAt: ownerSettings.showViewCounters ? currentLastViewedAt : undefined,
     };
   }
 
   /**
-   * Lists active share links for user
+   * Lists share links for user with view analytics and expiry status notifications
    */
   static async listUserShares(userId: string) {
-    return await db
+    const now = Date.now();
+    const rows = await db
       .select({
         id: shareLinks.id,
         resumeVersionId: shareLinks.resumeVersionId,
@@ -167,11 +202,27 @@ export class ShareService {
         redactionsJson: shareLinks.redactionsJson,
         expiresAt: shareLinks.expiresAt,
         revokedAt: shareLinks.revokedAt,
+        viewCount: shareLinks.viewCount,
+        lastViewedAt: shareLinks.lastViewedAt,
         createdAt: shareLinks.createdAt,
       })
       .from(shareLinks)
       .where(eq(shareLinks.userId, userId))
       .orderBy(desc(shareLinks.createdAt));
+
+    return rows.map((row) => {
+      const expiresMs = row.expiresAt.getTime();
+      const daysRemaining = Math.ceil((expiresMs - now) / (1000 * 60 * 60 * 24));
+      const isExpired = expiresMs <= now;
+      const isExpiringSoon = !row.revokedAt && !isExpired && daysRemaining <= 5;
+      return {
+        ...row,
+        viewCount: row.viewCount ?? 0,
+        daysRemaining: Math.max(0, daysRemaining),
+        isExpired,
+        isExpiringSoon,
+      };
+    });
   }
 
   /**

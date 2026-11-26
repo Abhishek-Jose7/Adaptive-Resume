@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FolderGit2,
   CheckCircle2,
@@ -41,7 +41,7 @@ export function ProjectRecommendationPanel({
   const [editProductionReady, setEditProductionReady] = useState(false);
   const [savingMetadata, setSavingMetadata] = useState(false);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/jobs/${jobId}/project-recommendations`);
@@ -67,13 +67,13 @@ export function ProjectRecommendationPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId, onSelectedProjectsChange]);
 
   useEffect(() => {
     if (jobId) {
       fetchRecommendations();
     }
-  }, [jobId]);
+  }, [jobId, fetchRecommendations]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);

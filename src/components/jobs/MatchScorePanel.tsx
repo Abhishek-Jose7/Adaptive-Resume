@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { MatchScoreBreakdown } from "@/lib/scoring/matchScoreEngine";
 import { GapReport } from "@/lib/scoring/gapReportEngine";
@@ -16,7 +16,7 @@ export function MatchScorePanel({ jobId }: Props) {
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchScoreAndGaps = async () => {
+  const fetchScoreAndGaps = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -40,13 +40,13 @@ export function MatchScorePanel({ jobId }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId]);
 
   useEffect(() => {
     if (jobId) {
       fetchScoreAndGaps();
     }
-  }, [jobId]);
+  }, [jobId, fetchScoreAndGaps]);
 
   if (loading) {
     return (
