@@ -274,6 +274,109 @@ describe("Section 18: Advanced Enterprise & Integrity Extensions (v1.2)", () => 
       const removed = await CareerGraphService.deleteEdge(testUserId, edge.id);
       expect(removed).toBe(true);
     });
+
+    it("should auto-categorize unlinked skills and link them to matching projects and groups", async () => {
+      const autoUserId = `test_cg_auto_${Date.now()}`;
+      await db.insert(users).values({
+        id: autoUserId,
+        clerkSubject: `clerk_${autoUserId}`,
+        username: `cgauto_${autoUserId}`,
+        email: `${autoUserId}@example.com`,
+      });
+
+      const projId = `proj_auto_${Date.now()}`;
+      const bulId = `bul_auto_${Date.now()}`;
+      const unlinkedBulId = `bul_unlinked_${Date.now()}`;
+      const skEntryId = `sk_entry_${Date.now()}`;
+      const ragEntryId = `sk_rag_${Date.now()}`;
+
+      await db.insert(bankEntries).values([
+        {
+          id: projId,
+          userId: autoUserId,
+          entryType: "project",
+          title: "Semantic Search Engine",
+          descriptionContext: "Python | RAG | Embeddings | PostgreSQL",
+          visibility: "private",
+          verificationStatus: "verified",
+          sortOrder: 0,
+        },
+        {
+          id: skEntryId,
+          userId: autoUserId,
+          entryType: "skill",
+          title: "Python",
+          visibility: "private",
+          verificationStatus: "unverified",
+          sortOrder: 0,
+        },
+        {
+          id: ragEntryId,
+          userId: autoUserId,
+          entryType: "skill",
+          title: "LangGraph",
+          visibility: "private",
+          verificationStatus: "unverified",
+          sortOrder: 1,
+        },
+      ]);
+
+      await db.insert(achievementBullets).values([
+        {
+          id: bulId,
+          userId: autoUserId,
+          entryId: projId,
+          text: "Built retrieval pipelines using Python and Embeddings over PostgreSQL.",
+          sortOrder: 0,
+          visibility: "private",
+          verificationStatus: "verified",
+          usagePolicy: "eligible",
+        },
+        {
+          id: unlinkedBulId,
+          userId: autoUserId,
+          entryId: projId,
+          text: "Evaluated retrieval recall across test datasets.",
+          sortOrder: 1,
+          visibility: "private",
+          verificationStatus: "verified",
+          usagePolicy: "eligible",
+        },
+      ]);
+
+      await db.insert(bulletFacts).values({
+        id: `fact_orphan_${Date.now()}`,
+        userId: autoUserId,
+        bulletId: null,
+        entryId: skEntryId,
+        factType: "tool",
+        factKey: "tool_rag",
+        valueText: "RAG",
+      });
+
+      const result = await CareerGraphService.autoCategorizeUnlinkedSkills(autoUserId);
+      expect(result.categorizedCount).toBeGreaterThanOrEqual(2);
+      expect(result.linkedCount).toBeGreaterThanOrEqual(2);
+
+      const graph = await CareerGraphService.getGraph(autoUserId);
+      const pythonNode = graph.nodes.find((n) => n.id === "python");
+      const ragNode = graph.nodes.find((n) => n.id === "rag");
+      const langGraphNode = graph.nodes.find((n) => n.id === "langgraph");
+      expect(pythonNode?.category).toBe("Languages");
+      expect(ragNode?.category).toBe("AI & GenAI");
+      expect(langGraphNode?.category).toBe("AI & GenAI");
+      expect(
+        graph.edges.some(
+          (e) =>
+            e.sourceId === projId &&
+            e.targetId === "python" &&
+            e.relationshipType === "skill_used_in_project"
+        )
+      ).toBe(true);
+      expect(
+        graph.edges.some((e) => e.targetId === "rag" && e.relationshipType === "used_skill")
+      ).toBe(true);
+    });
   });
 
   // 18.4 Achievement Quantification Assistant

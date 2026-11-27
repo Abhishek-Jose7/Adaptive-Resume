@@ -79,11 +79,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("profile");
             store.setActiveLocation("profile");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "profile"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "profile"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <User className="w-3.5 h-3.5" /> Contact & Profile
         </button>
@@ -92,11 +91,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("experience");
             store.setActiveLocation("experience");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "experience"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "experience"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <Briefcase className="w-3.5 h-3.5" /> Experience ({experiences.length})
         </button>
@@ -105,11 +103,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("education");
             store.setActiveLocation("education");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "education"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "education"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <GraduationCap className="w-3.5 h-3.5" /> Education ({educations.length})
         </button>
@@ -118,11 +115,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("skills");
             store.setActiveLocation("skills");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "skills"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "skills"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <Code className="w-3.5 h-3.5" /> Skills ({skills.length})
         </button>
@@ -131,11 +127,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("projects");
             store.setActiveLocation("projects");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "projects"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "projects"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <FolderGit2 className="w-3.5 h-3.5" /> Projects ({projects.length})
         </button>
@@ -145,11 +140,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             setActiveTab("certifications");
             store.setActiveLocation("certifications");
           }}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${
-            activeTab === "certifications"
-              ? "border-stamp text-stamp bg-white font-bold"
-              : "border-transparent text-graphite hover:text-ink"
-          }`}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 border-b-2 whitespace-nowrap ${activeTab === "certifications"
+            ? "border-stamp text-stamp bg-white font-bold"
+            : "border-transparent text-graphite hover:text-ink"
+            }`}
         >
           <Award className="w-3.5 h-3.5" /> Certs ({certs.length})
         </button>
@@ -331,9 +325,8 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
             {experiences.map((exp, idx) => (
               <div
                 key={exp.id}
-                className={`border rounded-lg p-4 space-y-3 ${
-                  editorState.activeItemId === exp.id ? "ring-2 ring-stamp bg-stamp-soft" : ""
-                }`}
+                className={`border rounded-lg p-4 space-y-3 ${editorState.activeItemId === exp.id ? "ring-2 ring-stamp bg-stamp-soft" : ""
+                  }`}
               >
                 <div className="flex justify-between items-start">
                   <div className="grid grid-cols-2 gap-2 flex-1 mr-2">
@@ -425,9 +418,8 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
                           rows={2}
                           value={b.text}
                           onChange={(e) => store.updateExperienceBullet(exp.id, b.id, e.target.value)}
-                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
-                            b.pinned ? "border-marker bg-marker-soft" : ""
-                          }`}
+                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${b.pinned ? "border-marker bg-marker-soft" : ""
+                            }`}
                         />
                         <div className="flex flex-col gap-0.5">
                           <button
@@ -453,11 +445,10 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
                           type="button"
                           onClick={() => store.toggleBulletPin(b.id)}
                           title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
-                          className={`p-1.5 rounded transition-colors ${
-                            b.pinned
-                              ? "text-white-dark bg-marker hover:bg-marker font-bold"
-                              : "text-ink hover:text-graphite"
-                          }`}
+                          className={`p-1.5 rounded transition-colors ${b.pinned
+                            ? "text-white-dark bg-marker hover:bg-marker font-bold"
+                            : "text-ink hover:text-graphite"
+                            }`}
                         >
                           <Pin className="w-3.5 h-3.5" />
                         </button>
@@ -651,7 +642,7 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
               </button>
             </div>
 
-            {projects.map((proj) => (
+            {projects.map((proj, idx) => (
               <div key={proj.id} className="border rounded-lg p-3 space-y-2">
                 <div className="flex justify-between items-start">
                   <div className="grid grid-cols-2 gap-2 flex-1 mr-2">
@@ -677,12 +668,33 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
                       className="col-span-2 text-xs border rounded p-1.5"
                     />
                   </div>
-                  <button
-                    onClick={() => store.removeProject(proj.id)}
-                    className="text-graphite hover:text-alarm p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => store.reorderProject(idx, idx - 1)}
+                      className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                      title="Move project up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === projects.length - 1}
+                      onClick={() => store.reorderProject(idx, idx + 1)}
+                      className="p-1 text-graphite hover:text-ink disabled:opacity-25"
+                      title="Move project down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => store.removeProject(proj.id)}
+                      className="text-graphite hover:text-alarm p-1"
+                      title="Remove Project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Project Bullets */}
@@ -715,19 +727,17 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
                           rows={2}
                           value={b.text}
                           onChange={(e) => store.updateProjectBullet(proj.id, b.id, e.target.value)}
-                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${
-                            b.pinned ? "border-marker bg-marker-soft" : ""
-                          }`}
+                          className={`flex-1 text-xs border rounded p-1.5 leading-snug ${b.pinned ? "border-marker bg-marker-soft" : ""
+                            }`}
                         />
                         <button
                           type="button"
                           onClick={() => store.toggleBulletPin(b.id)}
                           title={b.pinned ? "Pinned: protected from AI tailoring" : "Pin bullet (protect from tailoring)"}
-                          className={`p-1.5 rounded transition-colors ${
-                            b.pinned
-                              ? "text-white-dark bg-marker hover:bg-marker font-bold"
-                              : "text-ink hover:text-graphite"
-                          }`}
+                          className={`p-1.5 rounded transition-colors ${b.pinned
+                            ? "text-white-dark bg-marker hover:bg-marker font-bold"
+                            : "text-ink hover:text-graphite"
+                            }`}
                         >
                           <Pin className="w-3.5 h-3.5" />
                         </button>

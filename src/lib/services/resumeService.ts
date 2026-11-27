@@ -17,6 +17,9 @@ import { UsageLimitService } from "./usageLimitService";
 import { SettingsService } from "./settingsService";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import {
+  extractProfileSummaryFromEntries,
+  normalizeDistinctAwardIssuer,
+  selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
 } from "../tailoring/projectAngleSelector";
@@ -122,9 +125,9 @@ export class ResumeService {
     const jdAnalysis = jdRows[0]?.analysisJson as unknown as JDAnalysis | undefined;
     const jdKeywords = jdAnalysis
       ? [
-          ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
-          ...(jdAnalysis.role?.domain || []),
-        ].filter(Boolean)
+        ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
+        ...(jdAnalysis.role?.domain || []),
+      ].filter(Boolean)
       : [];
     const jdTitle = jdAnalysis?.role?.title || undefined;
     const relevanceMap = new Map<string, number>();
@@ -141,15 +144,22 @@ export class ResumeService {
     if (user?.linkedinUrl) links.push({ label: "LinkedIn", url: user.linkedinUrl });
     if (user?.portfolioUrl) links.push({ label: "Portfolio", url: user.portfolioUrl });
 
-    const profileEntry = fullEntries.find((e) => e.entryType === "profile" && e.descriptionContext);
+    const headlineText = (user?.headline || "").trim();
+    const narrativeSummary = extractProfileSummaryFromEntries(fullEntries, headlineText);
 
     const selectBulletsForEntry = (entry: BankEntry, maxBullets: number) => {
       const eligible = (entry.bullets || []).filter((b) => b.usagePolicy !== "never_use");
+      if (entry.entryType === "experience") {
+        return selectExperienceBulletsForRole({
+          bullets: eligible,
+          jdKeywords,
+          jdTitle,
+          maxBullets,
+        });
+      }
       if (!jdAnalysis || eligible.length <= maxBullets) {
-        // Respect curated Vault sortOrder strictly when all fit
         return eligible.slice(0, maxBullets);
       }
-      // Choose highest-scoring bullets for the target role, then sort chosen bullets by curated Vault sortOrder
       const topByRole = [...eligible]
         .sort((a, b) => (relevanceMap.get(b.id) ?? 0) - (relevanceMap.get(a.id) ?? 0) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         .slice(0, maxBullets);
@@ -161,7 +171,7 @@ export class ResumeService {
       .filter((e) => e.entryType === "experience")
       .sort(compareReverseChronological)
       .slice(0, 4)
-      .map((e) => ({
+      .map((e, idx) => ({
         id: e.id,
         company: e.organization || "",
         position: e.title,
@@ -169,7 +179,7 @@ export class ResumeService {
         endDate: e.endDate || null,
         isCurrent: Boolean(e.isCurrent),
         location: e.location || undefined,
-        bullets: selectBulletsForEntry(e, 4).map((b) => ({
+        bullets: selectBulletsForEntry(e, idx <= 1 ? 4 : 3).map((b) => ({
           id: b.id,
           text: b.text,
           provenance: "bank" as const,
@@ -268,19 +278,16 @@ export class ResumeService {
       .map((a) => ({
         id: a.id,
         name: a.title,
-        issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+        issuer: normalizeDistinctAwardIssuer(a.title, a.organization || (a.bullets?.[0]?.text ?? "")),
         issueDate: a.startDate || a.endDate || undefined,
       }));
-
-    const summaryText = (profileEntry?.descriptionContext || "").trim();
-    const headlineText = (user?.headline || "").trim();
 
     return {
       profile: {
         name: user?.displayName || "",
         fullName: user?.displayName || "",
         headline: headlineText,
-        summary: summaryText.toLowerCase() === headlineText.toLowerCase() ? "" : summaryText,
+        summary: narrativeSummary,
         email: user?.contactEmail || user?.email || "",
         phone: user?.phone || "",
         location: user?.location || "",
@@ -315,18 +322,18 @@ export class ResumeService {
           : Promise.resolve(undefined),
       jobId
         ? db
-            .select()
-            .from(jdAnalyses)
-            .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
-            .limit(1)
+          .select()
+          .from(jdAnalyses)
+          .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
+          .limit(1)
         : Promise.resolve([]),
     ]);
     const jdAnalysis = jdRows[0]?.analysisJson as unknown as JDAnalysis | undefined;
     const jdKeywords = jdAnalysis
       ? [
-          ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
-          ...(jdAnalysis.role?.domain || []),
-        ].filter(Boolean)
+        ...(jdAnalysis.keywords || []).flatMap((k) => [k.canonical, ...(k.synonyms || [])]),
+        ...(jdAnalysis.role?.domain || []),
+      ].filter(Boolean)
       : [];
     const resolvedTemplateId = resolvedDocSeed?.template?.id || userDefaults.defaultTemplateId || "classic-ats";
     const resolvedPageSize = resolvedDocSeed?.page?.size || userDefaults.defaultPageSize || "A4";

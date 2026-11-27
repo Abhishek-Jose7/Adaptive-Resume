@@ -16,13 +16,16 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { CareerGraphEdge, CareerGraphRelationType } from "@/types/bank";
+import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 
 interface GraphNode {
   id: string;
   type: "skill" | "project" | "experience" | "bullet" | "evidence";
   label: string;
+  category?: string;
   group: string;
   metadata?: any;
   x?: number;
@@ -42,6 +45,8 @@ export function CareerGraphView() {
   const [targetId, setTargetId] = useState("");
   const [relationType, setRelationType] = useState<CareerGraphRelationType>("used_skill");
   const [submittingEdge, setSubmittingEdge] = useState(false);
+  const [autoCategorizing, setAutoCategorizing] = useState(false);
+  const [autoCategorizeNotice, setAutoCategorizeNotice] = useState<string | null>(null);
 
   const fetchGraph = async () => {
     setLoading(true);
@@ -63,14 +68,73 @@ export function CareerGraphView() {
     fetchGraph();
   }, []);
 
+  const handleAutoCategorize = async () => {
+    setAutoCategorizing(true);
+    setAutoCategorizeNotice(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/career-graph", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto_categorize" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || "Failed to auto-categorize skills");
+      }
+      if (data.graph) {
+        setNodes(data.graph.nodes || []);
+        setEdges(data.graph.edges || []);
+      } else {
+        await fetchGraph();
+      }
+      invalidateVaultCache();
+      const catCount = Number(data.categorizedCount || 0);
+      const linkCount = Number(data.linkedCount || 0);
+      if (catCount > 0 || linkCount > 0) {
+        setAutoCategorizeNotice(
+          `Auto-categorized ${catCount} unlinked skill${catCount === 1 ? "" : "s"} and established ${linkCount} new graph link${linkCount === 1 ? "" : "s"}.`
+        );
+      } else {
+        setAutoCategorizeNotice("All skills are already categorized and linked.");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Could not auto-categorize skills");
+    } finally {
+      setAutoCategorizing(false);
+    }
+  };
+
+  const edgeCountByNodeId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const edge of edges) {
+      counts.set(edge.sourceId, (counts.get(edge.sourceId) || 0) + 1);
+      counts.set(edge.targetId, (counts.get(edge.targetId) || 0) + 1);
+    }
+    return counts;
+  }, [edges]);
+
+  const unlinkedSkillsCount = useMemo(
+    () =>
+      nodes.filter((n) => n.type === "skill" && (edgeCountByNodeId.get(n.id) || 0) === 0).length,
+    [nodes, edgeCountByNodeId]
+  );
+
   // Filter nodes based on search and type
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => {
-      const matchesSearch = n.label.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = filterType === "all" || n.type === filterType;
+      const matchesSearch =
+        n.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (n.category || "").toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType =
+        filterType === "all"
+          ? true
+          : filterType === "unlinked_skills"
+            ? n.type === "skill" && (edgeCountByNodeId.get(n.id) || 0) === 0
+            : n.type === filterType;
       return matchesSearch && matchesType;
     });
-  }, [nodes, searchQuery, filterType]);
+  }, [nodes, searchQuery, filterType, edgeCountByNodeId]);
 
   // Connected edges for the selected node
   const activeNodeEdges = useMemo(() => {
@@ -181,7 +245,20 @@ export function CareerGraphView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleAutoCategorize}
+            disabled={autoCategorizing || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-paper border border-ink/25 hover:bg-paper-deep disabled:opacity-50 text-ink rounded-lg text-xs font-semibold transition-colors"
+            title="Automatically group unlinked skills by domain and link them to matching projects and experiences"
+          >
+            <Sparkles className={`w-3.5 h-3.5 text-stamp ${autoCategorizing ? "animate-pulse" : ""}`} />
+            {autoCategorizing
+              ? "Categorizing…"
+              : unlinkedSkillsCount > 0
+                ? `Auto-categorize unlinked (${unlinkedSkillsCount})`
+                : "Auto-categorize skills"}
+          </button>
           <button
             onClick={fetchGraph}
             className="p-2 text-graphite hover:text-ink rounded-lg hover:bg-paper-deep border border-rule transition-colors"
@@ -199,6 +276,22 @@ export function CareerGraphView() {
         </div>
       </div>
 
+      {autoCategorizeNotice && (
+        <div className="px-4 py-2 bg-press-soft border-b border-press/20 text-press text-xs font-medium flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            {autoCategorizeNotice}
+          </span>
+          <button
+            type="button"
+            onClick={() => setAutoCategorizeNotice(null)}
+            className="text-[11px] font-bold hover:opacity-75"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Control bar */}
       <div className="p-3 bg-sheet/50 border-b border-rule/80 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -208,6 +301,7 @@ export function CareerGraphView() {
           {[
             { id: "all", label: `All (${nodes.length})` },
             { id: "skill", label: "Skills" },
+            { id: "unlinked_skills", label: `Unlinked (${unlinkedSkillsCount})` },
             { id: "project", label: "Projects" },
             { id: "experience", label: "Experiences" },
             { id: "bullet", label: "Achievements" },
@@ -286,7 +380,9 @@ export function CareerGraphView() {
                               {node.label}
                             </p>
                             <p className="text-[10px] text-graphite capitalize">
-                              {node.type}
+                              {node.type === "skill" && node.category && node.category !== "skill"
+                                ? `Skill · ${node.category}`
+                                : node.type}
                             </p>
                           </div>
                         </div>

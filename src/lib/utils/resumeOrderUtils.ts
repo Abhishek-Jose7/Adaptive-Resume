@@ -89,6 +89,10 @@ export function sortResumeEducations(educations: ResumeEducation[]): ResumeEduca
 }
 
 export function sortResumeDocChronologically(doc: ResumeDoc): ResumeDoc {
+  if (doc.metadata?.preserveManualOrder) {
+    return doc;
+  }
+
   const sortedExperience = doc.experience ? sortResumeExperiences(doc.experience) : undefined;
   const sortedEducation = doc.education ? sortResumeEducations(doc.education) : undefined;
 

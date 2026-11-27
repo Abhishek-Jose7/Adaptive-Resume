@@ -458,12 +458,84 @@ export class ResumeDocStore {
   // Reordering helpers
   reorderExperience(startIndex: number, endIndex: number) {
     const result = Array.from(this.state.doc.experience || []);
+    if (
+      startIndex < 0 ||
+      endIndex < 0 ||
+      startIndex >= result.length ||
+      endIndex >= result.length
+    ) {
+      return;
+    }
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
 
+    const updatedSections = (this.state.doc.sections || []).map((sec) =>
+      sec.type === "experience"
+        ? {
+            ...sec,
+            items: result.map((e) => ({
+              id: e.id,
+              sourceEntryId: e.id,
+              sourceBulletIds: e.bullets.flatMap((b) => b.sourceBulletIds || [b.id]),
+              title: e.position,
+              organization: e.company,
+              dates: { start: e.startDate, end: e.endDate || undefined, current: e.isCurrent },
+              location: e.location,
+              bullets: e.bullets,
+            })),
+          }
+        : sec
+    );
+
     const newDoc: ResumeDoc = {
       ...this.state.doc,
+      metadata: {
+        ...this.state.doc.metadata,
+        preserveManualOrder: true,
+      },
       experience: result,
+      sections: updatedSections,
+    };
+    this.pushState(newDoc);
+  }
+
+  reorderProject(startIndex: number, endIndex: number) {
+    const result = Array.from(this.state.doc.projects || []);
+    if (
+      startIndex < 0 ||
+      endIndex < 0 ||
+      startIndex >= result.length ||
+      endIndex >= result.length
+    ) {
+      return;
+    }
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+
+    const updatedSections = (this.state.doc.sections || []).map((sec) =>
+      sec.type === "projects"
+        ? {
+            ...sec,
+            items: result.map((p) => ({
+              id: p.id,
+              sourceEntryId: p.id,
+              sourceBulletIds: p.bullets.flatMap((b) => b.sourceBulletIds || [b.id]),
+              title: p.name,
+              organization: p.role,
+              bullets: p.bullets,
+            })),
+          }
+        : sec
+    );
+
+    const newDoc: ResumeDoc = {
+      ...this.state.doc,
+      metadata: {
+        ...this.state.doc.metadata,
+        preserveManualOrder: true,
+      },
+      projects: result,
+      sections: updatedSections,
     };
     this.pushState(newDoc);
   }

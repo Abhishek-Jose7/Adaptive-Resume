@@ -14,9 +14,14 @@ import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
 import { budgetResumeForOnePageA4, estimateA4DensityUnits } from "@/lib/editor/onePageA4Budgeter";
 import {
+  extractProfileSummaryFromEntries,
+  normalizeDistinctAwardIssuer,
+  selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
 } from "@/lib/tailoring/projectAngleSelector";
+import { ResumeDocStore } from "@/lib/editor/resumeDocStore";
+import { buildResumePdfFilename, generateResumePdfBlob } from "@/lib/export/pdfGenerator";
 import { ResumeDoc } from "@/types/resume";
 
 describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () => {
@@ -502,7 +507,7 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     expect(fitted.awards?.map((a) => a.name)).toContain("2x Hackathon Winner [PKP Hacks]");
     expect((fitted.projects || []).length).toBeLessThanOrEqual(3);
     expect(fitted.projects?.[0].name).toContain("Nyaaya AI");
-    expect(estimateA4DensityUnits(fitted)).toBeLessThanOrEqual(2950);
+    expect(estimateA4DensityUnits(fitted)).toBeLessThanOrEqual(4050);
 
     const txt = PlainTextSerializer.serialize(fitted);
     expect(txt).toContain("ACHIEVEMENTS & AWARDS");
@@ -605,5 +610,90 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     };
     const budgeted = budgetResumeForOnePageA4(confDoc, { jdKeywords: ["Python", "API"] });
     expect(budgeted.projects?.[0].id).toBe("p_high");
+  });
+
+  it("extracts narrative summary, prioritizes technical bullets, preserves editor reordering, and exports named PDF", async () => {
+    const summary = extractProfileSummaryFromEntries(
+      [
+        {
+          entryType: "profile",
+          title: "Personal Details",
+          descriptionContext: "Third-year Computer Engineering student",
+          bullets: [{ text: "Headline: Third-year Computer Engineering student" }],
+        },
+        {
+          entryType: "profile",
+          title: "Professional Summary",
+          descriptionContext:
+            "Computer Engineering student focused on full-stack systems, LLM agents, and production APIs.",
+          bullets: [],
+        },
+      ],
+      "Third-year Computer Engineering student"
+    );
+    expect(summary).toContain("LLM agents, and production APIs");
+
+    const expBullets = selectExperienceBulletsForRole({
+      bullets: [
+        { id: "b1", text: "Serving as a core council member, managing technical initiatives across activities." },
+        { id: "b2", text: "Coordinating registration and event operations across colleges." },
+        {
+          id: "b3",
+          text: "Architected end-to-end hackathon infrastructure for 259 online and 52 offline teams with HMAC check-ins.",
+        },
+        {
+          id: "b4",
+          text: "Optimized backend throughput via Redis distributed locks and PostgreSQL pooling at <500ms p95 latency.",
+        },
+      ],
+      jdKeywords: ["PostgreSQL", "API", "Python"],
+      jdTitle: "AI Engineer",
+      maxBullets: 2,
+    });
+    expect(expBullets.map((b) => b.id)).toEqual(expect.arrayContaining(["b3", "b4"]));
+    expect(normalizeDistinctAwardIssuer("2x Hackathon Winner [Pixels Sies]", "2x Hackathon Winner [Pixels Sies]")).toBe("");
+
+    const store = new ResumeDocStore({
+      schemaVersion: 1,
+      documentId: "res_reorder",
+      versionId: "ver_reorder",
+      profile: {
+        name: "Alex Morgan",
+        fullName: "Alex Morgan",
+        headline: "AI Engineer",
+        email: "alex@example.com",
+        links: [],
+      },
+      sections: [],
+      template: { id: "classic-ats", version: "1.0", theme: {} },
+      page: { size: "A4", targetPages: 1 },
+      metadata: { createdAt: new Date().toISOString() },
+      experience: [
+        { id: "e1", company: "Old Co", position: "Intern", startDate: "2024-01", endDate: "2024-06", bullets: [] },
+        { id: "e2", company: "New Co", position: "Engineer", startDate: "2025-01", isCurrent: true, bullets: [] },
+      ],
+      projects: [
+        { id: "p1", name: "First Project", bullets: [{ id: "pb1", text: "Built backend API.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" }] },
+        { id: "p2", name: "Second Project", bullets: [{ id: "pb2", text: "Built agent pipeline.", provenance: "bank", sourceBulletIds: [], sourceFactIds: [], validatorStatus: "passed" }] },
+      ],
+      education: [],
+      skills: [],
+    });
+    store.reorderExperience(0, 1);
+    store.reorderProject(0, 1);
+    const reordered = store.getState().doc;
+    expect(reordered.experience?.[0].id).toBe("e2");
+    expect(reordered.projects?.[0].id).toBe("p2");
+
+    const preserved = budgetResumeForOnePageA4(reordered);
+    expect(preserved.projects?.[0].id).toBe("p2");
+
+    const filename = buildResumePdfFilename(reordered, { resumeTitle: "AI Engineer, Agent Development resume" });
+    expect(filename).toBe("Alex_AI_Engineer_Agent_Development.pdf");
+
+    const pdfBlob = generateResumePdfBlob(reordered);
+    const pdfBytes = new Uint8Array(await pdfBlob.arrayBuffer());
+    const header = String.fromCharCode(...pdfBytes.slice(0, 5));
+    expect(header).toBe("%PDF-");
   });
 });

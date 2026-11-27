@@ -9,6 +9,9 @@ import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import {
+  extractProfileSummaryFromEntries,
+  normalizeDistinctAwardIssuer,
+  selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
 } from "@/lib/tailoring/projectAngleSelector";
@@ -265,7 +268,7 @@ export function AdaptiveResumeWorkspace() {
     const certEntries = bankEntries.filter((e) => e.entryType === "certification");
     const awardEntries = bankEntries.filter((e) => e.entryType === "award");
 
-    const topExperience = expGroups.map(({ entry, bullets }) => ({
+    const topExperience = expGroups.map(({ entry, bullets }, idx) => ({
       id: entry.id,
       company: entry.organization || "",
       position: entry.title,
@@ -273,7 +276,12 @@ export function AdaptiveResumeWorkspace() {
       endDate: entry.endDate || null,
       isCurrent: Boolean(entry.isCurrent),
       location: entry.location || undefined,
-      bullets: getOrderedGroupBullets(bullets),
+      bullets: selectExperienceBulletsForRole({
+        bullets: getOrderedGroupBullets(bullets),
+        jdKeywords: workspaceJdKeywords,
+        jdTitle: workspaceRoleTitle,
+        maxBullets: idx <= 1 ? 4 : 3,
+      }),
     }));
 
     const topProjects = projGroups.map(({ entry, confidenceRank, selectedBullets }) => ({
@@ -316,9 +324,11 @@ export function AdaptiveResumeWorkspace() {
     const topAwards = awardEntries.map((a) => ({
       id: a.id,
       name: a.title,
-      issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+      issuer: normalizeDistinctAwardIssuer(a.title, a.organization || (a.bullets?.[0]?.text ?? "")),
       issueDate: a.startDate || a.endDate || undefined,
     }));
+
+    const narrativeSummary = extractProfileSummaryFromEntries(bankEntries, profile.headline || "");
 
     const sectionGroups = {
       experience: expGroups.map(({ entry, bullets }): ResumeItemDoc => {
@@ -387,7 +397,7 @@ export function AdaptiveResumeWorkspace() {
         name: profile.displayName || "",
         fullName: profile.displayName || "",
         headline: profile.headline || "",
-        summary: "",
+        summary: narrativeSummary,
         email: profile.email || "",
         phone: profile.phone || "",
         location: profile.location || "",

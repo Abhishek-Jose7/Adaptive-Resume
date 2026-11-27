@@ -16,6 +16,9 @@ import {
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { analyzeRoleFitAgainstVault, extractRoleTitleFromJd } from "@/lib/scoring/roleFitInsight";
 import {
+  extractProfileSummaryFromEntries,
+  normalizeDistinctAwardIssuer,
+  selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
 } from "@/lib/tailoring/projectAngleSelector";
@@ -277,7 +280,16 @@ export function FigmaDashboardView() {
 
       const orderedExperience = bankEntries
         .filter((e) => e.entryType === "experience")
-        .sort(compareReverseChronological);
+        .sort(compareReverseChronological)
+        .map((e, idx) => ({
+          ...e,
+          rankedBullets: selectExperienceBulletsForRole({
+            bullets: (e.bullets || []).map(mapBullet),
+            jdKeywords,
+            jdTitle: roleTitle,
+            maxBullets: idx <= 1 ? 4 : 3,
+          }),
+        }));
       const orderedProjects = sortProjectsByConfidenceAndRelevance(
         bankEntries.filter((e) => e.entryType === "project").map((e) => ({ ...e, bullets: e.bullets || [] })),
         jdKeywords,
@@ -296,7 +308,7 @@ export function FigmaDashboardView() {
           jdKeywords,
           jdTitle: roleTitle,
           confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
-          maxBullets: 2,
+          maxBullets: 3,
         });
         const selectedBullets = angleSelection.bullets.map((text, bIdx) => {
           const existing = mappedByText.get(text.trim());
@@ -319,7 +331,7 @@ export function FigmaDashboardView() {
       const orderedEducation = bankEntries
         .filter((e) => e.entryType === "education")
         .sort(compareReverseChronological);
-      const profileEntry = bankEntries.find((e) => e.entryType === "profile" && e.descriptionContext);
+      const narrativeSummary = extractProfileSummaryFromEntries(bankEntries, meRes.headline || "");
 
       const sections = [
         {
@@ -330,12 +342,12 @@ export function FigmaDashboardView() {
           items: orderedExperience.map((e) => ({
             id: e.id,
             sourceEntryId: e.id,
-            sourceBulletIds: (e.bullets || []).map((b) => b.id),
+            sourceBulletIds: e.rankedBullets.flatMap((b) => b.sourceBulletIds),
             title: e.title,
             organization: e.organization || undefined,
             dates: { start: e.startDate || undefined, end: e.endDate || undefined, current: e.isCurrent },
             location: e.location || undefined,
-            bullets: (e.bullets || []).map(mapBullet),
+            bullets: e.rankedBullets,
           })),
         },
         {
@@ -415,7 +427,7 @@ export function FigmaDashboardView() {
         .map((a) => ({
           id: a.id,
           name: a.title,
-          issuer: a.organization || (a.bullets?.[0]?.text ?? ""),
+          issuer: normalizeDistinctAwardIssuer(a.title, a.organization || (a.bullets?.[0]?.text ?? "")),
           issueDate: a.startDate || a.endDate || undefined,
         }));
 
@@ -428,7 +440,7 @@ export function FigmaDashboardView() {
           name: meRes.displayName || "",
           fullName: meRes.displayName || "",
           headline: meRes.headline || "",
-          summary: profileEntry?.descriptionContext || "",
+          summary: narrativeSummary,
           email: meRes.email || "",
           phone: meRes.phone || "",
           location: meRes.location || "",
@@ -450,7 +462,7 @@ export function FigmaDashboardView() {
           endDate: e.endDate || null,
           isCurrent: e.isCurrent ?? false,
           location: e.location || undefined,
-          bullets: (e.bullets || []).map(mapBullet),
+          bullets: e.rankedBullets,
         })),
         projects: orderedProjects.map(({ entry: e, confidenceRank, selectedBullets }) => ({
           id: e.id,
@@ -644,7 +656,8 @@ export function FigmaDashboardView() {
                 <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                   <button
                     type="button"
-                    disabled={analyzingRole || creatingResume || jobText.trim().length < 20}
+                    className="analyze-btn"
+                    disabled={analyzingRole || creatingResume || jobText.trim().length < 5}
                     onClick={handleAnalyze}
                   >
                     {analyzingRole ? (
@@ -736,20 +749,27 @@ export function FigmaDashboardView() {
                     </div>
                   )}
 
-                  {analysisResult?.missingSkills && analysisResult.missingSkills.length > 0 && (
-                    <div className="req-group">
-                      <span className="req-group-title">
-                        <i className="dot-neutral" /> Unrecorded Role Requirements ({analysisResult.missingSkills.length})
-                      </span>
-                      <div className="req-pills">
-                        {analysisResult.missingSkills.map((sk) => (
-                          <span key={sk} className="pill-unrecorded">
-                            ○ {sk}
-                          </span>
-                        ))}
+                  {(() => {
+                    const tagSet = new Set(analysisResult?.tagOnlySkills || []);
+                    const strictlyMissing = (analysisResult?.missingSkills || []).filter(
+                      (sk) => !tagSet.has(sk)
+                    );
+                    if (strictlyMissing.length === 0) return null;
+                    return (
+                      <div className="req-group">
+                        <span className="req-group-title">
+                          <i className="dot-neutral" /> Unrecorded Role Requirements ({strictlyMissing.length})
+                        </span>
+                        <div className="req-pills">
+                          {strictlyMissing.map((sk) => (
+                            <span key={sk} className="pill-unrecorded">
+                              ○ {sk}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
 

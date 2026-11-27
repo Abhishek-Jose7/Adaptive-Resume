@@ -250,13 +250,17 @@ export function ModernAtsTemplate({
             <span className="flex-1 border-b border-[#becbbf]" />
           </h2>
           <ul className="list-disc pl-4 mt-1 space-y-0.5 text-xs text-gray-700">
-            {(doc.awards || []).map((a) => (
-              <li key={a.id}>
-                <span className="font-semibold text-gray-900">{a.name}</span>
-                {a.issuer ? `: ${a.issuer}` : ""}
-                {a.issueDate && <span className="text-gray-500"> ({a.issueDate})</span>}
-              </li>
-            ))}
+            {(doc.awards || []).map((a) => {
+              const showIssuer =
+                a.issuer && a.issuer.trim().toLowerCase() !== a.name.trim().toLowerCase();
+              return (
+                <li key={a.id}>
+                  <span className="font-semibold text-gray-900">{a.name}</span>
+                  {showIssuer ? `: ${a.issuer}` : ""}
+                  {a.issueDate && <span className="text-gray-500"> ({a.issueDate})</span>}
+                </li>
+              );
+            })}
             {(doc.certifications || []).map((c) => (
               <li key={c.id}>
                 <span className="font-semibold text-gray-900">{c.name}</span>

@@ -1,6 +1,10 @@
 import { ResumeDoc, ResumeProject, ResumeExperience, ResumeCertification } from "@/types/resume";
 import { sortResumeDocChronologically } from "@/lib/utils/resumeOrderUtils";
-import { confidenceRankToBonus } from "@/lib/tailoring/projectAngleSelector";
+import {
+  confidenceRankToBonus,
+  normalizeDistinctAwardIssuer,
+  selectExperienceBulletsForRole,
+} from "@/lib/tailoring/projectAngleSelector";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -80,30 +84,41 @@ export function estimateA4DensityUnits(doc: ResumeDoc): number {
   return units;
 }
 
-const TARGET_A4_UNITS = 2950;
+const TARGET_A4_UNITS = 4050;
 
 /**
- * Shapes a generated/edited ResumeDoc to fit comfortably on a single A4 page (`210mm x 297mm`):
- * - Maintains reverse-chronological order for Experience & Education
- * - Preserves user's curated bullet order within each entry
- * - Retains awards/hackathon wins & certifications
- * - Prunes lowest-relevance overflow projects/excess trailing bullets only when exceeding 1 A4 page
+ * Shapes a generated/edited ResumeDoc to fit comfortably on a single A4 page (`210mm x 297mm`)
+ * while utilizing full page space without leaving large bottom gaps:
+ * - Maintains reverse-chronological order for Experience & Education unless user reordered manually
+ * - Prioritizes technical/measured experience bullets & user project confidence rank
+ * - Retains Professional Summary, 3 projects (when space allows), and awards/certifications
  */
 export function budgetResumeForOnePageA4(
   inputDoc: ResumeDoc,
-  options?: { jdKeywords?: string[] }
+  options?: { jdKeywords?: string[]; preserveOrder?: boolean }
 ): ResumeDoc {
-  const ordered = sortResumeDocChronologically({
-    ...inputDoc,
-    page: {
-      size: inputDoc.page?.size || "A4",
-      targetPages: 1,
-    },
-  });
+  const preserveManualOrder =
+    Boolean(options?.preserveOrder) || Boolean(inputDoc.metadata?.preserveManualOrder);
+
+  const ordered = preserveManualOrder
+    ? {
+        ...inputDoc,
+        page: {
+          size: inputDoc.page?.size || "A4",
+          targetPages: 1,
+        },
+      }
+    : sortResumeDocChronologically({
+        ...inputDoc,
+        page: {
+          size: inputDoc.page?.size || "A4",
+          targetPages: 1,
+        },
+      });
 
   const jdKeywords = (options?.jdKeywords || []).filter((k) => k.length > 1);
 
-  // Drop redundant summary when it just duplicates headline
+  // Drop redundant summary only when it literally duplicates the headline
   const headline = (ordered.profile?.headline || "").trim();
   const summary = (ordered.profile?.summary || "").trim();
   const cleanedSummary =
@@ -111,12 +126,16 @@ export function budgetResumeForOnePageA4(
       ? ""
       : summary;
 
-  let experience: ResumeExperience[] = (ordered.experience || []).slice(0, 3).map((e) => ({
+  let experience: ResumeExperience[] = (ordered.experience || []).slice(0, 3).map((e, idx) => ({
     ...e,
-    bullets: [...(e.bullets || [])],
+    bullets: selectExperienceBulletsForRole({
+      bullets: e.bullets || [],
+      jdKeywords,
+      maxBullets: idx <= 1 ? 4 : 3,
+    }),
   }));
 
-  // Rank projects by JD keyword overlap + user confidence rank while preserving tie order
+  // Rank projects by JD keyword overlap + user confidence rank unless user reordered manually
   const rawProjects = (ordered.projects || []).map((p, idx) => {
     const blob = [p.name, p.role || "", p.description || "", ...(p.bullets || []).map((b) => b.text)].join(" ");
     const relevanceScore = scoreTextRelevance(blob, jdKeywords) * 10;
@@ -131,12 +150,15 @@ export function budgetResumeForOnePageA4(
       idx,
     };
   });
-  if (jdKeywords.length > 0 || rawProjects.some((r) => r.hasConfidenceRank)) {
+  if (!preserveManualOrder && (jdKeywords.length > 0 || rawProjects.some((r) => r.hasConfidenceRank))) {
     rawProjects.sort((a, b) => b.score - a.score || a.idx - b.idx);
   }
   let projects: ResumeProject[] = rawProjects.slice(0, 3).map((r) => r.proj);
 
-  const awards: ResumeCertification[] = [...(ordered.awards || [])];
+  const awards: ResumeCertification[] = (ordered.awards || []).map((a) => ({
+    ...a,
+    issuer: normalizeDistinctAwardIssuer(a.name, a.issuer),
+  }));
   const certifications: ResumeCertification[] = [...(ordered.certifications || [])];
 
   const makeCandidate = (): ResumeDoc => ({
@@ -189,39 +211,44 @@ export function budgetResumeForOnePageA4(
     );
   }
 
-  // Pass 2: Trim secondary experiences to max 3 bullets (preserving first curated bullets)
+  // Pass 2: Trim secondary experiences to max 3 bullets, keeping primary roles rich (4 bullets)
   if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
     experience = experience.map((e, idx) =>
-      e.bullets.length > (idx === 0 ? 4 : 3)
-        ? { ...e, bullets: e.bullets.slice(0, idx === 0 ? 4 : 3) }
+      e.bullets.length > (idx <= 1 ? 4 : 3)
+        ? { ...e, bullets: e.bullets.slice(0, idx <= 1 ? 4 : 3) }
         : e
     );
   }
 
-  // Pass 3: Trim project bullets to 2 each
+  // Pass 3: Trim project bullets to 3 each (keeping stack line + 2 bullets when applicable)
+  if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
+    projects = projects.map((p) =>
+      p.bullets.length > 3 ? { ...p, bullets: p.bullets.slice(0, 3) } : p
+    );
+  }
+
+  // Pass 4: Trim primary experience from 4 -> 3 bullets & project bullets to 2 if still overflowing
+  if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
+    experience = experience.map((e) =>
+      e.bullets.length > 3 ? { ...e, bullets: e.bullets.slice(0, 3) } : e
+    );
+  }
   if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
     projects = projects.map((p) =>
       p.bullets.length > 2 ? { ...p, bullets: p.bullets.slice(0, 2) } : p
     );
   }
 
-  // Pass 4: Trim primary experience from 5 -> 3 bullets if still overflowing
-  if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
-    experience = experience.map((e) =>
-      e.bullets.length > 3 ? { ...e, bullets: e.bullets.slice(0, 3) } : e
-    );
-  }
-
-  // Pass 5: If 3+ projects still overflow A4, keep the top 2 most role-relevant projects
-  if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS && projects.length > 2) {
-    projects = projects.slice(0, 2);
-  }
-
-  // Pass 6: Final gentle cap to 2 bullets on older experiences if still tight
+  // Pass 5: Gentle cap to 2 bullets on older experiences before dropping a 3rd project
   if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS) {
     experience = experience.map((e, idx) =>
       idx > 0 && e.bullets.length > 2 ? { ...e, bullets: e.bullets.slice(0, 2) } : e
     );
+  }
+
+  // Pass 6: Only if 3+ projects still overflow A4, keep the top 2 most role-relevant / confident projects
+  if (estimateA4DensityUnits(makeCandidate()) > TARGET_A4_UNITS && projects.length > 2) {
+    projects = projects.slice(0, 2);
   }
 
   return makeCandidate();

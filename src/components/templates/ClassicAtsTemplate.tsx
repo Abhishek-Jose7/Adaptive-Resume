@@ -255,13 +255,17 @@ export function ClassicAtsTemplate({
             Achievements &amp; Certifications
           </h2>
           <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[9pt] text-gray-800">
-            {awards.map((a) => (
-              <li key={a.id} className="leading-snug">
-                <span className="font-bold text-gray-900">{a.name}</span>
-                {a.issuer ? `: ${a.issuer}` : ""}
-                {a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}
-              </li>
-            ))}
+            {awards.map((a) => {
+              const showIssuer =
+                a.issuer && a.issuer.trim().toLowerCase() !== a.name.trim().toLowerCase();
+              return (
+                <li key={a.id} className="leading-snug">
+                  <span className="font-bold text-gray-900">{a.name}</span>
+                  {showIssuer ? `: ${a.issuer}` : ""}
+                  {a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}
+                </li>
+              );
+            })}
             {certifications.map((c) => (
               <li key={c.id} className="leading-snug">
                 <span className="font-bold text-gray-900">{c.name}</span>

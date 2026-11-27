@@ -134,6 +134,8 @@ export interface ProjectMetadata {
 // Section 18.3: Career Graph
 export type CareerGraphRelationType =
   | "used_skill"
+  | "skill_used_in_project"
+  | "skill_used_in_experience"
   | "produced_outcome"
   | "demonstrated_competency"
   | "verified_by";

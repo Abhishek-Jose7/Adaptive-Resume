@@ -15,7 +15,7 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   {
     canonical: "AI Agents",
     aliases: ["AI Agent", "AI Agents", "Agent", "Agents", "Agentic", "Conversational Agents", "Multi-Agent", "Tool Use", "Tool Calling", "Function Calling"],
-    pattern: /\b(ai agents?|conversational agents?|multi-agent|agentic|autonomous agents?|agents?|tool use|tool calling|function calling)\b/i,
+    pattern: /\b(ai agents?|conversational agents?|multi[- ]agent|agentic(?:\s+workflows?)?|autonomous (?:agents?|systems?)|agents?|tool use|tool[- ]calls?|tool calling|function calling)\b/i,
     category: "domain",
   },
   {
@@ -27,7 +27,7 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   {
     canonical: "RAG",
     aliases: ["RAG", "Retrieval-Augmented Generation", "Retrieval Augmented Generation"],
-    pattern: /\b(rag|retrieval[- ]augmented generation)\b/i,
+    pattern: /\b(rag|retrieval[- ]augmented generation|(?:llm[- ]powered|semantic|contextual)\s+retrieval)\b/i,
     category: "domain",
   },
   {
@@ -51,7 +51,7 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   {
     canonical: "Prompt Engineering",
     aliases: ["Prompt Engineering", "LLM Prompting", "Structured Outputs", "Context Engineering"],
-    pattern: /\b(prompt(?:ing| engineering)|llm prompting|context engineering|structured outputs?)\b/i,
+    pattern: /\b(prompt(?:ing| engineering)|llm prompting|context engineering|structured outputs?|decision normalization)\b/i,
     category: "domain",
   },
   {
@@ -387,11 +387,26 @@ export function analyzeRoleFitAgainstVault(
     .map((entry) => {
       const isSkillEntry = entry.entryType === "skill_group" || entry.entryType === "skill";
       const bulletProofParts: string[] = [];
-      const tagOnlyParts: string[] = [entry.title, entry.organization || "", entry.descriptionContext || ""];
+      const tagOnlyParts: string[] = [entry.title, entry.organization || ""];
 
       if (isSkillEntry) {
+        if (entry.descriptionContext) tagOnlyParts.push(entry.descriptionContext);
         for (const b of entry.bullets || []) tagOnlyParts.push(b.text);
       } else {
+        // Non-pipe prose in descriptionContext on built projects/experience counts as evidence;
+        // concise pipe stack tags ("Next.js | Groq | RAG") remain classified under stack tags
+        // unless corroborated by a built bullet (when a project has real achievement bullets, its
+        // stack/context belongs to that real project rather than an empty standalone skill list).
+        const hasAchievementBullets = (entry.bullets || []).some((b) => !isStackTagLine(b.text));
+        if (entry.descriptionContext) {
+          if (!isStackTagLine(entry.descriptionContext)) {
+            bulletProofParts.push(entry.descriptionContext);
+          } else if (entry.entryType === "project" && hasAchievementBullets) {
+            bulletProofParts.push(entry.descriptionContext);
+          } else {
+            tagOnlyParts.push(entry.descriptionContext);
+          }
+        }
         for (const f of entry.facts || []) {
           if (f.valueText) bulletProofParts.push(f.valueText);
         }
@@ -456,7 +471,7 @@ export function analyzeRoleFitAgainstVault(
     .slice(0, 3);
 
   const totalCriteria = matchedSkills.length + tagOnlySkills.length + missingSkills.length;
-  const weightedHits = matchedSkills.length + tagOnlySkills.length * 0.45;
+  const weightedHits = matchedSkills.length + tagOnlySkills.length * 0.6;
   const score =
     entries.length > 0 && totalCriteria > 0
       ? Math.min(98, Math.round((weightedHits / totalCriteria) * 100))

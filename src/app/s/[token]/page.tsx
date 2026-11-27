@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
+import { downloadResumePdf } from "@/lib/export/pdfGenerator";
 import { ResumeDoc } from "@/types/resume";
 import { FileDown, AlertCircle, Eye, Clock } from "lucide-react";
 
@@ -62,7 +63,15 @@ export default function PublicSharePage({
   }, [data]);
 
   const handleDownloadPdf = () => {
-    window.print();
+    if (!data?.resumeDoc) return;
+    const shareDocForPdf: ResumeDoc = {
+      ...data.resumeDoc,
+      page: {
+        size: (data.pageSize as "A4" | "LETTER") || data.resumeDoc?.page?.size || "A4",
+        targetPages: data.resumeDoc?.page?.targetPages || 1,
+      },
+    };
+    downloadResumePdf(shareDocForPdf, { fallbackFirstName: data.authorName || undefined });
   };
 
   if (loading) {

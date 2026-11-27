@@ -6,6 +6,7 @@ import { TemplateRenderer } from "@/components/templates/TemplateRenderer";
 import { AtsLinter } from "@/lib/editor/atsLinter";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
 import { budgetResumeForOnePageA4 } from "@/lib/editor/onePageA4Budgeter";
+import { downloadResumePdf } from "@/lib/export/pdfGenerator";
 import { PlainTextSerializer } from "@/lib/export/plainTextSerializer";
 import {
   Undo,
@@ -32,6 +33,7 @@ interface Props {
   store: ResumeDocStore;
   editorState: EditorState;
   resumeId: string;
+  resumeTitle?: string;
   autosaveStatus: "saved" | "saving" | "conflict" | "error";
 }
 
@@ -39,6 +41,7 @@ export function EditorPreviewPanel({
   store,
   editorState,
   resumeId,
+  resumeTitle,
   autosaveStatus,
 }: Props) {
   const doc = editorState.doc;
@@ -130,12 +133,21 @@ export function EditorPreviewPanel({
     }
   };
 
+  const handleDownloadPdf = () => {
+    setExporting("pdf");
+    try {
+      downloadResumePdf(doc, { resumeTitle });
+    } finally {
+      setTimeout(() => setExporting(null), 800);
+    }
+  };
+
   const handleQualityGateProceed = (format: "pdf" | "docx") => {
     setShowQualityGateModal(false);
     if (format === "docx") {
       handleExportDocx();
     } else {
-      window.open(`/resumes/${resumeId}/print`, "_blank");
+      handleDownloadPdf();
     }
   };
 
@@ -238,14 +250,15 @@ export function EditorPreviewPanel({
             <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.7} />
             Quality gate
           </button>
-          <Link
-            href={`/resumes/${resumeId}/print?download=1`}
-            target="_blank"
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={exporting === "pdf"}
             className="btn btn-sm btn-primary"
           >
             <Download className="h-3.5 w-3.5" strokeWidth={1.7} />
-            Download PDF
-          </Link>
+            {exporting === "pdf" ? "Saving PDF…" : "Download PDF"}
+          </button>
           <Link href={`/resumes/${resumeId}/print`} target="_blank" className="btn btn-sm">
             <Printer className="h-3.5 w-3.5" strokeWidth={1.7} />
             Print

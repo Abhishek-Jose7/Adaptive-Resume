@@ -211,6 +211,7 @@ export default function ResumeEditorPage() {
             store={store}
             editorState={editorState}
             resumeId={resumeId}
+            resumeTitle={resumeTitle}
             autosaveStatus={autosaveStatus}
           />
         </div>

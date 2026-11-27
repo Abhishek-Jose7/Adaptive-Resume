@@ -124,6 +124,7 @@ export interface ResumeMetadataDoc {
   updatedAt?: string;
   jdHash?: string;
   promptVersion?: string;
+  preserveManualOrder?: boolean;
 }
 
 export interface ResumeDoc {

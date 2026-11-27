@@ -309,13 +309,172 @@ function getActiveDomainBuckets(
 
 /**
  * Converts a user-assigned project confidence rank (0 = #1 highest confidence)
- * into a deterministic scoring bonus used to break ties and prioritize projects.
+ * into a meaningful scoring bonus so user preference guides selection cleanly.
  */
 export function confidenceRankToBonus(confidenceRank?: number | null): number {
   if (typeof confidenceRank !== "number" || !Number.isFinite(confidenceRank) || confidenceRank < 0) {
     return 0;
   }
-  return Math.max(0, 12 - Math.min(Math.floor(confidenceRank), 12) * 2);
+  return Math.max(0, 30 - Math.min(Math.floor(confidenceRank), 5) * 6);
+}
+
+const TECHNICAL_SIGNAL_TERMS = [
+  "architected",
+  "optimized",
+  "engineered",
+  "designed",
+  "built",
+  "implemented",
+  "deployed",
+  "redis",
+  "postgresql",
+  "postgres",
+  "sqlite",
+  "api",
+  "apis",
+  "latency",
+  "throughput",
+  "concurrency",
+  "distributed",
+  "serverless",
+  "pipeline",
+  "llm",
+  "rag",
+  "embeddings",
+  "agent",
+  "mcp",
+  "queue",
+  "queues",
+  "caching",
+  "normalization",
+  "hmac",
+  "next.js",
+  "cloudflare",
+  "prisma",
+  "flask",
+  "django",
+  "python",
+  "typescript",
+];
+
+const GENERIC_NON_TECH_PHRASES = [
+  "serving as a core council",
+  "handling logistics",
+  "managing technical initiatives",
+  "communication, and event operations",
+];
+
+/**
+ * Ranks experience bullets so technical, quantified, and role-relevant bullets
+ * always beat generic administrative bullets when space on A4 is budgeted.
+ */
+export function selectExperienceBulletsForRole<
+  T extends { id?: string; text: string; sortOrder?: number | null },
+>(params: {
+  bullets: T[];
+  jdKeywords?: string[];
+  jdTitle?: string | null;
+  maxBullets?: number;
+}): T[] {
+  const maxBullets = Math.max(1, params.maxBullets ?? 4);
+  const bullets = params.bullets || [];
+  if (bullets.length <= maxBullets && (!params.jdKeywords || params.jdKeywords.length === 0)) {
+    return bullets;
+  }
+
+  const jdKeywords = (params.jdKeywords ?? []).map((k) => k.trim()).filter((k) => k.length >= 2);
+  const activeDomains = getActiveDomainBuckets(jdKeywords, params.jdTitle);
+  const titleTerms = tokenizeWords(params.jdTitle ?? "");
+
+  const scored = bullets.map((b, idx) => {
+    const lower = normalizeLower(b.text);
+    const jdHits = countTermMatches(lower, jdKeywords).length;
+    let domainHits = 0;
+    for (const bucket of activeDomains) {
+      if (bucket.terms.some((term) => lower.includes(term))) domainHits++;
+    }
+    let titleHits = 0;
+    for (const t of titleTerms) {
+      if (lower.includes(t)) titleHits++;
+    }
+    const techSignalCount = TECHNICAL_SIGNAL_TERMS.filter((t) => lower.includes(t)).length;
+    const hasMetric = /\d+(?:\.\d+)?[%+x]|\b\d{2,}\b|<\s*\d+ms/i.test(b.text);
+    const isGenericAdmin =
+      !hasMetric && GENERIC_NON_TECH_PHRASES.some((phrase) => lower.includes(phrase));
+
+    const score =
+      jdHits * 14 +
+      titleHits * 6 +
+      domainHits * 5 +
+      Math.min(techSignalCount, 4) * 5 +
+      (hasMetric ? 9 : 0) -
+      (isGenericAdmin ? 12 : 0);
+
+    return { bullet: b, idx, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score || a.idx - b.idx)
+    .slice(0, maxBullets)
+    .map((s) => s.bullet);
+}
+
+/**
+ * Resolves the candidate's real narrative summary from Vault profile entries,
+ * skipping short contact-only rows or duplicates of the headline.
+ */
+export function extractProfileSummaryFromEntries(
+  entries: Array<{
+    entryType?: string;
+    title?: string | null;
+    descriptionContext?: string | null;
+    bullets?: Array<{ text: string }> | null;
+  }>,
+  headline?: string | null
+): string {
+  const cleanHeadline = normalizeLower(headline || "");
+  const profileEntries = entries.filter((e) => e.entryType === "profile");
+  const candidates: Array<{ text: string; priority: number }> = [];
+
+  for (const entry of profileEntries) {
+    const isSummaryTitle = /summary|about|bio|profile overview/i.test(entry.title || "");
+    const texts = [
+      entry.descriptionContext || "",
+      ...(entry.bullets || []).map((b) => b.text || ""),
+    ];
+    for (const raw of texts) {
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      if (/^(email|phone|headline|link|location|github|linkedin|portfolio)\s*:/i.test(trimmed)) {
+        continue;
+      }
+      if (cleanHeadline && normalizeLower(trimmed) === cleanHeadline) {
+        continue;
+      }
+      if (trimmed.length < 35 && !isSummaryTitle) continue;
+      candidates.push({
+        text: trimmed,
+        priority: (isSummaryTitle ? 1000 : 0) + trimmed.length,
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.priority - a.priority);
+  return candidates[0]?.text || "";
+}
+
+/**
+ * Returns award issuer/details only when distinct from the award title itself.
+ */
+export function normalizeDistinctAwardIssuer(
+  title?: string | null,
+  issuer?: string | null
+): string {
+  const cleanTitle = normalizeLower(title || "");
+  const cleanIssuer = (issuer || "").trim();
+  if (!cleanIssuer) return "";
+  if (normalizeLower(cleanIssuer) === cleanTitle) return "";
+  return cleanIssuer;
 }
 
 /**

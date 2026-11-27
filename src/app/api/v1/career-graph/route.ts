@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    if (body?.action === "auto_categorize") {
+      const summary = await CareerGraphService.autoCategorizeUnlinkedSkills(userId);
+      const graph = await CareerGraphService.getGraph(userId);
+      return successResponse({ ...summary, graph }, 200);
+    }
+
     if (!body.sourceType || !body.sourceId || !body.targetType || !body.targetId || !body.relationshipType) {
       return errorResponse("VALIDATION_ERROR", "Missing required edge parameters", 400);
     }

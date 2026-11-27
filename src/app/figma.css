@@ -2374,6 +2374,18 @@ footer > span {
   background: var(--ink);
   color: white;
 }
+.input-footer button.analyze-btn {
+  background: white;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+.input-footer button.analyze-btn:hover:not(:disabled) {
+  background: #f4f1ea;
+}
+.input-footer button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .panel-title button,
 .panel-title a {
   border: 0;

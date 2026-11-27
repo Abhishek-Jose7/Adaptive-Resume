@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { CareerGraphEdge, CareerGraphRelationType } from "@/types/bank";
+import { classifySkillGroupName } from "@/lib/services/portfolioSkillGrouping";
 
 export interface GraphNode {
   id: string;
@@ -29,11 +30,54 @@ export interface CareerGraphViewData {
 }
 
 export class CareerGraphService {
+  private static splitSkillTokens(rawText: string): string[] {
+    return rawText
+      .split(/[,•|\n;]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 1 && t.length <= 50);
+  }
+
+  private static escapeRegex(raw: string): string {
+    return raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private static doesEntryEvidenceSkill(entryText: string, skillName: string): boolean {
+    const clean = skillName.trim();
+    if (!clean || !entryText) return false;
+    const lowerText = entryText.toLowerCase();
+    const lowerSkill = clean.toLowerCase();
+
+    if (lowerSkill === "c") {
+      return /(?:^|[\s,|/(])c(?=$|[\s,|/.)])/i.test(entryText);
+    }
+    if (lowerSkill === "html/css") {
+      return /\b(html|css)\b/i.test(entryText);
+    }
+    const aliases: string[] = [lowerSkill];
+    if (lowerSkill === "postgresql") aliases.push("postgres");
+    if (lowerSkill === "next.js") aliases.push("nextjs");
+    if (lowerSkill === "node.js") aliases.push("nodejs");
+    if (lowerSkill === "llms") aliases.push("llm");
+    if (lowerSkill === "ai agents") aliases.push("ai agent", "tool calls", "mcp");
+    if (lowerSkill === "rag") aliases.push("retrieval-augmented", "llm-powered retrieval");
+    if (lowerSkill === "google cloud") aliases.push("gcp");
+
+    return aliases.some((alias) => {
+      if (alias.length <= 2) {
+        return new RegExp(`(?:^|[\\s,|/(])${this.escapeRegex(alias)}(?=$|[\\s,|/.)])`, "i").test(
+          lowerText
+        );
+      }
+      return new RegExp(`\\b${this.escapeRegex(alias)}\\b`, "i").test(lowerText);
+    });
+  }
+
   /**
-   * Synchronizes Career Graph edges from the user's existing Data Bank records
+   * Synchronizes Career Graph edges from the user's existing Data Bank records,
+   * including skill_group memberships and evidenced project/experience mentions.
    */
   static async syncBankToGraph(userId: string): Promise<number> {
-    const [entries, bullets, facts] = await Promise.all([
+    const [entries, bullets, facts, existingEdges] = await Promise.all([
       db
         .select()
         .from(bankEntries)
@@ -46,7 +90,15 @@ export class CareerGraphService {
         .select()
         .from(bulletFacts)
         .where(eq(bulletFacts.userId, userId)),
+      db
+        .select()
+        .from(careerGraphEdges)
+        .where(eq(careerGraphEdges.userId, userId)),
     ]);
+
+    const existingPairKeys = new Set(
+      existingEdges.map((e) => `${e.sourceId}::${e.targetId}::${e.relationshipType}`)
+    );
 
     const bulletsByEntry = new Map<string, typeof bullets>();
     for (const b of bullets) {
@@ -64,11 +116,56 @@ export class CareerGraphService {
     }
 
     const edgesToInsert: Array<typeof careerGraphEdges.$inferInsert> = [];
+    const skillNameById = new Map<string, string>();
+
+    const queueEdge = (edge: typeof careerGraphEdges.$inferInsert) => {
+      const pairKey = `${edge.sourceId}::${edge.targetId}::${edge.relationshipType}`;
+      if (existingPairKeys.has(pairKey)) return;
+      existingPairKeys.add(pairKey);
+      edgesToInsert.push(edge);
+    };
+
+    for (const f of facts) {
+      if ((f.factType === "tool" || f.factType === "technology") && f.valueText.trim()) {
+        const sId = f.valueText.trim().toLowerCase();
+        if (!skillNameById.has(sId)) skillNameById.set(sId, f.valueText.trim());
+      }
+    }
 
     for (const entry of entries) {
       const entryBullets = bulletsByEntry.get(entry.id) || [];
+      if (entry.entryType === "skill_group" || entry.entryType === "skill") {
+        if (entry.entryType === "skill" && entry.title.trim()) {
+          const titleSkill = entry.title.trim();
+          const titleSkillId = titleSkill.toLowerCase();
+          if (!skillNameById.has(titleSkillId)) skillNameById.set(titleSkillId, titleSkill);
+        }
+        for (const b of entryBullets) {
+          for (const token of this.splitSkillTokens(b.text)) {
+            const skillId = token.toLowerCase();
+            if (!skillNameById.has(skillId)) skillNameById.set(skillId, token);
+            queueEdge({
+              id: `edge_sg_sk_${entry.id}_${skillId.replace(/[^a-z0-9]/g, "_")}`,
+              userId,
+              sourceType: entry.entryType,
+              sourceId: entry.id,
+              targetType: "skill",
+              targetId: skillId,
+              relationshipType: "used_skill",
+              weight: 1.0,
+              metadataJson: {
+                skillName: token,
+                sourceEntryTitle: entry.title,
+                category: entry.title,
+              },
+            });
+          }
+        }
+        continue;
+      }
+
       for (const b of entryBullets) {
-        edgesToInsert.push({
+        queueEdge({
           id: `edge_ent_b_${entry.id}_${b.id}`,
           userId,
           sourceType: entry.entryType,
@@ -82,7 +179,7 @@ export class CareerGraphService {
 
         const bFacts = factsByBullet.get(b.id) || [];
         for (const f of bFacts) {
-          edgesToInsert.push({
+          queueEdge({
             id: `edge_b_fact_${b.id}_${f.id}`,
             userId,
             sourceType: "achievement_bullet",
@@ -95,19 +192,52 @@ export class CareerGraphService {
           });
 
           if (f.factType === "tool" || f.factType === "technology") {
-            edgesToInsert.push({
+            const skillId = f.valueText.trim().toLowerCase();
+            if (!skillNameById.has(skillId)) skillNameById.set(skillId, f.valueText.trim());
+            queueEdge({
               id: `edge_ent_tool_${entry.id}_${f.factKey}`,
               userId,
               sourceType: entry.entryType,
               sourceId: entry.id,
               targetType: "skill",
-              targetId: f.valueText.toLowerCase(),
+              targetId: skillId,
               relationshipType: "used_skill",
               weight: 1.0,
               metadataJson: { skillName: f.valueText, sourceEntryTitle: entry.title },
             });
           }
         }
+      }
+    }
+
+    // Cross-link every known skill against built projects and work experiences
+    const workAndProjects = entries.filter(
+      (e) => e.entryType === "project" || e.entryType === "experience"
+    );
+    for (const entry of workAndProjects) {
+      const entryBullets = bulletsByEntry.get(entry.id) || [];
+      const combinedText = [
+        entry.title,
+        entry.organization || "",
+        entry.descriptionContext || "",
+        ...entryBullets.map((b) => b.text),
+      ].join(" \n ");
+
+      for (const [skillId, skillLabel] of skillNameById.entries()) {
+        if (!this.doesEntryEvidenceSkill(combinedText, skillLabel)) continue;
+        const relType: CareerGraphRelationType =
+          entry.entryType === "project" ? "skill_used_in_project" : "skill_used_in_experience";
+        queueEdge({
+          id: `edge_ev_${entry.id}_${skillId.replace(/[^a-z0-9]/g, "_")}`,
+          userId,
+          sourceType: entry.entryType,
+          sourceId: entry.id,
+          targetType: "skill",
+          targetId: skillId,
+          relationshipType: relType,
+          weight: 1.0,
+          metadataJson: { skillName: skillLabel, sourceEntryTitle: entry.title },
+        });
       }
     }
 
@@ -122,6 +252,182 @@ export class CareerGraphService {
       .returning({ id: careerGraphEdges.id });
 
     return inserted.length;
+  }
+
+  /**
+   * Auto-categorizes unlinked skills (0 graph links) by linking them to matching
+   * existing or newly created domain `skill_group` categories and built work/projects.
+   */
+  static async autoCategorizeUnlinkedSkills(userId: string): Promise<{
+    categorizedCount: number;
+    linkedCount: number;
+    categoriesCreated: string[];
+  }> {
+    const syncedFromEvidence = await this.syncBankToGraph(userId);
+
+    const [entries, bullets, facts, edges] = await Promise.all([
+      db
+        .select()
+        .from(bankEntries)
+        .where(and(eq(bankEntries.userId, userId), isNull(bankEntries.deletedAt))),
+      db
+        .select()
+        .from(achievementBullets)
+        .where(and(eq(achievementBullets.userId, userId), isNull(achievementBullets.deletedAt))),
+      db
+        .select()
+        .from(bulletFacts)
+        .where(eq(bulletFacts.userId, userId)),
+      db
+        .select()
+        .from(careerGraphEdges)
+        .where(eq(careerGraphEdges.userId, userId)),
+    ]);
+
+    const connectedNodeIds = new Set<string>();
+    const groupLinkedSkillIds = new Set<string>();
+    const skillGroupIds = new Set(
+      entries.filter((e) => e.entryType === "skill_group").map((e) => e.id)
+    );
+
+    for (const edge of edges) {
+      connectedNodeIds.add(edge.sourceId);
+      connectedNodeIds.add(edge.targetId);
+      if (skillGroupIds.has(edge.sourceId) && edge.targetType === "skill") {
+        groupLinkedSkillIds.add(edge.targetId);
+      }
+      if (skillGroupIds.has(edge.targetId) && edge.sourceType === "skill") {
+        groupLinkedSkillIds.add(edge.sourceId);
+      }
+    }
+
+    const skillCandidates = new Map<string, string>();
+    for (const f of facts) {
+      if ((f.factType === "tool" || f.factType === "technology") && f.valueText.trim()) {
+        const key = f.valueText.trim().toLowerCase();
+        if (!skillCandidates.has(key)) skillCandidates.set(key, f.valueText.trim());
+      }
+    }
+    for (const e of entries.filter((ent) => ent.entryType === "skill")) {
+      const key = e.title.trim().toLowerCase();
+      if (key && !skillCandidates.has(key)) skillCandidates.set(key, e.title.trim());
+    }
+
+    const bulletsByEntry = new Map<string, typeof bullets>();
+    for (const b of bullets) {
+      const list = bulletsByEntry.get(b.entryId) || [];
+      list.push(b);
+      bulletsByEntry.set(b.entryId, list);
+    }
+
+    // Track existing skill groups by lowercase title & category heuristics
+    const existingGroups = entries.filter((e) => e.entryType === "skill_group");
+    const groupByCategoryLower = new Map<string, typeof existingGroups[0]>();
+    for (const g of existingGroups) {
+      groupByCategoryLower.set(g.title.trim().toLowerCase(), g);
+    }
+
+    const categoriesCreated: string[] = [];
+    const edgesToInsert: Array<typeof careerGraphEdges.$inferInsert> = [];
+    let categorizedCount = 0;
+
+    for (const [skillId, skillLabel] of skillCandidates.entries()) {
+      const hasAnyLink = connectedNodeIds.has(skillId);
+      const hasGroupLink = groupLinkedSkillIds.has(skillId);
+      if (hasAnyLink && hasGroupLink) continue;
+
+      const targetCategory = classifySkillGroupName(skillLabel);
+      const targetKey = targetCategory.toLowerCase();
+      let group =
+        groupByCategoryLower.get(targetKey) ||
+        existingGroups.find((g) => {
+          const gTitle = g.title.toLowerCase();
+          return (
+            gTitle.includes(targetKey.split("&")[0].trim()) ||
+            targetKey.includes(gTitle.split("&")[0].trim())
+          );
+        });
+
+      if (!group) {
+        const newGroupId = `entry_sg_${crypto.randomUUID()}`;
+        const [insertedGroup] = await db
+          .insert(bankEntries)
+          .values({
+            id: newGroupId,
+            userId,
+            entryType: "skill_group",
+            title: targetCategory,
+            visibility: "private",
+            verificationStatus: "unverified",
+            sortOrder: existingGroups.length,
+            rowVersion: 1,
+          })
+          .returning();
+        group = insertedGroup;
+        existingGroups.push(group);
+        groupByCategoryLower.set(targetKey, group);
+        categoriesCreated.push(targetCategory);
+      }
+
+      // Ensure the skill token exists in that group's Vault bullets when ungrouped
+      const groupBullets = bulletsByEntry.get(group.id) || [];
+      const alreadyListedInGroup = groupBullets.some((b) =>
+        this.splitSkillTokens(b.text).some((tok) => tok.toLowerCase() === skillId)
+      );
+      if (!alreadyListedInGroup) {
+        const [insertedBullet] = await db
+          .insert(achievementBullets)
+          .values({
+            id: `bul_sg_${crypto.randomUUID()}`,
+            userId,
+            entryId: group.id,
+            text: skillLabel,
+            sortOrder: groupBullets.length,
+            visibility: "private",
+            verificationStatus: "unverified",
+            usagePolicy: "eligible",
+            rowVersion: 1,
+          })
+          .returning();
+        groupBullets.push(insertedBullet);
+        bulletsByEntry.set(group.id, groupBullets);
+      }
+
+      edgesToInsert.push({
+        id: `edge_sg_sk_${group.id}_${skillId.replace(/[^a-z0-9]/g, "_")}`,
+        userId,
+        sourceType: "skill_group",
+        sourceId: group.id,
+        targetType: "skill",
+        targetId: skillId,
+        relationshipType: "used_skill",
+        weight: 1.0,
+        metadataJson: {
+          skillName: skillLabel,
+          sourceEntryTitle: group.title,
+          category: group.title,
+          autoCategorized: true,
+        },
+      });
+      categorizedCount++;
+    }
+
+    let addedEdges = 0;
+    if (edgesToInsert.length > 0) {
+      const deduped = Array.from(new Map(edgesToInsert.map((e) => [e.id, e])).values());
+      const inserted = await db
+        .insert(careerGraphEdges)
+        .values(deduped)
+        .onConflictDoNothing()
+        .returning({ id: careerGraphEdges.id });
+      addedEdges = inserted.length;
+    }
+
+    return {
+      categorizedCount,
+      linkedCount: syncedFromEvidence + addedEdges,
+      categoriesCreated,
+    };
   }
 
   /**
@@ -148,6 +454,17 @@ export class CareerGraphService {
     ]);
 
     const nodesMap = new Map<string, GraphNode>();
+    const entryTitleById = new Map<string, string>(entries.map((e) => [e.id, e.title]));
+    const skillGroupIds = new Set(
+      entries.filter((e) => e.entryType === "skill_group").map((e) => e.id)
+    );
+    const linkedCategoryBySkill = new Map<string, string>();
+    for (const edge of edges) {
+      if (skillGroupIds.has(edge.sourceId) && edge.targetType === "skill") {
+        const title = entryTitleById.get(edge.sourceId);
+        if (title) linkedCategoryBySkill.set(edge.targetId, title);
+      }
+    }
 
     for (const e of entries) {
       nodesMap.set(e.id, {
@@ -171,14 +488,49 @@ export class CareerGraphService {
 
     for (const f of facts) {
       if (f.factType === "tool" || f.factType === "technology") {
-        const skillId = f.valueText.toLowerCase();
-        if (!nodesMap.has(skillId)) {
+        const skillId = f.valueText.trim().toLowerCase();
+        if (skillId && !nodesMap.has(skillId)) {
           nodesMap.set(skillId, {
             id: skillId,
             type: "skill",
-            label: f.valueText,
-            category: "skill",
+            label: f.valueText.trim(),
+            category:
+              linkedCategoryBySkill.get(skillId) || classifySkillGroupName(f.valueText.trim()),
           });
+        }
+      }
+    }
+
+    for (const e of entries) {
+      if (e.entryType === "skill") {
+        const titleSkill = e.title.trim();
+        const skillId = titleSkill.toLowerCase();
+        if (skillId && !nodesMap.has(skillId)) {
+          nodesMap.set(skillId, {
+            id: skillId,
+            type: "skill",
+            label: titleSkill,
+            category: linkedCategoryBySkill.get(skillId) || classifySkillGroupName(titleSkill),
+          });
+        }
+      }
+      if (e.entryType === "skill_group" || e.entryType === "skill") {
+        const entryBullets = bullets.filter((b) => b.entryId === e.id);
+        for (const b of entryBullets) {
+          for (const token of this.splitSkillTokens(b.text)) {
+            const skillId = token.toLowerCase();
+            if (!nodesMap.has(skillId)) {
+              nodesMap.set(skillId, {
+                id: skillId,
+                type: "skill",
+                label: token,
+                category:
+                  e.entryType === "skill_group"
+                    ? e.title
+                    : linkedCategoryBySkill.get(skillId) || classifySkillGroupName(token),
+              });
+            }
+          }
         }
       }
     }
