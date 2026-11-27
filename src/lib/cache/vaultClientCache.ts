@@ -177,3 +177,108 @@ export function setCachedResumesList<T = unknown>(list: T[]): void {
     // Ignore serialization errors
   }
 }
+
+export interface AddVaultSkillInput {
+  skill: string;
+  vaultGroup: string;
+}
+
+/**
+ * Adds one or more user-confirmed skills into matching Career Vault `skill_group` entries,
+ * creating the category entry if needed, then refreshes the local Vault cache.
+ */
+export async function addSkillsToVault(
+  items: AddVaultSkillInput[],
+  existingEntries?: Array<{
+    id: string;
+    entryType: string;
+    title: string;
+    bullets?: Array<{ text: string }>;
+  }>,
+): Promise<BankEntry[]> {
+  if (items.length === 0) {
+    return (await fetchBankEntriesCached()).items;
+  }
+
+  const baseEntries = existingEntries ?? (await fetchBankEntriesCached()).items;
+  const grouped = new Map<string, { title: string; skills: string[] }>();
+
+  for (const item of items) {
+    const cleanSkill = item.skill.trim();
+    const cleanGroup = item.vaultGroup.trim() || "Core Skills";
+    if (!cleanSkill) continue;
+    const key = cleanGroup.toLowerCase();
+    const bucket = grouped.get(key) ?? { title: cleanGroup, skills: [] };
+    if (!bucket.skills.some((s) => s.toLowerCase() === cleanSkill.toLowerCase())) {
+      bucket.skills.push(cleanSkill);
+    }
+    grouped.set(key, bucket);
+  }
+
+  for (const [key, bucket] of grouped.entries()) {
+    const existingGroup = baseEntries.find(
+      (e) => e.entryType === "skill_group" && e.title.trim().toLowerCase() === key,
+    );
+
+    const existingTokens = new Set<string>();
+    if (existingGroup?.bullets) {
+      for (const b of existingGroup.bullets) {
+        const text = (b.text || "").trim();
+        const colonIdx = text.indexOf(":");
+        const rawBody = colonIdx > 0 && colonIdx < 28 ? text.slice(colonIdx + 1) : text;
+        for (const tok of rawBody.split(/[,•|\n;]+/)) {
+          const norm = tok.trim().toLowerCase();
+          if (norm) existingTokens.add(norm);
+        }
+      }
+    }
+
+    const toInsert = bucket.skills.filter((s) => !existingTokens.has(s.toLowerCase()));
+    if (toInsert.length === 0) continue;
+
+    const bulletText = toInsert.join(", ");
+    if (existingGroup) {
+      const res = await fetch(`/api/v1/bank/entries/${existingGroup.id}/bullets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: bulletText,
+          visibility: "resume",
+          verificationStatus: "user_verified",
+          usagePolicy: "eligible",
+          sortOrder: existingGroup.bullets?.length ?? 0,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`Could not add ${toInsert[0]} to ${bucket.title}`);
+      }
+    } else {
+      const res = await fetch("/api/v1/bank/entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryType: "skill_group",
+          title: bucket.title,
+          visibility: "resume",
+          verificationStatus: "user_verified",
+          bullets: [
+            {
+              text: bulletText,
+              visibility: "resume",
+              verificationStatus: "user_verified",
+              usagePolicy: "eligible",
+              sortOrder: 0,
+            },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`Could not create skill group ${bucket.title}`);
+      }
+    }
+  }
+
+  invalidateVaultCache();
+  const refreshed = await fetchBankEntriesCached({ forceRefresh: true });
+  return refreshed.items;
+}

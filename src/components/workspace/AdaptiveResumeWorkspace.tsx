@@ -6,8 +6,9 @@ import Link from "next/link";
 import { AlertCircle, ArrowUpRight, ClipboardPaste, FileText, LoaderCircle, RotateCcw, ShieldCheck, UserRound } from "lucide-react";
 import type { ResumeDoc, ResumeBulletDoc, ResumeSectionDoc, ResumeItemDoc } from "@/types/resume";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
-import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
-import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
+import { fetchBankEntriesCached, invalidateVaultCache } from "@/lib/cache/vaultClientCache";
+import { analyzeRoleFitAgainstVault, suggestSkillsToAddFromJd } from "@/lib/scoring/roleFitInsight";
+import { SuggestedSkillsPanel } from "@/components/skills/SuggestedSkillsPanel";
 import {
   adaptSummaryForRole,
   extractProfileSummaryFromEntries,
@@ -136,6 +137,11 @@ export function AdaptiveResumeWorkspace() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => { if (data) setProfile(data); })
       .catch(() => undefined);
+    void fetchBankEntriesCached()
+      .then((snapshot) => {
+        if (snapshot.items.length > 0) setBankEntries(snapshot.items);
+      })
+      .catch(() => undefined);
 
     // Auto-import pending job description from overview
     try {
@@ -155,6 +161,10 @@ export function AdaptiveResumeWorkspace() {
 
   const currentResults = run?.results || [];
   const acceptedCount = currentResults.filter((result) => result.status === "accepted").length;
+  const jdSuggestions = useMemo(
+    () => (jobText.trim().length >= 25 ? suggestSkillsToAddFromJd(jobText, bankEntries) : null),
+    [jobText, bankEntries],
+  );
   const sourceByBulletId = useMemo(() => {
     const map = new Map<string, BankEntry>();
     for (const entry of bankEntries) {
@@ -626,6 +636,12 @@ export function AdaptiveResumeWorkspace() {
               </form>
 
               <div className="workspace-assurance"><ShieldCheck size={16} aria-hidden="true" /><span>Your draft uses experience already in your account. You review it before saving.</span></div>
+              <SuggestedSkillsPanel
+                suggestions={jdSuggestions}
+                bankEntries={bankEntries}
+                compact
+                onVaultUpdated={(updatedEntries) => setBankEntries(updatedEntries)}
+              />
               {error && <div className="workspace-error" role="alert"><AlertCircle size={17} aria-hidden="true" /><span>{error}</span></div>}
             </section>
 

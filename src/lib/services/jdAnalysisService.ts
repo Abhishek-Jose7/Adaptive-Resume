@@ -1,6 +1,6 @@
 import { JDAnalysis, JDKeyword, JDResponsibility, SeniorityLevel, WorkMode } from "@/types/job";
 import { JDAnalysisSchema } from "@/lib/validation/job";
-import { ROLE_FIT_TAXONOMY } from "@/lib/scoring/roleFitInsight";
+import { ROLE_FIT_TAXONOMY, SOFT_SKILL_TAXONOMY } from "@/lib/scoring/roleFitInsight";
 import crypto from "crypto";
 
 export class JDAnalysisService {
@@ -40,11 +40,11 @@ export class JDAnalysisService {
       if (yoeMatch[2]) yearsMax = parseInt(yoeMatch[2], 10);
     }
 
-    // 4. Extract common technical skills & tools with canonical forms and aliases
+    // 4. Extract technical skills, tools, domains, and soft skills with canonical forms and aliases
     const skillDictionary = [
       ...ROLE_FIT_TAXONOMY,
+      ...SOFT_SKILL_TAXONOMY,
       { canonical: "Kafka", aliases: ["Apache Kafka"], category: "tool" as const, pattern: /\b(kafka)\b/i },
-      { canonical: "Cross-functional Leadership", aliases: ["Collaboration"], category: "soft_skill" as const, pattern: /\b(collaboration|cross-functional|mentoring)\b/i },
     ];
 
     const keywords: JDKeyword[] = [];

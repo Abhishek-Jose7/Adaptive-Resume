@@ -10,7 +10,8 @@ import { buildDomainGroupedSkillBadges } from "@/lib/services/portfolioSkillGrou
 import { sortResumeDocChronologically, compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { AutoFitLadder } from "@/lib/editor/autoFitLadder";
 import { countIndividualSkills } from "@/lib/cache/vaultClientCache";
-import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
+import { analyzeRoleFitAgainstVault, suggestSkillsToAddFromJd } from "@/lib/scoring/roleFitInsight";
+import { classifySkillGroupName } from "@/lib/services/portfolioSkillGrouping";
 import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
 import { budgetResumeForOnePageA4, estimateA4DensityUnits } from "@/lib/editor/onePageA4Budgeter";
 import {
@@ -766,5 +767,59 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     expect(denseFit.fontSizePt).toBe(8.5);
     expect(denseFit.lineHeight).toBe(1.14);
     expect(denseFit.marginInches).toBe(0.34);
+  });
+
+  it("suggests missing technical and soft skills from uploaded JD grouped for Career Vault addition", () => {
+    const jd = `
+      AI Systems Engineer
+      Responsibilities:
+      - Collaborate cross-functionally with product teams, take end-to-end ownership of agent workflows, and communicate findings clearly.
+      - Deploy containerized Python services using Docker and vector search (Pinecone).
+      - Strong problem-solving and debugging skills required.
+    `;
+
+    const vaultEntries = [
+      {
+        id: "sk_tech",
+        entryType: "skill_group",
+        title: "Languages",
+        bullets: [{ text: "Python, TypeScript" }],
+      },
+      {
+        id: "sk_soft",
+        entryType: "skill_group",
+        title: "Soft Skills & Collaboration",
+        bullets: [{ text: "Problem Solving" }],
+      },
+    ];
+
+    const suggestions = suggestSkillsToAddFromJd(jd, vaultEntries);
+    const techNames = suggestions.technicalAndTools.map((s) => s.skill);
+    const softNames = suggestions.softSkills.map((s) => s.skill);
+
+    // Already in Vault -> omitted from suggestions
+    expect(techNames).not.toContain("Python");
+    expect(softNames).not.toContain("Problem Solving");
+
+    // Missing JD skills -> suggested with proper Vault category
+    expect(techNames).toEqual(expect.arrayContaining(["Docker", "Pinecone / Weaviate / FAISS"]));
+    const dockerItem = suggestions.technicalAndTools.find((s) => s.skill === "Docker");
+    expect(dockerItem?.vaultGroup).toBe("Cloud & Deployment");
+
+    expect(softNames).toEqual(
+      expect.arrayContaining([
+        "Cross-Functional Collaboration",
+        "Ownership & Accountability",
+        "Communication",
+      ])
+    );
+    expect(suggestions.softSkills[0].vaultGroup).toBe("Soft Skills & Collaboration");
+    expect(classifySkillGroupName("Communication")).toBe("Soft Skills & Collaboration");
+
+    const parsedJd = JDAnalysisService.analyzeDeterministic(jd);
+    const softKeywords = parsedJd.keywords.filter((k) => k.category === "soft_skill").map((k) => k.canonical);
+    expect(softKeywords).toEqual(
+      expect.arrayContaining(["Cross-Functional Collaboration", "Communication", "Ownership & Accountability"])
+    );
   });
 });

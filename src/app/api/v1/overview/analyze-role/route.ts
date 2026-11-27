@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
         missingSkills: aiResult.unclearOrMissing,
         relevantEvidenceLabels: baseline.relevantEvidenceLabels,
         totalFactsCount: baseline.totalFactsCount,
+        suggestedSkills: baseline.suggestedSkills,
         source: "ai_grounded",
       });
     }

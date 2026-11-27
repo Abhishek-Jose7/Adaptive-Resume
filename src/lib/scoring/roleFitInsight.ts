@@ -1,3 +1,5 @@
+import { classifySkillGroupName } from "@/lib/services/portfolioSkillGrouping";
+
 export interface RoleFitSkillRule {
   canonical: string;
   aliases: string[];
@@ -290,6 +292,126 @@ export const ROLE_FIT_TAXONOMY: RoleFitSkillRule[] = [
   },
 ];
 
+export const SOFT_SKILL_TAXONOMY: RoleFitSkillRule[] = [
+  {
+    canonical: "Cross-Functional Collaboration",
+    aliases: ["Collaboration", "Cross-functional", "Teamwork", "Stakeholder Management"],
+    pattern: /\b(collaboration|collaborat(?:e|ed|ing)|cross[- ]functional(?:ly)?|teamwork|work closely with|partner with|stakeholders?)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Communication",
+    aliases: ["Written & Verbal Communication", "Articulate Ideas", "Presentation"],
+    pattern: /\b(communication|communicate|written and verbal|verbal and written|present(?:ing)? findings|articulate)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Ownership & Accountability",
+    aliases: ["Ownership", "End-to-End Delivery", "Proactive", "Self-Starter"],
+    pattern: /\b(ownership|end[- ]to[- ]end|self[- ]starter|proactive|take initiative|accountability|drive (?:projects?|initiatives?))\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Problem Solving",
+    aliases: ["Problem-Solving", "Analytical Thinking", "Troubleshooting"],
+    pattern: /\b(problem[- ]solving|solve complex problems|analytical thinking|troubleshoot(?:ing)?|root[- ]cause|debugging)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Leadership & Mentorship",
+    aliases: ["Technical Leadership", "Mentoring", "Mentorship", "Coaching"],
+    pattern: /\b(leadership|lead (?:engineers?|projects?|initiatives?)|mentoring|mentorship|mentor(?:ing)?|coaching)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Agile & Iterative Delivery",
+    aliases: ["Agile", "Scrum", "Fast-Paced Execution", "Iterative Delivery"],
+    pattern: /\b(agile|scrum|sprints?|fast[- ]paced|iterative(?:ly)?|continuous delivery|ship fast)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Adaptability & Fast Learning",
+    aliases: ["Adaptability", "Continuous Learning", "Quick Learner"],
+    pattern: /\b(adaptab(?:le|ility)|continuous learning|quick learner|fast learner|ambiguity|stay updated|emerging (?:approaches|technologies))\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Product & User Empathy",
+    aliases: ["Product Thinking", "Product Sense", "User-Centric Design"],
+    pattern: /\b(product thinking|product sense|product teams?|use cases?|user[- ]centric|customer empathy|user experience)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Code Review & Quality Practices",
+    aliases: ["Code Review", "Peer Review", "Maintainable Code", "Best Practices"],
+    pattern: /\b(code reviews?|peer reviews?|clean code|maintainable code|engineering best practices|unit testing)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Technical Documentation",
+    aliases: ["Documentation", "Design Docs", "Technical Writing", "Runbooks"],
+    pattern: /\b(documentation|technical writing|design docs?|rfcs?|runbooks?|knowledge sharing)\b/i,
+    category: "soft_skill",
+  },
+  {
+    canonical: "Research & Experimentation",
+    aliases: ["Experimentation", "Applied Research", "Prototyping", "Benchmarking"],
+    pattern: /\b(experimentation|applied research|prototyp(?:e|ing)|benchmark(?:ing)?|ab[- ]?testing|hypothes[ie]s)\b/i,
+    category: "soft_skill",
+  },
+];
+
+const COMPLEMENTARY_TECH_RULES: RoleFitSkillRule[] = [
+  {
+    canonical: "LlamaIndex",
+    aliases: ["LlamaIndex"],
+    pattern: /\b(llamaindex)\b/i,
+    category: "tool",
+  },
+  {
+    canonical: "LangGraph",
+    aliases: ["LangGraph"],
+    pattern: /\b(langgraph)\b/i,
+    category: "tool",
+  },
+  {
+    canonical: "AutoGen / CrewAI",
+    aliases: ["AutoGen", "CrewAI"],
+    pattern: /\b(autogen|crewai)\b/i,
+    category: "tool",
+  },
+  {
+    canonical: "Semantic Kernel / Haystack",
+    aliases: ["Semantic Kernel", "Haystack"],
+    pattern: /\b(semantic kernel|haystack)\b/i,
+    category: "tool",
+  },
+  {
+    canonical: "Pinecone / Weaviate / FAISS",
+    aliases: ["Pinecone", "Weaviate", "Milvus", "FAISS"],
+    pattern: /\b(pinecone|weaviate|milvus|faiss)\b/i,
+    category: "tool",
+  },
+  {
+    canonical: "Guardrails & Hallucination Control",
+    aliases: ["AI Alignment", "Hallucination Control", "Red-Teaming", "Safe AI"],
+    pattern: /\b(hallucination control|guardrails?|red[- ]teaming|safe ai|ai safety|alignment)\b/i,
+    category: "domain",
+  },
+  {
+    canonical: "Reinforcement Learning (RL)",
+    aliases: ["Reinforcement Learning", "RLHF"],
+    pattern: /\b(reinforcement learning|rlhf)\b/i,
+    category: "domain",
+  },
+  {
+    canonical: "Multi-Modal AI",
+    aliases: ["Multi-modal", "Multimodal"],
+    pattern: /\b(multi[- ]?modal)\b/i,
+    category: "domain",
+  },
+];
+
 export interface VaultEntryLite {
   id: string;
   entryType: string;
@@ -303,6 +425,18 @@ export interface VaultEntryLite {
   facts?: Array<{ valueText?: string | null }>;
 }
 
+export interface SuggestedSkillItem {
+  skill: string;
+  category: "technical_skill" | "tool" | "domain" | "soft_skill";
+  vaultGroup: string;
+  reason: string;
+}
+
+export interface RoleSkillSuggestions {
+  technicalAndTools: SuggestedSkillItem[];
+  softSkills: SuggestedSkillItem[];
+}
+
 export interface RoleFitInsightResult {
   extractedTitle: string;
   score: number;
@@ -313,6 +447,7 @@ export interface RoleFitInsightResult {
   suitabilityVerdict: string;
   summaryInsight: string;
   totalFactsCount: number;
+  suggestedSkills?: RoleSkillSuggestions;
 }
 
 function formatReadableList(items: string[]): string {
@@ -368,6 +503,118 @@ function isStackTagLine(text: string): boolean {
   // Detect pipe-separated tech stack subtitles like "Next.js | Groq | RAG | Embeddings | NLP."
   const segments = trimmed.split("|").map((s) => s.trim()).filter(Boolean);
   return segments.length >= 2 && segments.every((seg) => seg.split(/\s+/).length <= 3);
+}
+
+function buildVaultSearchBlob(entries: VaultEntryLite[]): string {
+  const parts: string[] = [];
+  for (const entry of entries) {
+    if (entry.entryType === "profile") continue;
+    // Omit skill_group category headings (e.g. "Soft Skills & Collaboration") so group labels
+    // don't mask individual unrecorded skills inside that category.
+    if (entry.entryType !== "skill_group" && entry.title) parts.push(entry.title);
+    if (entry.organization) parts.push(entry.organization);
+    if (entry.descriptionContext) parts.push(entry.descriptionContext);
+    for (const f of entry.facts || []) {
+      if (f.valueText) parts.push(f.valueText);
+    }
+    for (const b of entry.bullets || []) {
+      if (b.text) parts.push(b.text);
+      for (const f of b.facts || []) {
+        if (f.valueText) parts.push(f.valueText);
+      }
+    }
+  }
+  return parts.join(" \n ");
+}
+
+function isRuleRecordedInVault(rule: RoleFitSkillRule, vaultBlob: string, vaultBlobLower: string): boolean {
+  if (rule.pattern.test(vaultBlob)) return true;
+  const canonicalLower = rule.canonical.toLowerCase();
+  if (canonicalLower.length >= 3 && vaultBlobLower.includes(canonicalLower)) return true;
+  return rule.aliases.some((alias) => {
+    const clean = alias.trim().toLowerCase();
+    return clean.length >= 3 && vaultBlobLower.includes(clean);
+  });
+}
+
+/**
+ * Extracts technical skills, tools, domains, and soft skills from a pasted/uploaded JD
+ * that are NOT yet recorded in the candidate's Career Vault, grouped for explicit user confirmation.
+ */
+export function suggestSkillsToAddFromJd(
+  rawJdText: string,
+  entries: VaultEntryLite[],
+): RoleSkillSuggestions {
+  const trimmed = rawJdText.trim();
+  if (trimmed.length < 10) {
+    return { technicalAndTools: [], softSkills: [] };
+  }
+
+  const vaultBlob = buildVaultSearchBlob(entries);
+  const vaultBlobLower = vaultBlob.toLowerCase();
+
+  const seenTech = new Set<string>();
+  const technicalAndTools: SuggestedSkillItem[] = [];
+
+  for (const rule of [...ROLE_FIT_TAXONOMY, ...COMPLEMENTARY_TECH_RULES]) {
+    const match = trimmed.match(rule.pattern);
+    if (!match) continue;
+    if (isRuleRecordedInVault(rule, vaultBlob, vaultBlobLower)) continue;
+    if (seenTech.has(rule.canonical.toLowerCase())) continue;
+    seenTech.add(rule.canonical.toLowerCase());
+    technicalAndTools.push({
+      skill: rule.canonical,
+      category: rule.category,
+      vaultGroup: classifySkillGroupName(rule.canonical),
+      reason: `Requested in JD ("${match[0].trim()}")`,
+    });
+  }
+
+  const seenSoft = new Set<string>();
+  const softSkills: SuggestedSkillItem[] = [];
+
+  for (const rule of SOFT_SKILL_TAXONOMY) {
+    const match = trimmed.match(rule.pattern);
+    if (!match) continue;
+    if (isRuleRecordedInVault(rule, vaultBlob, vaultBlobLower)) continue;
+    if (seenSoft.has(rule.canonical.toLowerCase())) continue;
+    seenSoft.add(rule.canonical.toLowerCase());
+    softSkills.push({
+      skill: rule.canonical,
+      category: "soft_skill",
+      vaultGroup: "Soft Skills & Collaboration",
+      reason: `Mentioned in JD ("${match[0].trim()}")`,
+    });
+  }
+
+  // If the JD is brief or omits explicit soft-skill phrasing, prompt core universal workplace skills not yet in Vault
+  if (softSkills.length < 3 && trimmed.length >= 30) {
+    const fallbackSoftCanonicals = [
+      "Problem Solving",
+      "Cross-Functional Collaboration",
+      "Communication",
+      "Ownership & Accountability",
+    ];
+    for (const canonical of fallbackSoftCanonicals) {
+      if (softSkills.length >= 4) break;
+      if (seenSoft.has(canonical.toLowerCase())) continue;
+      const rule = SOFT_SKILL_TAXONOMY.find((r) => r.canonical === canonical);
+      if (!rule) continue;
+      if (isRuleRecordedInVault(rule, vaultBlob, vaultBlobLower)) continue;
+      seenSoft.add(canonical.toLowerCase());
+      softSkills.push({
+        skill: rule.canonical,
+        category: "soft_skill",
+        vaultGroup: "Soft Skills & Collaboration",
+        reason: "Recommended baseline capability for target role",
+      });
+    }
+  }
+
+  return {
+    technicalAndTools: technicalAndTools.slice(0, 12),
+    softSkills: softSkills.slice(0, 8),
+  };
 }
 
 /**
@@ -513,6 +760,8 @@ export function analyzeRoleFitAgainstVault(
     summaryInsight = `${strengthSentence}${gapSentence}`.trim();
   }
 
+  const suggestedSkills = suggestSkillsToAddFromJd(rawJdText, entries);
+
   return {
     extractedTitle,
     score,
@@ -523,5 +772,6 @@ export function analyzeRoleFitAgainstVault(
     suitabilityVerdict,
     summaryInsight,
     totalFactsCount,
+    suggestedSkills,
   };
 }

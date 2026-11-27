@@ -14,7 +14,13 @@ import {
   setCachedResumesList,
 } from "@/lib/cache/vaultClientCache";
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
-import { analyzeRoleFitAgainstVault, extractRoleTitleFromJd } from "@/lib/scoring/roleFitInsight";
+import {
+  analyzeRoleFitAgainstVault,
+  extractRoleTitleFromJd,
+  suggestSkillsToAddFromJd,
+  type RoleSkillSuggestions,
+} from "@/lib/scoring/roleFitInsight";
+import { SuggestedSkillsPanel } from "@/components/skills/SuggestedSkillsPanel";
 import {
   adaptSummaryForRole,
   extractProfileSummaryFromEntries,
@@ -63,6 +69,7 @@ export function FigmaDashboardView() {
     matchedSkills: string[];
     tagOnlySkills?: string[];
     missingSkills: string[];
+    suggestedSkills?: RoleSkillSuggestions;
     source?: string;
   } | null>(null);
   const [analyzingRole, setAnalyzingRole] = useState(false);
@@ -170,6 +177,7 @@ export function FigmaDashboardView() {
           matchedSkills: matched.slice(0, 8),
           tagOnlySkills: tagOnly.slice(0, 4),
           missingSkills: missing.slice(0, 6),
+          suggestedSkills: data?.suggestedSkills ?? suggestSkillsToAddFromJd(trimmed, bankEntries),
           source: data?.source || "ai_grounded",
         });
         setAnalyzeStatus("accepted");
@@ -196,6 +204,7 @@ export function FigmaDashboardView() {
       matchedSkills: insight.matchedSkills.slice(0, 8),
       tagOnlySkills: insight.tagOnlySkills.slice(0, 4),
       missingSkills: insight.missingSkills.slice(0, 6),
+      suggestedSkills: insight.suggestedSkills,
       source: "deterministic",
     });
     setAnalyzeStatus("accepted");
@@ -850,6 +859,29 @@ export function FigmaDashboardView() {
                     );
                   })()}
                 </div>
+
+                <SuggestedSkillsPanel
+                  suggestions={analysisResult?.suggestedSkills}
+                  bankEntries={bankEntries}
+                  onVaultUpdated={(updatedEntries) => {
+                    setBankEntries(updatedEntries);
+                    const refreshedInsight = analyzeRoleFitAgainstVault(jobText.trim(), updatedEntries);
+                    setAnalysisResult((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            score: refreshedInsight.score,
+                            details: `${refreshedInsight.matchedSkills.length} of ${
+                              refreshedInsight.matchedSkills.length + refreshedInsight.missingSkills.length
+                            } role criteria evidenced in bullets · ${refreshedInsight.totalFactsCount} verified facts`,
+                            matchedSkills: refreshedInsight.matchedSkills.slice(0, 8),
+                            tagOnlySkills: refreshedInsight.tagOnlySkills.slice(0, 4),
+                            missingSkills: refreshedInsight.missingSkills.slice(0, 6),
+                          }
+                        : prev
+                    );
+                  }}
+                />
               </div>
 
               <div className="analysis-actions-row">

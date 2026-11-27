@@ -64,6 +64,10 @@ const VAULT_CATEGORY_RULES: Array<{ category: string; pattern: RegExp }> = [
     category: "Web & Backend",
     pattern: /\b(react|next\.?js|flask|django|fastapi|node\.?js|express|tailwind(?:\s*css)?|rest(?:ful)?\s*apis?|prisma(?:\s*orm)?|drizzle|graphql|flutter|trpc)\b/i,
   },
+  {
+    category: "Soft Skills & Collaboration",
+    pattern: /\b(communication|collaboration|cross[- ]functional|leadership|mentoring|mentorship|problem[- ]solving|ownership|accountability|agile|scrum|adaptability|fast learner|quick learner|product thinking|user empathy|stakeholder|teamwork|time management|technical writing|documentation|code review|experimentation)\b/i,
+  },
 ];
 
 /**
