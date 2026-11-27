@@ -7,7 +7,7 @@ import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import { apiSuccess, handleApiError } from "@/lib/api/response";
 
 const AnalyzeOverviewSchema = z.object({
-  rawText: z.string().min(20, "Paste at least a short job description to analyze.").max(30000),
+  rawText: z.string().min(10, "Paste at least a short job description to analyze.").max(30000),
 });
 
 const LlmRoleFitSchema = z.object({

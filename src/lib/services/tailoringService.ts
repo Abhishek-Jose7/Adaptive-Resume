@@ -77,6 +77,7 @@ export class TailoringService {
       targetBulletId?: string;
       targetSectionType?: string;
       pinnedBulletIds?: string[];
+      autoAcceptPassed?: boolean;
     }
   ): Promise<AiRunDetails> {
     // 1. Fetch User Email, Job, and JD Analysis concurrently
@@ -403,7 +404,7 @@ CRITICAL INTEGRITY AND WRITING RULES:
               validatorStatus: "passed",
               validationNotes: ["Passed all truth-bound validation checks."],
               retryCount: attempt - 1,
-              status: "pending",
+              status: options?.autoAcceptPassed ? "accepted" : "pending",
               diffHtml,
               diffChunks,
               suggestedMetricQuestion:

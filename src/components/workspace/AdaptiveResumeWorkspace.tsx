@@ -462,7 +462,7 @@ export function AdaptiveResumeWorkspace() {
           await fetch(`/api/v1/jobs/${savedJob.id}/tailor`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "full_resume" }),
+            body: JSON.stringify({ mode: "full_resume", autoAcceptPassed: true }),
             signal: tailorController.signal,
           });
         } catch {

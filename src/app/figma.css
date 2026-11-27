@@ -2357,9 +2357,9 @@ footer > span {
   opacity: 0.55;
 }
 .input-footer button {
-  border: 0;
-  background: #d9d7d0;
-  color: #888;
+  border: 1px solid rgba(16, 36, 28, 0.22);
+  background: #ece8de;
+  color: var(--ink);
   padding: 12px 18px;
   display: flex;
   align-items: center;
@@ -2373,6 +2373,7 @@ footer > span {
 .input-footer button.ready {
   background: var(--ink);
   color: white;
+  border-color: var(--ink);
 }
 .input-footer button.analyze-btn {
   background: white;
@@ -2383,8 +2384,21 @@ footer > span {
   background: #f4f1ea;
 }
 .input-footer button:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+.status-accepted-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e6f4ea;
+  color: #1b5e20;
+  border: 1px solid #a5d6a7;
 }
 .panel-title button,
 .panel-title a {

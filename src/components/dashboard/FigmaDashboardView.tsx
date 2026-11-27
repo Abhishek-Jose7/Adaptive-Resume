@@ -66,6 +66,11 @@ export function FigmaDashboardView() {
     source?: string;
   } | null>(null);
   const [analyzingRole, setAnalyzingRole] = useState(false);
+  const [analyzeStatus, setAnalyzeStatus] = useState<"idle" | "analyzing" | "accepted">("idle");
+  const [tailorStage, setTailorStage] = useState<
+    "idle" | "saving_job" | "analyzing_jd" | "tailoring_bullets" | "accepted_creating" | "accepted_done"
+  >("idle");
+  const [tailorAcceptedSummary, setTailorAcceptedSummary] = useState<string | null>(null);
   const [bankEntries, setBankEntries] = useState<BankEntry[]>([]);
   const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,15 +132,23 @@ export function FigmaDashboardView() {
 
   async function handleAnalyze() {
     const trimmed = jobText.trim();
-    if (trimmed.length < 20) return;
+    if (trimmed.length < 10) {
+      setTailorError("Paste at least a short job description (10+ characters) to analyze role fit.");
+      document.getElementById("job-input")?.focus();
+      return;
+    }
     setTailorError(null);
     setAnalyzingRole(true);
+    setAnalyzeStatus("analyzing");
 
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch("/api/v1/overview/analyze-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText: trimmed }),
+        signal: controller.signal,
       });
 
       if (res.ok) {
@@ -157,14 +170,16 @@ export function FigmaDashboardView() {
           matchedSkills: matched.slice(0, 8),
           tagOnlySkills: tagOnly.slice(0, 4),
           missingSkills: missing.slice(0, 6),
-          source: data?.source,
+          source: data?.source || "ai_grounded",
         });
+        setAnalyzeStatus("accepted");
         setAnalyzed(true);
         return;
       }
     } catch {
-      // Fallback to local evidence engine if network unavailable
+      // Fallback to local evidence engine if network unavailable or timed out
     } finally {
+      clearTimeout(abortTimer);
       setAnalyzingRole(false);
     }
 
@@ -181,18 +196,23 @@ export function FigmaDashboardView() {
       matchedSkills: insight.matchedSkills.slice(0, 8),
       tagOnlySkills: insight.tagOnlySkills.slice(0, 4),
       missingSkills: insight.missingSkills.slice(0, 6),
+      source: "deterministic",
     });
+    setAnalyzeStatus("accepted");
     setAnalyzed(true);
   }
 
   async function handleCreateTailoredResume() {
     const trimmedJd = jobText.trim();
     if (trimmedJd.length < 10) {
-      setTailorError("Please paste at least a short job description first.");
+      setTailorError("Please paste at least a short job description (10+ characters) first.");
+      document.getElementById("job-input")?.focus();
       return;
     }
     setCreatingResume(true);
     setTailorError(null);
+    setTailorAcceptedSummary(null);
+    setTailorStage("saving_job");
     try {
       try {
         sessionStorage.removeItem("pending_job_desc");
@@ -221,9 +241,9 @@ export function FigmaDashboardView() {
       const { job } = jobPayload;
 
       // 2. Run & await structured JD analysis before tailoring so /tailor never hits a missing-analysis error
-      const analyzeData: any = await fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
+      setTailorStage("analyzing_jd");
+      const analyzeRes = await fetch(`/api/v1/jobs/${job.id}/analyze`, { method: "POST" }).catch(() => null);
+      const analyzeData: any = analyzeRes?.ok ? await analyzeRes.json().catch(() => null) : null;
       const localFit = analyzeRoleFitAgainstVault(trimmedJd, bankEntries);
       const jdKeywords = Array.from(
         new Set([
@@ -236,26 +256,34 @@ export function FigmaDashboardView() {
         ].filter(Boolean))
       );
 
-      // 3. Tailor bullets from Career Vault with a 22-second safety timeout
+      // 3. Tailor bullets from Career Vault with auto-accept & 22-second safety timeout
+      setTailorStage("tailoring_bullets");
       let tailoredResults: any[] = [];
-      const tailorController = new AbortController();
-      const timeoutId = setTimeout(() => tailorController.abort(), 22000);
-      try {
-        const tailorRes = await fetch(`/api/v1/jobs/${job.id}/tailor`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "full_resume" }),
-          signal: tailorController.signal,
-        });
-        if (tailorRes.ok) {
-          const tailorData = await tailorRes.json().catch(() => null);
-          tailoredResults = tailorData?.results || [];
+      if (analyzeRes?.ok) {
+        const tailorController = new AbortController();
+        const timeoutId = setTimeout(() => tailorController.abort(), 22000);
+        try {
+          const tailorRes = await fetch(`/api/v1/jobs/${job.id}/tailor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "full_resume", autoAcceptPassed: true }),
+            signal: tailorController.signal,
+          });
+          if (tailorRes.ok) {
+            const tailorData = await tailorRes.json().catch(() => null);
+            tailoredResults = tailorData?.results || [];
+          }
+        } catch (tailorErr) {
+          console.warn("Tailoring timeout or fallback to vault bullets:", tailorErr);
+        } finally {
+          clearTimeout(timeoutId);
         }
-      } catch (tailorErr) {
-        console.warn("Tailoring timeout or fallback to vault bullets:", tailorErr);
-      } finally {
-        clearTimeout(timeoutId);
       }
+
+      setTailorStage("accepted_creating");
+      const passedRewritesCount = tailoredResults.filter(
+        (r) => r?.validatorStatus === "passed"
+      ).length;
 
       // 4. Fetch candidate profile for contact headers
       const meRes: any = await fetch("/api/v1/me", { cache: "no-store" })
@@ -533,9 +561,16 @@ export function FigmaDashboardView() {
       }
 
       invalidateVaultCache();
+      setTailorStage("accepted_done");
+      setTailorAcceptedSummary(
+        passedRewritesCount > 0
+          ? `Accepted · ${passedRewritesCount} role-adapted bullets applied — Opening editor…`
+          : "Accepted · Tailored draft built from your Career Vault — Opening editor…"
+      );
       router.push(`/resumes/${createdPayload.id}/edit`);
     } catch (err: any) {
       console.error("Resume creation error:", err);
+      setTailorStage("idle");
       setTailorError(err?.message || "Could not build tailored resume right now. Please try again.");
     } finally {
       setCreatingResume(false);
@@ -670,13 +705,18 @@ export function FigmaDashboardView() {
                   {tailorError}
                 </div>
               )}
+              {tailorAcceptedSummary && (
+                <div className="mb-3 rounded border border-green-700/25 bg-green-50/80 px-3 py-2 text-[12.5px] font-semibold text-green-900">
+                  ✓ {tailorAcceptedSummary}
+                </div>
+              )}
               <div className="input-footer">
                 <span>{jobText.length} characters</span>
                 <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                   <button
                     type="button"
                     className="analyze-btn"
-                    disabled={analyzingRole || creatingResume || jobText.trim().length < 5}
+                    disabled={analyzingRole || creatingResume}
                     onClick={handleAnalyze}
                   >
                     {analyzingRole ? (
@@ -688,11 +728,19 @@ export function FigmaDashboardView() {
                   <button
                     type="button"
                     className={jobText.trim().length >= 10 ? "ready" : ""}
-                    disabled={analyzingRole || creatingResume || jobText.trim().length < 10}
+                    disabled={analyzingRole || creatingResume}
                     onClick={handleCreateTailoredResume}
                   >
-                    {creatingResume ? (
-                      <>Tailoring draft… <FigmaIcon name="spark" size={16} /></>
+                    {tailorStage === "saving_job" ? (
+                      <>1/4 Saving role… <FigmaIcon name="spark" size={16} /></>
+                    ) : tailorStage === "analyzing_jd" ? (
+                      <>2/4 Analysing JD… <FigmaIcon name="spark" size={16} /></>
+                    ) : tailorStage === "tailoring_bullets" ? (
+                      <>3/4 Adapting bullets… <FigmaIcon name="spark" size={16} /></>
+                    ) : tailorStage === "accepted_creating" ? (
+                      <>4/4 Accepted · Building… <FigmaIcon name="spark" size={16} /></>
+                    ) : tailorStage === "accepted_done" ? (
+                      <>✓ Draft Accepted <FigmaIcon name="arrow" size={16} /></>
                     ) : (
                       <>Tailor a resume <FigmaIcon name="arrow" size={16} /></>
                     )}
@@ -707,19 +755,31 @@ export function FigmaDashboardView() {
                   {tailorError}
                 </div>
               )}
+              {tailorAcceptedSummary && (
+                <div className="mb-3 rounded border border-green-700/25 bg-green-50/80 px-3 py-2 text-[12.5px] font-semibold text-green-900">
+                  ✓ {tailorAcceptedSummary}
+                </div>
+              )}
               <div className="analysis-top-row">
                 <div className="result-score">
                   <span>{analysisResult?.score ?? 0}%</span>
                   <small>MATCH</small>
                 </div>
                 <div className="analysis-role-meta">
-                  <span className="match-level-badge">
-                    {((analysisResult?.score || 0) >= 75)
-                      ? "STRONG MATCH"
-                      : ((analysisResult?.score || 0) >= 50)
-                        ? "SOLID MATCH"
-                        : "STRETCH MATCH"}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="match-level-badge">
+                      {((analysisResult?.score || 0) >= 75)
+                        ? "STRONG MATCH"
+                        : ((analysisResult?.score || 0) >= 50)
+                          ? "SOLID MATCH"
+                          : "STRETCH MATCH"}
+                    </span>
+                    {analyzeStatus === "accepted" && (
+                      <span className="status-accepted-pill">
+                        ✓ Fit Accepted {analysisResult?.source === "ai_grounded" ? "· AI Grounded" : "· Vault Verified"}
+                      </span>
+                    )}
+                  </div>
                   <h3>{analysisResult?.title || "Target Engineering Role"}</h3>
                   <p>{analysisResult?.details || "0 skills matched · 0 strong evidence points found"}</p>
                 </div>
@@ -796,8 +856,13 @@ export function FigmaDashboardView() {
                 <button
                   type="button"
                   className="start-over-btn"
+                  disabled={creatingResume}
                   onClick={() => {
                     setAnalyzed(false);
+                    setAnalyzeStatus("idle");
+                    setTailorStage("idle");
+                    setTailorAcceptedSummary(null);
+                    setTailorError(null);
                     setJobText("");
                   }}
                 >
@@ -806,11 +871,19 @@ export function FigmaDashboardView() {
                 <button
                   type="button"
                   className="create-resume"
-                  disabled={creatingResume}
+                  disabled={creatingResume || analyzingRole}
                   onClick={handleCreateTailoredResume}
                 >
-                  {creatingResume ? (
-                    <>Tailoring draft… <FigmaIcon name="spark" size={17} /></>
+                  {tailorStage === "saving_job" ? (
+                    <>1/4 Saving role… <FigmaIcon name="spark" size={17} /></>
+                  ) : tailorStage === "analyzing_jd" ? (
+                    <>2/4 Analysing JD… <FigmaIcon name="spark" size={17} /></>
+                  ) : tailorStage === "tailoring_bullets" ? (
+                    <>3/4 Adapting bullets… <FigmaIcon name="spark" size={17} /></>
+                  ) : tailorStage === "accepted_creating" ? (
+                    <>4/4 Accepted · Building… <FigmaIcon name="spark" size={17} /></>
+                  ) : tailorStage === "accepted_done" ? (
+                    <>✓ Draft Accepted <FigmaIcon name="arrow" size={17} /></>
                   ) : (
                     <>Create tailored resume <FigmaIcon name="arrow" size={17} /></>
                   )}

@@ -16,14 +16,14 @@ export async function POST(
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { provider, apiKey, mode, targetBulletId, targetSectionType, pinnedBulletIds } = body;
+    const { provider, apiKey, mode, targetBulletId, targetSectionType, pinnedBulletIds, autoAcceptPassed } = body;
 
     const runDetails = await TailoringService.tailorJob(
       userId,
       jobId,
       provider,
       apiKey,
-      { mode, targetBulletId, targetSectionType, pinnedBulletIds }
+      { mode, targetBulletId, targetSectionType, pinnedBulletIds, autoAcceptPassed }
     );
     return successResponse(runDetails, 201);
   } catch (error: any) {
