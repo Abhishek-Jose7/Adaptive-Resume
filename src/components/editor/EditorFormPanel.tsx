@@ -58,7 +58,7 @@ export function EditorFormPanel({ store, editorState, resumeId }: Props) {
   const projects = doc.projects || [];
   const certs = doc.certifications || [];
 
-  const defaultOrder = ["profile", "experience", "education", "skills", "projects", "certifications"];
+  const defaultOrder = ["profile", "skills", "experience", "projects", "education", "certifications"];
   const currentOrder = doc.template?.theme?.sectionOrder || defaultOrder;
 
   const moveSection = (idx: number, direction: "up" | "down") => {

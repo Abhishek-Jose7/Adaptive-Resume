@@ -16,8 +16,10 @@ import {
 import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { analyzeRoleFitAgainstVault, extractRoleTitleFromJd } from "@/lib/scoring/roleFitInsight";
 import {
+  adaptSummaryForRole,
   extractProfileSummaryFromEntries,
   normalizeDistinctAwardIssuer,
+  orderSkillsForRole,
   selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
@@ -234,10 +236,10 @@ export function FigmaDashboardView() {
         ].filter(Boolean))
       );
 
-      // 3. Tailor bullets from Career Vault with an 8-second safety timeout
+      // 3. Tailor bullets from Career Vault with a 22-second safety timeout
       let tailoredResults: any[] = [];
       const tailorController = new AbortController();
-      const timeoutId = setTimeout(() => tailorController.abort(), 8000);
+      const timeoutId = setTimeout(() => tailorController.abort(), 22000);
       try {
         const tailorRes = await fetch(`/api/v1/jobs/${job.id}/tailor`, {
           method: "POST",
@@ -281,6 +283,7 @@ export function FigmaDashboardView() {
       const orderedExperience = bankEntries
         .filter((e) => e.entryType === "experience")
         .sort(compareReverseChronological)
+        .slice(0, 3)
         .map((e, idx) => ({
           ...e,
           rankedBullets: selectExperienceBulletsForRole({
@@ -308,7 +311,7 @@ export function FigmaDashboardView() {
           jdKeywords,
           jdTitle: roleTitle,
           confidenceRank: typeof e.sortOrder === "number" ? e.sortOrder : idx,
-          maxBullets: 3,
+          maxBullets: 2,
         });
         const selectedBullets = angleSelection.bullets.map((text, bIdx) => {
           const existing = mappedByText.get(text.trim());
@@ -331,7 +334,14 @@ export function FigmaDashboardView() {
       const orderedEducation = bankEntries
         .filter((e) => e.entryType === "education")
         .sort(compareReverseChronological);
-      const narrativeSummary = extractProfileSummaryFromEntries(bankEntries, meRes.headline || "");
+      const rawSummary = extractProfileSummaryFromEntries(bankEntries, meRes.headline || "");
+      const narrativeSummary = adaptSummaryForRole({
+        rawSummary,
+        headline: meRes.headline || "",
+        entries: bankEntries,
+        jdKeywords,
+        jdTitle: roleTitle,
+      });
 
       const sections = [
         {
@@ -451,7 +461,13 @@ export function FigmaDashboardView() {
           ].filter(([, u]) => Boolean(u)).map(([l, u]) => ({ label: l!, url: u! })),
         },
         sections,
-        template: { id: "classic-ats", version: "1.0", theme: {} },
+        template: {
+          id: "dense-single-page",
+          version: "1.0",
+          theme: {
+            sectionOrder: ["profile", "skills", "experience", "projects", "education", "certifications"],
+          },
+        },
         page: { size: "A4", targetPages: 1 },
         metadata: { createdAt: new Date().toISOString() },
         experience: orderedExperience.map((e) => ({
@@ -480,17 +496,20 @@ export function FigmaDashboardView() {
           startDate: e.startDate || "",
           endDate: e.endDate || undefined,
         })),
-        skills: bankEntries
-          .filter((e) => e.entryType === "skill_group" || e.entryType === "skill")
-          .flatMap((e) =>
-            (e.bullets || []).flatMap((b) =>
-              b.text
-                .split(/[,•|\n;]+/)
-                .map((tok) => tok.trim())
-                .filter(Boolean)
-                .map((name) => ({ name, category: e.title })),
+        skills: orderSkillsForRole(
+          bankEntries
+            .filter((e) => e.entryType === "skill_group" || e.entryType === "skill")
+            .flatMap((e) =>
+              (e.bullets || []).flatMap((b) =>
+                b.text
+                  .split(/[,•|\n;]+/)
+                  .map((tok) => tok.trim())
+                  .filter(Boolean)
+                  .map((name) => ({ name, category: e.title })),
+              ),
             ),
-          ),
+          jdKeywords
+        ),
         certifications,
         awards,
       };

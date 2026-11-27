@@ -4,6 +4,7 @@ import {
   resumeVersions,
   jobs,
   jdAnalyses,
+  aiRuns,
   users,
   bankEntries,
   achievementBullets,
@@ -17,8 +18,10 @@ import { UsageLimitService } from "./usageLimitService";
 import { SettingsService } from "./settingsService";
 import { BulletRetriever } from "../tailoring/bulletRetriever";
 import {
+  adaptSummaryForRole,
   extractProfileSummaryFromEntries,
   normalizeDistinctAwardIssuer,
+  orderSkillsForRole,
   selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
@@ -74,7 +77,7 @@ export class ResumeService {
    * whenever createResume is called without an explicit initialDoc (e.g. from /jobs/[id]).
    */
   static async assembleInitialDocFromVault(userId: string, jobId?: string | null): Promise<Partial<ResumeDoc>> {
-    const [[user], jdRows, entriesRaw, bulletsRaw] = await Promise.all([
+    const [[user], jdRows, aiRunRows, entriesRaw, bulletsRaw] = await Promise.all([
       db
         .select({
           displayName: users.displayName,
@@ -97,6 +100,14 @@ export class ResumeService {
           .where(and(eq(jdAnalyses.userId, userId), eq(jdAnalyses.jobId, jobId)))
           .limit(1)
         : Promise.resolve([]),
+      jobId
+        ? db
+          .select({ validatorReportJson: aiRuns.validatorReportJson })
+          .from(aiRuns)
+          .where(and(eq(aiRuns.userId, userId), eq(aiRuns.jobId, jobId)))
+          .orderBy(desc(aiRuns.createdAt))
+          .limit(1)
+        : Promise.resolve([]),
       db
         .select()
         .from(bankEntries)
@@ -109,6 +120,14 @@ export class ResumeService {
     ]);
 
     if (entriesRaw.length === 0) return {};
+
+    const rewriteByBulletId = new Map<string, string>();
+    const reportResults = (aiRunRows[0]?.validatorReportJson as any)?.results || [];
+    for (const r of reportResults) {
+      if (r?.bulletId && r?.validatorStatus === "passed" && r?.rewrittenText) {
+        rewriteByBulletId.set(r.bulletId, r.rewrittenText);
+      }
+    }
 
     const bulletsByEntry = new Map<string, AchievementBullet[]>();
     for (const b of bulletsRaw) {
@@ -145,7 +164,14 @@ export class ResumeService {
     if (user?.portfolioUrl) links.push({ label: "Portfolio", url: user.portfolioUrl });
 
     const headlineText = (user?.headline || "").trim();
-    const narrativeSummary = extractProfileSummaryFromEntries(fullEntries, headlineText);
+    const rawNarrativeSummary = extractProfileSummaryFromEntries(fullEntries, headlineText);
+    const narrativeSummary = adaptSummaryForRole({
+      rawSummary: rawNarrativeSummary,
+      headline: headlineText,
+      entries: fullEntries,
+      jdKeywords,
+      jdTitle,
+    });
 
     const selectBulletsForEntry = (entry: BankEntry, maxBullets: number) => {
       const eligible = (entry.bullets || []).filter((b) => b.usagePolicy !== "never_use");
@@ -170,7 +196,7 @@ export class ResumeService {
     const experience = fullEntries
       .filter((e) => e.entryType === "experience")
       .sort(compareReverseChronological)
-      .slice(0, 4)
+      .slice(0, 3)
       .map((e, idx) => ({
         id: e.id,
         company: e.organization || "",
@@ -179,14 +205,17 @@ export class ResumeService {
         endDate: e.endDate || null,
         isCurrent: Boolean(e.isCurrent),
         location: e.location || undefined,
-        bullets: selectBulletsForEntry(e, idx <= 1 ? 4 : 3).map((b) => ({
-          id: b.id,
-          text: b.text,
-          provenance: "bank" as const,
-          sourceBulletIds: [b.id],
-          sourceFactIds: [],
-          validatorStatus: "not_applicable" as const,
-        })),
+        bullets: selectBulletsForEntry(e, idx <= 1 ? 4 : 3).map((b) => {
+          const adapted = rewriteByBulletId.get(b.id);
+          return {
+            id: b.id,
+            text: adapted || b.text,
+            provenance: adapted ? ("ai-rewrite" as const) : ("bank" as const),
+            sourceBulletIds: [b.id],
+            sourceFactIds: [],
+            validatorStatus: adapted ? ("passed" as const) : ("not_applicable" as const),
+          };
+        }),
       }));
 
     const sortedProjectEntries = sortProjectsByConfidenceAndRelevance(
@@ -203,14 +232,18 @@ export class ResumeService {
     const projects = sortedProjectEntries
       .slice(0, 4)
       .map((e, idx) => {
-        const eligibleBullets = e.bullets || [];
-        const bulletByText = new Map(eligibleBullets.map((b) => [b.text.trim(), b]));
+        const eligibleBullets = (e.bullets || []).map((b) => ({
+          ...b,
+          adaptedText: rewriteByBulletId.get(b.id) || b.text,
+          wasAdapted: rewriteByBulletId.has(b.id),
+        }));
+        const bulletByText = new Map(eligibleBullets.map((b) => [b.adaptedText.trim(), b]));
         const angleSelection = selectProjectAnglePoints({
           title: e.title,
           descriptionContext: e.descriptionContext,
           bullets: eligibleBullets.map((b) => ({
             id: b.id,
-            text: b.text,
+            text: b.adaptedText,
             sortOrder: b.sortOrder,
             relevanceScore: relevanceMap.get(b.id) ?? 0,
           })),
@@ -231,10 +264,12 @@ export class ResumeService {
             return {
               id: matchedBullet?.id || `${e.id}_ctx_${bIdx}`,
               text,
-              provenance: "bank" as const,
+              provenance: matchedBullet?.wasAdapted ? ("ai-rewrite" as const) : ("bank" as const),
               sourceBulletIds: matchedBullet ? [matchedBullet.id] : [],
               sourceFactIds: [],
-              validatorStatus: "not_applicable" as const,
+              validatorStatus: matchedBullet?.wasAdapted
+                ? ("passed" as const)
+                : ("not_applicable" as const),
             };
           }),
         };
@@ -296,7 +331,7 @@ export class ResumeService {
       experience,
       projects,
       education,
-      skills,
+      skills: orderSkillsForRole(skills, jdKeywords),
       certifications,
       awards,
     };
@@ -335,7 +370,7 @@ export class ResumeService {
         ...(jdAnalysis.role?.domain || []),
       ].filter(Boolean)
       : [];
-    const resolvedTemplateId = resolvedDocSeed?.template?.id || userDefaults.defaultTemplateId || "classic-ats";
+    const resolvedTemplateId = resolvedDocSeed?.template?.id || (jobId ? "dense-single-page" : userDefaults.defaultTemplateId) || "classic-ats";
     const resolvedPageSize = resolvedDocSeed?.page?.size || userDefaults.defaultPageSize || "A4";
 
     const canonicalDoc: ResumeDoc = budgetResumeForOnePageA4(

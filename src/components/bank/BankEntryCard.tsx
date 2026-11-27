@@ -19,6 +19,7 @@ interface BankEntryCardProps {
   onReorderBullets?: (entryId: string, bulletIds: string[]) => Promise<void>;
   onMoveProjectUp?: (entryId: string) => Promise<void>;
   onMoveProjectDown?: (entryId: string) => Promise<void>;
+  onSetProjectConfidenceRank?: (entryId: string, targetRankIndex: number) => Promise<void>;
   onQuantifyBullet?: (entry: BankEntry, bullet: AchievementBullet) => void;
 }
 
@@ -47,6 +48,7 @@ export function BankEntryCard({
   onReorderBullets,
   onMoveProjectUp,
   onMoveProjectDown,
+  onSetProjectConfidenceRank,
   onQuantifyBullet,
 }: BankEntryCardProps) {
   const [isAddingBullet, setIsAddingBullet] = useState(false);
@@ -148,6 +150,26 @@ export function BankEntryCard({
             onMoveProjectUp &&
             onMoveProjectDown && (
               <>
+                {onSetProjectConfidenceRank && (totalProjectsCount ?? 0) > 1 && (
+                  <select
+                    value={confidenceRank - 1}
+                    onChange={(e) =>
+                      void onSetProjectConfidenceRank(entry.id, Number(e.target.value))
+                    }
+                    className="mr-1 rounded border border-rule bg-paper px-1.5 py-0.5 font-mono text-[10.5px] text-ink"
+                    title="Set exact project preference rank (#1 highest, last lowest)"
+                  >
+                    {Array.from({ length: totalProjectsCount ?? 1 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i === 0
+                          ? "#1 Top"
+                          : i === (totalProjectsCount ?? 1) - 1
+                            ? `#${i + 1} Lowest`
+                            : `#${i + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   onClick={() => void onMoveProjectUp(entry.id)}
                   disabled={confidenceRank <= 1}

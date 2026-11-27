@@ -48,6 +48,229 @@ export function ClassicAtsTemplate({
   const certifications = doc.certifications || [];
   const hasAchievementsOrCerts = awards.length > 0 || certifications.length > 0;
 
+  const DEFAULT_SECTION_ORDER = ["skills", "experience", "projects", "education", "certifications"];
+  const rawThemeOrder = (doc.template?.theme?.sectionOrder || []).filter((s) => s !== "profile");
+  const normalizedOrder = Array.from(
+    new Set([
+      ...rawThemeOrder.map((s) => (s === "awards" ? "certifications" : s)),
+      ...DEFAULT_SECTION_ORDER,
+    ])
+  );
+
+  const renderSectionBlock = (secKey: string): React.ReactNode => {
+    switch (secKey) {
+      case "skills":
+        if (!doc.skills || doc.skills.length === 0) return null;
+        return (
+          <section
+            key="skills"
+            onClick={() => handleClick("skills")}
+            style={{ marginTop: `${sectionGapRem * 0.85}rem` }}
+            className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
+          >
+            <h2 className="font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900" style={{ fontSize: "1em" }}>
+              Technical Skills
+            </h2>
+            {(() => {
+              const grouped = getGroupedSkills(doc.skills);
+              const hasCategories =
+                grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+              if (hasCategories) {
+                return (
+                  <div className="space-y-0.5 mt-1 text-gray-800" style={{ fontSize: "0.94em" }}>
+                    {grouped.map((g, idx) => (
+                      <div key={idx}>
+                        <span className="font-bold text-gray-900">{g.category}: </span>
+                        <span>{g.items.join(", ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return (
+                <p className="mt-1 text-gray-800" style={{ fontSize: "0.94em" }}>
+                  {doc.skills.map((s) => s.name).join(", ")}
+                </p>
+              );
+            })()}
+          </section>
+        );
+
+      case "experience":
+        if (!doc.experience || doc.experience.length === 0) return null;
+        return (
+          <section key="experience" style={{ marginTop: `${sectionGapRem}rem` }}>
+            <h2 className="font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900" style={{ fontSize: "1em" }}>
+              Experience
+            </h2>
+            <div className="space-y-1.5 mt-1">
+              {doc.experience.map((exp) => {
+                const start = formatResumeDate(exp.startDate);
+                const end = exp.isCurrent ? "Present" : formatResumeDate(exp.endDate) || "Present";
+                return (
+                  <div
+                    key={exp.id}
+                    onClick={() => handleClick("experience", exp.id)}
+                    className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
+                  >
+                    <div className="flex justify-between items-baseline text-gray-900" style={{ fontSize: "1em" }}>
+                      <span className="font-bold">{exp.position}</span>
+                      <span className="font-normal text-gray-800 shrink-0 ml-2" style={{ fontSize: "0.94em" }}>
+                        {start ? `${start} – ${end}` : end}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-baseline italic text-gray-700" style={{ fontSize: "0.95em" }}>
+                      <span>{exp.company}</span>
+                      {exp.location && <span className="shrink-0 ml-2">{exp.location}</span>}
+                    </div>
+                    {exp.bullets && exp.bullets.length > 0 && (
+                      <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-gray-800" style={{ fontSize: "0.94em" }}>
+                        {exp.bullets.map((b) => (
+                          <li key={b.id}>
+                            {b.text}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+
+      case "projects":
+        if (!doc.projects || doc.projects.length === 0) return null;
+        return (
+          <section key="projects" style={{ marginTop: `${sectionGapRem}rem` }}>
+            <h2 className="font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900" style={{ fontSize: "1em" }}>
+              Projects
+            </h2>
+            <div className="space-y-1 mt-1">
+              {doc.projects.map((proj) => {
+                const firstBullet = proj.bullets?.[0]?.text || "";
+                const hasStackBullet = isPipeTechLine(firstBullet);
+                const stackLine = hasStackBullet
+                  ? firstBullet.replace(/\.$/, "")
+                  : shortenProjectDescription(proj.description) || proj.role || "";
+                const displayBullets = hasStackBullet ? proj.bullets.slice(1) : proj.bullets || [];
+
+                return (
+                  <div
+                    key={proj.id}
+                    onClick={() => handleClick("projects", proj.id)}
+                    className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
+                  >
+                    <div className="flex justify-between items-baseline text-gray-900" style={{ fontSize: "0.98em" }}>
+                      <span>
+                        <span className="font-bold">{proj.name}</span>
+                        {stackLine && (
+                          <span className="italic font-normal text-gray-700"> | {stackLine}</span>
+                        )}
+                      </span>
+                      {proj.url && (
+                        <a
+                          href={proj.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-normal text-blue-900 hover:underline shrink-0 ml-2"
+                          style={{ fontSize: "0.88em" }}
+                        >
+                          {proj.url}
+                        </a>
+                      )}
+                    </div>
+                    {displayBullets.length > 0 && (
+                      <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-gray-800" style={{ fontSize: "0.94em" }}>
+                        {displayBullets.map((b) => (
+                          <li key={b.id}>
+                            {b.text}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+
+      case "education":
+        if (!doc.education || doc.education.length === 0) return null;
+        return (
+          <section key="education" style={{ marginTop: `${sectionGapRem}rem` }}>
+            <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
+              Education
+            </h2>
+            <div className="space-y-1 mt-1">
+              {doc.education.map((edu) => {
+                const start = formatResumeDate(edu.startDate);
+                const end = formatResumeDate(edu.endDate) || "Present";
+                const dateRange = start ? `${start} – ${end}` : end;
+                return (
+                  <div
+                    key={edu.id}
+                    onClick={() => handleClick("education", edu.id)}
+                    className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
+                  >
+                    <div className="flex justify-between items-baseline text-[9.4pt] text-gray-900">
+                      <span className="font-bold">{edu.institution}</span>
+                      <span className="text-[9pt] font-normal text-gray-800 shrink-0 ml-2">
+                        {dateRange}
+                      </span>
+                    </div>
+                    <div className="text-[9pt] italic text-gray-800">
+                      {edu.degree || "Degree"}
+                      {edu.field ? ` — ${edu.field}` : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+
+      case "certifications":
+        if (!hasAchievementsOrCerts) return null;
+        return (
+          <section
+            key="certifications"
+            onClick={() => handleClick("certifications")}
+            style={{ marginTop: `${sectionGapRem}rem` }}
+            className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
+          >
+            <h2 className="font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900" style={{ fontSize: "1em" }}>
+              Achievements &amp; Certifications
+            </h2>
+            <ul className="list-disc pl-4 mt-1 space-y-0.5 text-gray-800" style={{ fontSize: "0.94em" }}>
+              {awards.map((a) => {
+                const showIssuer =
+                  a.issuer && a.issuer.trim().toLowerCase() !== a.name.trim().toLowerCase();
+                return (
+                  <li key={a.id}>
+                    <span className="font-bold text-gray-900">{a.name}</span>
+                    {showIssuer ? `: ${a.issuer}` : ""}
+                    {a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}
+                  </li>
+                );
+              })}
+              {certifications.map((c) => (
+                <li key={c.id}>
+                  <span className="font-bold text-gray-900">{c.name}</span>
+                  {c.issuer ? ` — ${c.issuer}` : ""}
+                  {c.issueDate ? ` (${formatResumeDate(c.issueDate)})` : ""}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div
       className="bg-white text-gray-900 font-serif shadow-md print:shadow-none mx-auto w-full transition-all box-border"
@@ -106,210 +329,14 @@ export function ClassicAtsTemplate({
           style={{ marginTop: `${sectionGapRem * 0.75}rem` }}
           className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
         >
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
+          <h2 className="font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900" style={{ fontSize: "1em" }}>
             Summary
           </h2>
-          <p className="mt-1 text-[9.2pt] text-gray-800 leading-snug">{summary}</p>
+          <p className="mt-1 text-gray-800" style={{ fontSize: "0.95em" }}>{summary}</p>
         </section>
       )}
 
-      {/* Experience */}
-      {doc.experience && doc.experience.length > 0 && (
-        <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
-            Experience
-          </h2>
-          <div className="space-y-2 mt-1">
-            {doc.experience.map((exp) => {
-              const start = formatResumeDate(exp.startDate);
-              const end = exp.isCurrent ? "Present" : formatResumeDate(exp.endDate) || "Present";
-              return (
-                <div
-                  key={exp.id}
-                  onClick={() => handleClick("experience", exp.id)}
-                  className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
-                >
-                  <div className="flex justify-between items-baseline text-[9.5pt] text-gray-900">
-                    <span className="font-bold">{exp.position}</span>
-                    <span className="text-[9pt] font-normal text-gray-800 shrink-0 ml-2">
-                      {start ? `${start} – ${end}` : end}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-baseline text-[9pt] italic text-gray-700">
-                    <span>{exp.company}</span>
-                    {exp.location && <span className="shrink-0 ml-2">{exp.location}</span>}
-                  </div>
-                  {exp.bullets && exp.bullets.length > 0 && (
-                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-[9pt] text-gray-800">
-                      {exp.bullets.map((b) => (
-                        <li key={b.id} className="leading-snug">
-                          {b.text}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Projects */}
-      {doc.projects && doc.projects.length > 0 && (
-        <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
-            Projects
-          </h2>
-          <div className="space-y-1.5 mt-1">
-            {doc.projects.map((proj) => {
-              const firstBullet = proj.bullets?.[0]?.text || "";
-              const hasStackBullet = isPipeTechLine(firstBullet);
-              const stackLine = hasStackBullet
-                ? firstBullet.replace(/\.$/, "")
-                : shortenProjectDescription(proj.description) || proj.role || "";
-              const displayBullets = hasStackBullet ? proj.bullets.slice(1) : proj.bullets || [];
-
-              return (
-                <div
-                  key={proj.id}
-                  onClick={() => handleClick("projects", proj.id)}
-                  className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
-                >
-                  <div className="flex justify-between items-baseline text-[9.4pt] text-gray-900">
-                    <span>
-                      <span className="font-bold">{proj.name}</span>
-                      {stackLine && (
-                        <span className="italic font-normal text-gray-700"> | {stackLine}</span>
-                      )}
-                    </span>
-                    {proj.url && (
-                      <a
-                        href={proj.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[8.5pt] font-normal text-blue-900 hover:underline shrink-0 ml-2"
-                      >
-                        {proj.url}
-                      </a>
-                    )}
-                  </div>
-                  {displayBullets.length > 0 && (
-                    <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-[9pt] text-gray-800">
-                      {displayBullets.map((b) => (
-                        <li key={b.id} className="leading-snug">
-                          {b.text}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Education */}
-      {doc.education && doc.education.length > 0 && (
-        <section style={{ marginTop: `${sectionGapRem}rem` }}>
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
-            Education
-          </h2>
-          <div className="space-y-1 mt-1">
-            {doc.education.map((edu) => {
-              const start = formatResumeDate(edu.startDate);
-              const end = formatResumeDate(edu.endDate) || "Present";
-              const dateRange = start ? `${start} – ${end}` : end;
-              return (
-                <div
-                  key={edu.id}
-                  onClick={() => handleClick("education", edu.id)}
-                  className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
-                >
-                  <div className="flex justify-between items-baseline text-[9.4pt] text-gray-900">
-                    <span className="font-bold">{edu.institution}</span>
-                    <span className="text-[9pt] font-normal text-gray-800 shrink-0 ml-2">
-                      {dateRange}
-                    </span>
-                  </div>
-                  <div className="text-[9pt] italic text-gray-800">
-                    {edu.degree || "Degree"}
-                    {edu.field ? ` — ${edu.field}` : ""}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Achievements & Certifications (includes Hackathon wins from Vault awards + Certifications) */}
-      {hasAchievementsOrCerts && (
-        <section
-          onClick={() => handleClick("certifications")}
-          style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
-        >
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
-            Achievements &amp; Certifications
-          </h2>
-          <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[9pt] text-gray-800">
-            {awards.map((a) => {
-              const showIssuer =
-                a.issuer && a.issuer.trim().toLowerCase() !== a.name.trim().toLowerCase();
-              return (
-                <li key={a.id} className="leading-snug">
-                  <span className="font-bold text-gray-900">{a.name}</span>
-                  {showIssuer ? `: ${a.issuer}` : ""}
-                  {a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}
-                </li>
-              );
-            })}
-            {certifications.map((c) => (
-              <li key={c.id} className="leading-snug">
-                <span className="font-bold text-gray-900">{c.name}</span>
-                {c.issuer ? ` — ${c.issuer}` : ""}
-                {c.issueDate ? ` (${formatResumeDate(c.issueDate)})` : ""}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Technical Skills */}
-      {doc.skills && doc.skills.length > 0 && (
-        <section
-          onClick={() => handleClick("skills")}
-          style={{ marginTop: `${sectionGapRem}rem` }}
-          className={`cursor-pointer ${!readOnly ? "hover:bg-blue-50/40 rounded px-1" : ""}`}
-        >
-          <h2 className="text-[9.5pt] font-bold uppercase tracking-wider border-b border-gray-800 pb-0.5 text-gray-900">
-            Technical Skills
-          </h2>
-          {(() => {
-            const grouped = getGroupedSkills(doc.skills);
-            const hasCategories = grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
-            if (hasCategories) {
-              return (
-                <div className="space-y-0.5 mt-1 text-[9pt] text-gray-800 leading-snug">
-                  {grouped.map((g, idx) => (
-                    <div key={idx}>
-                      <span className="font-bold text-gray-900">{g.category}: </span>
-                      <span>{g.items.join(", ")}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            }
-            return (
-              <p className="mt-1 text-[9pt] text-gray-800 leading-snug">
-                {doc.skills.map((s) => s.name).join(", ")}
-              </p>
-            );
-          })()}
-        </section>
-      )}
+      {normalizedOrder.map((secKey) => renderSectionBlock(secKey))}
     </div>
   );
 }

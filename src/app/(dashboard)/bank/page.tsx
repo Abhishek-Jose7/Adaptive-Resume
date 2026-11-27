@@ -23,6 +23,10 @@ function sortEntriesForVault(a: BankEntry, b: BankEntry): number {
   if (a.entryType === "project" && b.entryType === "project") {
     const orderDiff = (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
     if (orderDiff !== 0) return orderDiff;
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (createdA !== createdB) return createdA - createdB;
+    return String(a.id).localeCompare(String(b.id));
   }
   return compareReverseChronological(a, b);
 }
@@ -225,20 +229,7 @@ export default function DataBankPage() {
     }
   };
 
-  const handleMoveProjectConfidence = async (entryId: string, direction: "up" | "down") => {
-    const sourceList = vaultEntries.length > 0 ? vaultEntries : entries;
-    const projectsOrdered = sourceList
-      .filter((e) => e.entryType === "project")
-      .sort(sortEntriesForVault);
-    const idx = projectsOrdered.findIndex((p) => p.id === entryId);
-    if (idx === -1) return;
-    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= projectsOrdered.length) return;
-
-    const nextProjects = [...projectsOrdered];
-    const [moved] = nextProjects.splice(idx, 1);
-    nextProjects.splice(targetIdx, 0, moved);
-
+  const applyProjectOrder = async (nextProjects: BankEntry[]) => {
     const orderMap: Record<string, number> = {};
     nextProjects.forEach((p, orderIdx) => {
       orderMap[p.id] = orderIdx;
@@ -273,6 +264,37 @@ export default function DataBankPage() {
       invalidateVaultCache();
       await fetchEntries(true);
     }
+  };
+
+  const handleMoveProjectConfidence = async (entryId: string, direction: "up" | "down") => {
+    const sourceList = vaultEntries.length > 0 ? vaultEntries : entries;
+    const projectsOrdered = sourceList
+      .filter((e) => e.entryType === "project")
+      .sort(sortEntriesForVault);
+    const idx = projectsOrdered.findIndex((p) => p.id === entryId);
+    if (idx === -1) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= projectsOrdered.length) return;
+
+    const nextProjects = [...projectsOrdered];
+    const [moved] = nextProjects.splice(idx, 1);
+    nextProjects.splice(targetIdx, 0, moved);
+    await applyProjectOrder(nextProjects);
+  };
+
+  const handleSetProjectConfidenceRank = async (entryId: string, targetRankIndex: number) => {
+    const sourceList = vaultEntries.length > 0 ? vaultEntries : entries;
+    const projectsOrdered = sourceList
+      .filter((e) => e.entryType === "project")
+      .sort(sortEntriesForVault);
+    const idx = projectsOrdered.findIndex((p) => p.id === entryId);
+    if (idx === -1 || targetRankIndex < 0 || targetRankIndex >= projectsOrdered.length) return;
+    if (idx === targetRankIndex) return;
+
+    const nextProjects = [...projectsOrdered];
+    const [moved] = nextProjects.splice(idx, 1);
+    nextProjects.splice(targetRankIndex, 0, moved);
+    await applyProjectOrder(nextProjects);
   };
 
   const allOrderedProjects = (vaultEntries.length > 0 ? vaultEntries : entries)
@@ -523,6 +545,7 @@ export default function DataBankPage() {
                     totalProjectsCount={allOrderedProjects.length}
                     onMoveProjectUp={(id) => handleMoveProjectConfidence(id, "up")}
                     onMoveProjectDown={(id) => handleMoveProjectConfidence(id, "down")}
+                    onSetProjectConfidenceRank={handleSetProjectConfidenceRank}
                     onEdit={(e) => {
                       setEntryToEdit(e);
                       setIsModalOpen(true);

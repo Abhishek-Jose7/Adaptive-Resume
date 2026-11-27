@@ -24,6 +24,10 @@ const CompactEngineerTemplate = dynamic(
   () => import("./CompactEngineerTemplate").then((m) => m.CompactEngineerTemplate),
   { ssr: true }
 );
+const DenseSinglePageTemplate = dynamic(
+  () => import("./DenseSinglePageTemplate").then((m) => m.DenseSinglePageTemplate),
+  { ssr: true }
+);
 
 export interface TemplateRendererProps extends TemplateProps {
   templateId?: string;
@@ -34,6 +38,8 @@ export function TemplateRenderer({
   ...props
 }: TemplateRendererProps) {
   switch (templateId) {
+    case "dense-single-page":
+      return <DenseSinglePageTemplate {...props} />;
     case "modern-ats":
       return <ModernAtsTemplate {...props} />;
     case "minimal-executive":

@@ -14,8 +14,10 @@ import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import { JDAnalysisService } from "@/lib/services/jdAnalysisService";
 import { budgetResumeForOnePageA4, estimateA4DensityUnits } from "@/lib/editor/onePageA4Budgeter";
 import {
+  adaptSummaryForRole,
   extractProfileSummaryFromEntries,
   normalizeDistinctAwardIssuer,
+  orderSkillsForRole,
   selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
@@ -507,7 +509,8 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     expect(fitted.awards?.map((a) => a.name)).toContain("2x Hackathon Winner [PKP Hacks]");
     expect((fitted.projects || []).length).toBeLessThanOrEqual(3);
     expect(fitted.projects?.[0].name).toContain("Nyaaya AI");
-    expect(estimateA4DensityUnits(fitted)).toBeLessThanOrEqual(4050);
+    expect(estimateA4DensityUnits(fitted)).toBeLessThanOrEqual(3250);
+    expect(normalizeResumeForExport(fitted).orderedSectionTypes[0]).toBe("skills");
 
     const txt = PlainTextSerializer.serialize(fitted);
     expect(txt).toContain("ACHIEVEMENTS & AWARDS");
@@ -695,5 +698,73 @@ describe("Export Parity, Vault Sync, Interview Prep & Portfolio Analytics", () =
     const pdfBytes = new Uint8Array(await pdfBlob.arrayBuffer());
     const header = String.fromCharCode(...pdfBytes.slice(0, 5));
     expect(header).toBe("%PDF-");
+
+    const adaptedSummary = adaptSummaryForRole({
+      rawSummary: "Student who likes building web apps.",
+      headline: "Computer Engineering Student",
+      entries: [
+        {
+          entryType: "project",
+          title: "Legal RAG Engine — Compliance QA",
+          descriptionContext: "Next.js | RAG | Embeddings | Python",
+          bullets: [{ text: "Built LLM retrieval workflows and vector embeddings." }],
+        },
+        {
+          entryType: "project",
+          title: "Event Marketplace",
+          descriptionContext: "Flask | HTML | CSS",
+          bullets: [{ text: "Built sponsorship forms." }],
+        },
+      ],
+      jdKeywords: ["LLMs", "RAG", "Embeddings", "Python", "Rust"],
+      jdTitle: "AI Engineer",
+    });
+    expect(adaptedSummary).toContain("AI Engineer");
+    expect(adaptedSummary).toContain("RAG");
+    expect(adaptedSummary).not.toContain("Rust");
+
+    const reorderedSkills = orderSkillsForRole(
+      [
+        { name: "Git", category: "Tools" },
+        { name: "Docker", category: "Cloud" },
+        { name: "Python", category: "AI & Languages" },
+        { name: "RAG", category: "AI & Languages" },
+      ],
+      ["RAG", "Python"]
+    );
+    expect(reorderedSkills[0].category).toBe("AI & Languages");
+
+    const roleOverZeroPref = sortProjectsByConfidenceAndRelevance(
+      [
+        {
+          id: "zero_match_pref1",
+          title: "Campus Club Portal",
+          sortOrder: 0,
+          descriptionContext: "HTML | CSS",
+          bullets: [{ id: "z1", text: "Built event RSVP calendar." }],
+        },
+        {
+          id: "strong_match_pref2",
+          title: "Agent Retrieval Platform",
+          sortOrder: 1,
+          descriptionContext: "Python | RAG | Embeddings | LLMs",
+          bullets: [{ id: "s1", text: "Implemented RAG retrieval pipeline with Python and Embeddings." }],
+        },
+      ],
+      ["Python", "RAG", "Embeddings", "LLMs"],
+      "AI Engineer"
+    );
+    expect(roleOverZeroPref[0].id).toBe("strong_match_pref2");
+
+    const denseDoc: ResumeDoc = {
+      ...reordered,
+      template: { id: "dense-single-page", version: "1.0", theme: {} },
+    };
+    const denseStep = AutoFitLadder.recommendedStepForOnePage(denseDoc);
+    expect(denseStep).toBe(8);
+    const denseFit = AutoFitLadder.evaluateFit(denseDoc, denseStep);
+    expect(denseFit.fontSizePt).toBe(8.5);
+    expect(denseFit.lineHeight).toBe(1.14);
+    expect(denseFit.marginInches).toBe(0.34);
   });
 });

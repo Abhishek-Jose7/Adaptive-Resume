@@ -18,13 +18,16 @@ export interface AutoFitSettings {
 }
 
 export class AutoFitLadder {
-  private static readonly MAX_PAGE_ESTIMATED_CHARS = 3800; // ~1 page standard US Letter / A4
+  private static readonly MAX_PAGE_ESTIMATED_CHARS = 4400; // ~1 page dense A4 / US Letter
 
   /**
-   * Recommends the minimum AutoFit ladder step (1..7) needed to fit the document cleanly
+   * Recommends the minimum AutoFit ladder step (1..8) needed to fit the document cleanly
    * onto a single A4/LETTER resume page without hiding content.
    */
   static recommendedStepForOnePage(doc: ResumeDoc): number {
+    if (doc.template?.id === "dense-single-page") {
+      return 8;
+    }
     const totalChars = this.calculateTotalChars(doc);
     if (totalChars <= 2000) return 1;
     if (totalChars <= 2400) return 2;
@@ -32,7 +35,8 @@ export class AutoFitLadder {
     if (totalChars <= 3200) return 4;
     if (totalChars <= 3600) return 5;
     if (totalChars <= 3900) return 6;
-    return 7;
+    if (totalChars <= 4200) return 7;
+    return 8;
   }
 
   /**
@@ -92,11 +96,17 @@ export class AutoFitLadder {
       sectionGapRem = 0.45;
       stepDescription = "Step 7: High-density 1-page A4 preset enabled";
     }
-    if (currentStep >= 8 || totalChars > this.MAX_PAGE_ESTIMATED_CHARS) {
-      if (totalChars > this.MAX_PAGE_ESTIMATED_CHARS) {
-        overflowWarning =
-          "One-page fit cannot be achieved without content removal. Review and accept removing non-critical bullets.";
-      }
+    if (currentStep >= 8) {
+      isCompactVariant = true;
+      fontSizePt = 8.5;
+      lineHeight = 1.14;
+      marginInches = 0.34;
+      sectionGapRem = 0.38;
+      stepDescription = "Step 8: Dense single-page ATS layout (zero wasted space)";
+    }
+    if (totalChars > this.MAX_PAGE_ESTIMATED_CHARS) {
+      overflowWarning =
+        "One-page fit cannot be achieved without content removal. Review and accept removing non-critical bullets.";
     }
 
     return {

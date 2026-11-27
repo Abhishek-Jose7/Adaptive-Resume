@@ -9,8 +9,10 @@ import { compareReverseChronological } from "@/lib/utils/resumeOrderUtils";
 import { invalidateVaultCache } from "@/lib/cache/vaultClientCache";
 import { analyzeRoleFitAgainstVault } from "@/lib/scoring/roleFitInsight";
 import {
+  adaptSummaryForRole,
   extractProfileSummaryFromEntries,
   normalizeDistinctAwardIssuer,
+  orderSkillsForRole,
   selectExperienceBulletsForRole,
   selectProjectAnglePoints,
   sortProjectsByConfidenceAndRelevance,
@@ -268,7 +270,7 @@ export function AdaptiveResumeWorkspace() {
     const certEntries = bankEntries.filter((e) => e.entryType === "certification");
     const awardEntries = bankEntries.filter((e) => e.entryType === "award");
 
-    const topExperience = expGroups.map(({ entry, bullets }, idx) => ({
+    const topExperience = expGroups.slice(0, 3).map(({ entry, bullets }, idx) => ({
       id: entry.id,
       company: entry.organization || "",
       position: entry.title,
@@ -280,7 +282,7 @@ export function AdaptiveResumeWorkspace() {
         bullets: getOrderedGroupBullets(bullets),
         jdKeywords: workspaceJdKeywords,
         jdTitle: workspaceRoleTitle,
-        maxBullets: idx <= 1 ? 4 : 3,
+        maxBullets: idx <= 1 ? 3 : 2,
       }),
     }));
 
@@ -328,7 +330,15 @@ export function AdaptiveResumeWorkspace() {
       issueDate: a.startDate || a.endDate || undefined,
     }));
 
-    const narrativeSummary = extractProfileSummaryFromEntries(bankEntries, profile.headline || "");
+    const rawNarrativeSummary = extractProfileSummaryFromEntries(bankEntries, profile.headline || "");
+    const narrativeSummary = adaptSummaryForRole({
+      rawSummary: rawNarrativeSummary,
+      headline: profile.headline || "",
+      entries: bankEntries,
+      jdKeywords: workspaceJdKeywords,
+      jdTitle: workspaceRoleTitle,
+    });
+    const orderedTopSkills = orderSkillsForRole(topSkills, workspaceJdKeywords);
 
     const sectionGroups = {
       experience: expGroups.map(({ entry, bullets }): ResumeItemDoc => {
@@ -408,12 +418,18 @@ export function AdaptiveResumeWorkspace() {
         ].filter(([, url]) => Boolean(url)).map(([label, url]) => ({ label: label!, url: url! })),
       },
       sections,
-      template: { id: "classic-ats", version: "1.0", theme: {} },
+      template: {
+        id: "dense-single-page",
+        version: "1.0",
+        theme: {
+          sectionOrder: ["profile", "skills", "experience", "projects", "education", "certifications"],
+        },
+      },
       page: { size: "A4", targetPages: 1 },
       metadata: { createdAt: new Date().toISOString() },
       experience: topExperience,
       education: topEducation,
-      skills: topSkills,
+      skills: orderedTopSkills,
       projects: topProjects,
       certifications: topCertifications,
       awards: topAwards,
@@ -439,6 +455,22 @@ export function AdaptiveResumeWorkspace() {
       await readJson(await fetch(`/api/v1/jobs/${savedJob.id}/analyze`, { method: "POST" }));
 
       if (directToDraft) {
+        setStep("Adapting bullets & summary to role…");
+        const tailorController = new AbortController();
+        const timeoutId = setTimeout(() => tailorController.abort(), 20000);
+        try {
+          await fetch(`/api/v1/jobs/${savedJob.id}/tailor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "full_resume" }),
+            signal: tailorController.signal,
+          });
+        } catch {
+          // Proceed with Vault deterministic tailoring if LLM call exceeds 20s
+        } finally {
+          clearTimeout(timeoutId);
+        }
+
         setStep("Building your tailored draft…");
         const created = await readJson<{ id: string }>(await fetch("/api/v1/resumes", {
           method: "POST",

@@ -86,13 +86,18 @@ export function EditorPreviewPanel({
   const [renderedHeightPx, setRenderedHeightPx] = useState<number>(pageHeightPx);
 
   useEffect(() => {
+    const recommended = AutoFitLadder.recommendedStepForOnePage(doc);
+    setAutoFitStep((prev) => (recommended > prev ? recommended : prev));
+  }, [doc]);
+
+  useEffect(() => {
     const el = paperRef.current;
     if (!el || previewMode !== "visual") return;
     const measure = () => {
       const h = el.scrollHeight;
       setRenderedHeightPx(h);
-      if (h > pageHeightPx + 6 && autoFitStep < 7) {
-        setAutoFitStep((prev) => (prev < 7 ? prev + 1 : prev));
+      if (h > pageHeightPx + 6 && autoFitStep < 8) {
+        setAutoFitStep((prev) => (prev < 8 ? prev + 1 : prev));
       }
     };
     measure();
@@ -113,6 +118,12 @@ export function EditorPreviewPanel({
   const handleTemplateChange = (newTemplate: string) => {
     setTemplateId(newTemplate);
     store.setTemplateId(newTemplate);
+    setAutoFitStep(
+      AutoFitLadder.recommendedStepForOnePage({
+        ...doc,
+        template: { ...doc.template, id: newTemplate },
+      })
+    );
   };
 
   const handleExportTxt = async () => {
@@ -188,6 +199,7 @@ export function EditorPreviewPanel({
               onChange={(e) => handleTemplateChange(e.target.value)}
               className="border border-rule bg-sheet px-1.5 py-1 text-[11.5px] font-medium text-ink"
             >
+              <option value="dense-single-page">Dense 1-Page ATS</option>
               <option value="classic-ats">Classic ATS</option>
               <option value="modern-ats">Modern ATS</option>
               <option value="minimal-executive">Minimal Executive</option>

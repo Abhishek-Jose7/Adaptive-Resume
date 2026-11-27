@@ -195,6 +195,12 @@ export class TailoringService {
         }
       } else if (options?.mode === "single_section" && options?.targetSectionType) {
         candidates = candidates.filter((c) => c.parentEntry.entryType === options.targetSectionType);
+      } else {
+        // In full_resume mode, skip non-narrative entries (skills/education/profile/awards)
+        // and limit to the top 10 highest-relevance bullets so rewriting stays fast.
+        candidates = candidates
+          .filter((c) => c.parentEntry.entryType === "experience" || c.parentEntry.entryType === "project")
+          .slice(0, 10);
       }
 
       const provider = ProviderFactory.getProvider(providerName, apiKey, "reasoning", userEmail);
@@ -235,16 +241,16 @@ CRITICAL INTEGRITY AND WRITING RULES:
       const allCandidateBullets = candidates.map((c) => c.bullet);
       const allCandidateFacts = userFacts as unknown as StructuredFact[];
 
-    // 4. Tailor candidate bullets in bounded concurrent chunks for maximum speed
-    const tailorCandidate = async (item: typeof candidates[0]): Promise<TailoredBulletResult> => {
-      const sourceBullet = item.bullet;
-      const entryContextLower = `${item.parentEntry.title || ""} ${item.parentEntry.descriptionContext || ""}`.toLowerCase();
-      const contextMatchedKeywords = allJdKeywords.filter(
-        (kw) => kw && entryContextLower.includes(kw.toLowerCase())
-      );
-      const relevantKeywords = Array.from(
-        new Set([...item.scoreBreakdown.matchedKeywords, ...contextMatchedKeywords])
-      );
+      // 4. Tailor candidate bullets in bounded concurrent chunks for maximum speed
+      const tailorCandidate = async (item: typeof candidates[0]): Promise<TailoredBulletResult> => {
+        const sourceBullet = item.bullet;
+        const entryContextLower = `${item.parentEntry.title || ""} ${item.parentEntry.descriptionContext || ""}`.toLowerCase();
+        const contextMatchedKeywords = allJdKeywords.filter(
+          (kw) => kw && entryContextLower.includes(kw.toLowerCase())
+        );
+        const relevantKeywords = Array.from(
+          new Set([...item.scoreBreakdown.matchedKeywords, ...contextMatchedKeywords])
+        );
 
         // Check if bullet is pinned (PRD Section 10.4 & T9)
         const isPinned = options?.pinnedBulletIds?.includes(sourceBullet.id);
@@ -264,36 +270,36 @@ CRITICAL INTEGRITY AND WRITING RULES:
           };
         }
 
-      const userPayload = {
-        sourceBullet,
-        parentEntry: {
-          title: item.parentEntry.title,
-          organization: item.parentEntry.organization,
-          descriptionContext: item.parentEntry.descriptionContext,
-        },
-        facts: item.facts,
-        jdTarget: {
-          title: jdAnalysis.role.title,
-          roleDomain: jdAnalysis.role.domain,
-          targetKeywords: relevantKeywords,
-        },
-      };
-
-      let attempt = 0;
-      let promptFeedback = "";
-
-      while (attempt <= 1) {
-        attempt++;
-        const llmInput = {
-          task: "rewrite" as const,
-          systemPrompt: promptFeedback
-            ? `${systemPrompt}\n\nPREVIOUS ATTEMPT FAILED TRUTH VALIDATION: ${promptFeedback}\nFix the violation immediately or keep the original phrasing.`
-            : systemPrompt,
-          userPayload,
-          schema: {},
-          maxOutputTokens: 256,
-          temperature: 0.1,
+        const userPayload = {
+          sourceBullet,
+          parentEntry: {
+            title: item.parentEntry.title,
+            organization: item.parentEntry.organization,
+            descriptionContext: item.parentEntry.descriptionContext,
+          },
+          facts: item.facts,
+          jdTarget: {
+            title: jdAnalysis.role.title,
+            roleDomain: jdAnalysis.role.domain,
+            targetKeywords: relevantKeywords,
+          },
         };
+
+        let attempt = 0;
+        let promptFeedback = "";
+
+        while (attempt <= 1) {
+          attempt++;
+          const llmInput = {
+            task: "rewrite" as const,
+            systemPrompt: promptFeedback
+              ? `${systemPrompt}\n\nPREVIOUS ATTEMPT FAILED TRUTH VALIDATION: ${promptFeedback}\nFix the violation immediately or keep the original phrasing.`
+              : systemPrompt,
+            userPayload,
+            schema: {},
+            maxOutputTokens: 256,
+            temperature: 0.1,
+          };
 
           const res = await provider.generateStructured<RewrittenBullet>(llmInput);
           if (res.model) modelsUsed.add(res.model);
@@ -461,8 +467,8 @@ CRITICAL INTEGRITY AND WRITING RULES:
         };
       };
 
-      // Run candidate rewrites in bounded concurrent chunks (3 at a time) for speed and rate-limit safety
-      const chunkSize = 3;
+      // Run candidate rewrites in bounded concurrent chunks (5 at a time) so tailoring completes quickly
+      const chunkSize = 5;
       for (let i = 0; i < candidates.length; i += chunkSize) {
         const chunk = candidates.slice(i, i + chunkSize);
         const results = await Promise.all(chunk.map((item) => tailorCandidate(item)));

@@ -35,7 +35,7 @@ export interface NormalizedExportResume {
   extraSections: NormalizedCustomSection[];
 }
 
-const DEFAULT_ORDER = ["experience", "education", "skills", "projects", "awards", "certifications"];
+const DEFAULT_ORDER = ["skills", "experience", "projects", "education", "awards", "certifications"];
 
 function toBulletDocs(rawBullets: unknown): ResumeBulletDoc[] {
   if (!Array.isArray(rawBullets)) return [];

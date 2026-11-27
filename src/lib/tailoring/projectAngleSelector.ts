@@ -309,13 +309,14 @@ function getActiveDomainBuckets(
 
 /**
  * Converts a user-assigned project confidence rank (0 = #1 highest confidence)
- * into a meaningful scoring bonus so user preference guides selection cleanly.
+ * into a tie-breaking / prioritization bonus so user preference guides selection
+ * without overriding strong role-relevance mismatches.
  */
 export function confidenceRankToBonus(confidenceRank?: number | null): number {
   if (typeof confidenceRank !== "number" || !Number.isFinite(confidenceRank) || confidenceRank < 0) {
     return 0;
   }
-  return Math.max(0, 30 - Math.min(Math.floor(confidenceRank), 5) * 6);
+  return Math.max(0, 12 - Math.min(Math.floor(confidenceRank), 4) * 3);
 }
 
 const TECHNICAL_SIGNAL_TERMS = [
@@ -478,6 +479,128 @@ export function normalizeDistinctAwardIssuer(
 }
 
 /**
+ * Generates a concise, role-adapted professional summary strictly grounded in
+ * the candidate's verified Career Vault entries (never adding unrecorded skills).
+ */
+export function adaptSummaryForRole(params: {
+  rawSummary?: string | null;
+  headline?: string | null;
+  entries: Array<{
+    entryType?: string;
+    title?: string | null;
+    organization?: string | null;
+    descriptionContext?: string | null;
+    bullets?: Array<{ text: string }> | null;
+  }>;
+  jdKeywords?: string[];
+  jdTitle?: string | null;
+}): string {
+  const rawSummary = (params.rawSummary || "").trim();
+  const headline = (params.headline || "").trim();
+  const jdKeywords = (params.jdKeywords || []).map((k) => k.trim()).filter((k) => k.length >= 2);
+  const jdTitle = (params.jdTitle || "").trim();
+
+  if (jdKeywords.length === 0 && !jdTitle) {
+    return rawSummary;
+  }
+
+  // Collect all evidenced terms across experience, projects, and skills
+  const workEntries = params.entries.filter(
+    (e) => e.entryType === "experience" || e.entryType === "project"
+  );
+  const skillEntries = params.entries.filter(
+    (e) => e.entryType === "skill_group" || e.entryType === "skill"
+  );
+  const vaultText = normalizeLower(
+    [
+      rawSummary,
+      ...workEntries.map(
+        (e) => `${e.title || ""} ${e.organization || ""} ${e.descriptionContext || ""} ${(e.bullets || []).map((b) => b.text).join(" ")}`
+      ),
+      ...skillEntries.map((e) => `${e.title || ""} ${(e.bullets || []).map((b) => b.text).join(" ")}`),
+    ].join(" ")
+  );
+
+  const evidencedKeywords: string[] = [];
+  const seenLower = new Set<string>();
+  for (const kw of jdKeywords) {
+    const lower = kw.toLowerCase();
+    if (seenLower.has(lower)) continue;
+    if (vaultText.includes(lower)) {
+      seenLower.add(lower);
+      evidencedKeywords.push(kw);
+    }
+    if (evidencedKeywords.length >= 5) break;
+  }
+
+  if (evidencedKeywords.length === 0) {
+    return rawSummary;
+  }
+
+  // Pick top 2 matching projects/experiences to anchor the summary in concrete work
+  const topWorkNames = workEntries
+    .map((e) => {
+      const blob = normalizeLower(
+        `${e.title || ""} ${e.descriptionContext || ""} ${(e.bullets || []).map((b) => b.text).join(" ")}`
+      );
+      const hits = evidencedKeywords.filter((k) => blob.includes(k.toLowerCase())).length;
+      const shortTitle = (e.title || "").split(/\s+[—–-]\s+/)[0].trim();
+      return { name: shortTitle, hits, isProj: e.entryType === "project" };
+    })
+    .filter((w) => w.hits > 0 && w.name)
+    .sort((a, b) => b.hits - a.hits || (a.isProj ? -1 : 1))
+    .slice(0, 2)
+    .map((w) => w.name);
+
+  const roleFocus = jdTitle && !/^target role$/i.test(jdTitle) ? jdTitle : "software and AI systems";
+  const lead = headline || "Engineering candidate";
+  const skillPhrase = evidencedKeywords.join(", ");
+  const anchorPhrase = topWorkNames.length > 0 ? ` across ${topWorkNames.join(" and ")}` : "";
+
+  return `${lead} targeting ${roleFocus} roles, with hands-on experience in ${skillPhrase}${anchorPhrase} alongside production full-stack and backend systems.`;
+}
+
+/**
+ * Reorders skills so the categories and individual tokens most relevant to the target JD
+ * appear first in the Technical Skills section.
+ */
+export function orderSkillsForRole(
+  skills: Array<{ name: string; category?: string }>,
+  jdKeywords?: string[]
+): Array<{ name: string; category?: string }> {
+  const keywords = (jdKeywords || []).map((k) => k.trim().toLowerCase()).filter((k) => k.length >= 2);
+  if (keywords.length === 0 || skills.length === 0) return skills;
+
+  const scoreSkill = (skillName: string) => {
+    const lower = skillName.toLowerCase();
+    return keywords.some((kw) => lower === kw || lower.includes(kw) || kw.includes(lower)) ? 1 : 0;
+  };
+
+  // Group preserving original category order as tie-breaker
+  const catOrder: string[] = [];
+  const byCat = new Map<string, Array<{ name: string; category?: string }>>();
+  for (const s of skills) {
+    const cat = s.category || "General";
+    if (!byCat.has(cat)) {
+      catOrder.push(cat);
+      byCat.set(cat, []);
+    }
+    byCat.get(cat)!.push(s);
+  }
+
+  const rankedCats = catOrder
+    .map((cat, idx) => {
+      const items = byCat.get(cat) || [];
+      const hits = items.reduce((acc, item) => acc + scoreSkill(item.name), 0);
+      const sortedItems = [...items].sort((a, b) => scoreSkill(b.name) - scoreSkill(a.name));
+      return { cat, idx, hits, items: sortedItems };
+    })
+    .sort((a, b) => b.hits - a.hits || a.idx - b.idx);
+
+  return rankedCats.flatMap((c) => c.items);
+}
+
+/**
  * Selects the strongest role-tailored bullets for a project from both its existing bullets
  * and its multi-angle `descriptionContext` summary notes, without inventing any facts.
  */
@@ -593,9 +716,13 @@ export function selectProjectAnglePoints(input: ProjectAngleInput): ProjectAngle
   }
 
   const relevanceScore =
-    matchedKeywordSet.size * 10 +
-    picked.reduce((sum, item) => sum + item.jdMatches * 3 + item.domainMatches * 2, 0);
-  const confidenceBonus = confidenceRankToBonus(input.confidenceRank);
+    matchedKeywordSet.size * 14 +
+    picked.reduce((sum, item) => sum + item.jdMatches * 4 + item.domainMatches * 3, 0);
+  // Only grant full confidence bonus when the project has at least some target-role match;
+  // zero-relevance projects should not ride default #1 order past genuine JD matches.
+  const rawConfidenceBonus = confidenceRankToBonus(input.confidenceRank);
+  const confidenceBonus =
+    !hasTargetRole || relevanceScore > 0 ? rawConfidenceBonus : Math.floor(rawConfidenceBonus * 0.2);
 
   return {
     bullets: finalBullets,
@@ -613,9 +740,11 @@ export function selectProjectAnglePoints(input: ProjectAngleInput): ProjectAngle
  */
 export function sortProjectsByConfidenceAndRelevance<
   T extends {
+    id?: string;
     title?: string | null;
     descriptionContext?: string | null;
     sortOrder?: number | null;
+    createdAt?: string | Date | null;
     bullets?: ProjectAngleCandidateBullet[] | null;
   },
 >(projects: T[], jdKeywords?: string[], jdTitle?: string | null): T[] {
@@ -641,6 +770,9 @@ export function sortProjectsByConfidenceAndRelevance<
       const rankA = a.project.sortOrder ?? Number.MAX_SAFE_INTEGER;
       const rankB = b.project.sortOrder ?? Number.MAX_SAFE_INTEGER;
       if (rankA !== rankB) return rankA - rankB;
+      const createdA = a.project.createdAt ? new Date(a.project.createdAt).getTime() : 0;
+      const createdB = b.project.createdAt ? new Date(b.project.createdAt).getTime() : 0;
+      if (createdA !== createdB) return createdA - createdB;
       return a.idx - b.idx;
     })
     .map((item) => item.project);

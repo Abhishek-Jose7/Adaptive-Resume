@@ -58,12 +58,19 @@ export function generateResumePdfBlob(
   const summary = (normalized.summary || "").trim();
   const showSummary = Boolean(summary) && summary.toLowerCase() !== headline.toLowerCase();
 
+  const isDense = doc.template?.id === "dense-single-page";
+
   // Attempt progressively tighter scale steps if content exceeds 1 page
-  const presets = [
-    { margin: 32, basePt: 9.6, lineGap: 1.24, secGap: 8, itemGap: 5 },
-    { margin: 28, basePt: 9.0, lineGap: 1.2, secGap: 6.5, itemGap: 4 },
-    { margin: 24, basePt: 8.5, lineGap: 1.15, secGap: 5.5, itemGap: 3.5 },
-  ];
+  const presets = isDense
+    ? [
+        { margin: 24, basePt: 8.6, lineGap: 1.15, secGap: 5.5, itemGap: 3.5 },
+        { margin: 22, basePt: 8.2, lineGap: 1.12, secGap: 4.5, itemGap: 3 },
+      ]
+    : [
+        { margin: 32, basePt: 9.4, lineGap: 1.22, secGap: 7.5, itemGap: 4.5 },
+        { margin: 27, basePt: 8.8, lineGap: 1.18, secGap: 6, itemGap: 3.5 },
+        { margin: 23, basePt: 8.4, lineGap: 1.14, secGap: 5, itemGap: 3 },
+      ];
 
   let finalBlob: Blob | null = null;
 
@@ -164,160 +171,170 @@ export function generateResumePdfBlob(
       });
     }
 
-    // Experience
-    if (normalized.experiences.length > 0) {
-      drawSectionHeading("Experience");
-      for (let eIdx = 0; eIdx < normalized.experiences.length; eIdx++) {
-        const exp = normalized.experiences[eIdx];
-        if (!ensureSpace(26)) break;
-        const start = formatResumeDate(exp.startDate);
-        const end = exp.isCurrent ? "Present" : formatResumeDate(exp.endDate) || "Present";
-        const dateStr = start ? `${start} – ${end}` : end;
-
-        pdf.setFont("times", "bold");
-        pdf.setFontSize(preset.basePt - 0.1);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text(exp.position || "", preset.margin, y);
-
-        pdf.setFont("times", "normal");
-        pdf.setFontSize(preset.basePt - 0.6);
-        pdf.text(dateStr, pageWidthPt - preset.margin, y, { align: "right" });
-        y += preset.basePt * preset.lineGap;
-
-        if (exp.company || exp.location) {
-          pdf.setFont("times", "italic");
-          pdf.setFontSize(preset.basePt - 0.6);
-          pdf.setTextColor(55, 65, 81);
-          pdf.text(exp.company || "", preset.margin, y);
-          if (exp.location) {
-            pdf.text(exp.location, pageWidthPt - preset.margin, y, { align: "right" });
+    // Render sections dynamically honoring normalized.orderedSectionTypes (e.g., Skills topmost)
+    const renderedSections = new Set<string>();
+    const sectionRenderers: Record<string, () => void> = {
+      skills: () => {
+        if (normalized.skills.length === 0) return;
+        drawSectionHeading("Technical Skills");
+        const grouped = getGroupedSkills(normalized.skills);
+        const hasCategories =
+          grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
+        if (hasCategories) {
+          for (const g of grouped) {
+            const line = g.category ? `${g.category}: ${g.items.join(", ")}` : g.items.join(", ");
+            drawWrappedLines(line, {
+              x: preset.margin,
+              maxWidth: contentWidth,
+              fontSize: preset.basePt - 0.6,
+            });
           }
-          y += (preset.basePt - 0.4) * preset.lineGap;
-        }
-
-        pdf.setTextColor(31, 41, 55);
-        for (const b of exp.bullets || []) {
-          drawWrappedLines(b.text, {
-            x: preset.margin + 12,
-            maxWidth: contentWidth - 12,
-            fontSize: preset.basePt - 0.6,
-            bullet: true,
-          });
-        }
-        if (eIdx < normalized.experiences.length - 1) y += preset.itemGap;
-      }
-    }
-
-    // Projects
-    if (normalized.projects.length > 0) {
-      drawSectionHeading("Projects");
-      for (let pI = 0; pI < normalized.projects.length; pI++) {
-        const proj = normalized.projects[pI];
-        if (!ensureSpace(24)) break;
-        const firstBullet = proj.bullets?.[0]?.text || "";
-        const hasStackBullet = isPipeTechLine(firstBullet);
-        const stackLine = hasStackBullet
-          ? firstBullet.replace(/\.$/, "")
-          : shortenProjectDescription(proj.description) || proj.role || "";
-        const displayBullets = hasStackBullet ? proj.bullets.slice(1) : proj.bullets || [];
-
-        const titleText = stackLine ? `${proj.name} | ${stackLine}` : proj.name;
-        drawWrappedLines(titleText, {
-          x: preset.margin,
-          maxWidth: contentWidth,
-          fontSize: preset.basePt - 0.2,
-          bold: true,
-        });
-
-        pdf.setTextColor(31, 41, 55);
-        for (const b of displayBullets) {
-          drawWrappedLines(b.text, {
-            x: preset.margin + 12,
-            maxWidth: contentWidth - 12,
-            fontSize: preset.basePt - 0.6,
-            bullet: true,
-          });
-        }
-        if (pI < normalized.projects.length - 1) y += preset.itemGap;
-      }
-    }
-
-    // Education
-    if (normalized.educations.length > 0) {
-      drawSectionHeading("Education");
-      for (const edu of normalized.educations) {
-        if (!ensureSpace(22)) break;
-        const start = formatResumeDate(edu.startDate);
-        const end = formatResumeDate(edu.endDate) || "Present";
-        const dateRange = start ? `${start} – ${end}` : end;
-
-        pdf.setFont("times", "bold");
-        pdf.setFontSize(preset.basePt - 0.2);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text(edu.institution || "", preset.margin, y);
-
-        pdf.setFont("times", "normal");
-        pdf.setFontSize(preset.basePt - 0.6);
-        pdf.text(dateRange, pageWidthPt - preset.margin, y, { align: "right" });
-        y += preset.basePt * preset.lineGap;
-
-        const deg = `${edu.degree || "Degree"}${edu.field ? ` — ${edu.field}` : ""}`;
-        pdf.setFont("times", "italic");
-        pdf.setFontSize(preset.basePt - 0.6);
-        pdf.setTextColor(31, 41, 55);
-        pdf.text(deg, preset.margin, y);
-        y += (preset.basePt - 0.2) * preset.lineGap;
-      }
-    }
-
-    // Achievements & Certifications
-    const awards = normalized.awards || [];
-    const certs = normalized.certifications || [];
-    if (awards.length > 0 || certs.length > 0) {
-      drawSectionHeading("Achievements & Certifications");
-      pdf.setTextColor(31, 41, 55);
-      for (const a of awards) {
-        const distinctIssuer = normalizeDistinctAwardIssuer(a.name, a.issuer);
-        const label = `${a.name}${distinctIssuer ? `: ${distinctIssuer}` : ""}${a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}`;
-        drawWrappedLines(label, {
-          x: preset.margin + 12,
-          maxWidth: contentWidth - 12,
-          fontSize: preset.basePt - 0.6,
-          bullet: true,
-        });
-      }
-      for (const c of certs) {
-        const label = `${c.name}${c.issuer ? ` — ${c.issuer}` : ""}${c.issueDate ? ` (${formatResumeDate(c.issueDate)})` : ""}`;
-        drawWrappedLines(label, {
-          x: preset.margin + 12,
-          maxWidth: contentWidth - 12,
-          fontSize: preset.basePt - 0.6,
-          bullet: true,
-        });
-      }
-    }
-
-    // Technical Skills
-    if (normalized.skills.length > 0) {
-      drawSectionHeading("Technical Skills");
-      const grouped = getGroupedSkills(normalized.skills);
-      const hasCategories =
-        grouped.length > 1 || (grouped.length === 1 && Boolean(grouped[0].category));
-      if (hasCategories) {
-        for (const g of grouped) {
-          const line = g.category ? `${g.category}: ${g.items.join(", ")}` : g.items.join(", ");
-          drawWrappedLines(line, {
+        } else {
+          drawWrappedLines(normalized.skills.map((s) => s.name).join(", "), {
             x: preset.margin,
             maxWidth: contentWidth,
             fontSize: preset.basePt - 0.6,
           });
         }
-      } else {
-        drawWrappedLines(normalized.skills.map((s) => s.name).join(", "), {
-          x: preset.margin,
-          maxWidth: contentWidth,
-          fontSize: preset.basePt - 0.6,
-        });
+      },
+      experience: () => {
+        if (normalized.experiences.length === 0) return;
+        drawSectionHeading("Experience");
+        for (let eIdx = 0; eIdx < normalized.experiences.length; eIdx++) {
+          const exp = normalized.experiences[eIdx];
+          if (!ensureSpace(26)) break;
+          const start = formatResumeDate(exp.startDate);
+          const end = exp.isCurrent ? "Present" : formatResumeDate(exp.endDate) || "Present";
+          const dateStr = start ? `${start} – ${end}` : end;
+
+          pdf.setFont("times", "bold");
+          pdf.setFontSize(preset.basePt - 0.1);
+          pdf.setTextColor(17, 24, 39);
+          pdf.text(exp.position || "", preset.margin, y);
+
+          pdf.setFont("times", "normal");
+          pdf.setFontSize(preset.basePt - 0.6);
+          pdf.text(dateStr, pageWidthPt - preset.margin, y, { align: "right" });
+          y += preset.basePt * preset.lineGap;
+
+          if (exp.company || exp.location) {
+            pdf.setFont("times", "italic");
+            pdf.setFontSize(preset.basePt - 0.6);
+            pdf.setTextColor(55, 65, 81);
+            pdf.text(exp.company || "", preset.margin, y);
+            if (exp.location) {
+              pdf.text(exp.location, pageWidthPt - preset.margin, y, { align: "right" });
+            }
+            y += (preset.basePt - 0.4) * preset.lineGap;
+          }
+
+          pdf.setTextColor(31, 41, 55);
+          for (const b of exp.bullets || []) {
+            drawWrappedLines(b.text, {
+              x: preset.margin + 12,
+              maxWidth: contentWidth - 12,
+              fontSize: preset.basePt - 0.6,
+              bullet: true,
+            });
+          }
+          if (eIdx < normalized.experiences.length - 1) y += preset.itemGap;
+        }
+      },
+      projects: () => {
+        if (normalized.projects.length === 0) return;
+        drawSectionHeading("Projects");
+        for (let pI = 0; pI < normalized.projects.length; pI++) {
+          const proj = normalized.projects[pI];
+          if (!ensureSpace(24)) break;
+          const firstBullet = proj.bullets?.[0]?.text || "";
+          const hasStackBullet = isPipeTechLine(firstBullet);
+          const stackLine = hasStackBullet
+            ? firstBullet.replace(/\.$/, "")
+            : shortenProjectDescription(proj.description) || proj.role || "";
+          const displayBullets = hasStackBullet ? proj.bullets.slice(1) : proj.bullets || [];
+
+          const titleText = stackLine ? `${proj.name} | ${stackLine}` : proj.name;
+          drawWrappedLines(titleText, {
+            x: preset.margin,
+            maxWidth: contentWidth,
+            fontSize: preset.basePt - 0.2,
+            bold: true,
+          });
+
+          pdf.setTextColor(31, 41, 55);
+          for (const b of displayBullets) {
+            drawWrappedLines(b.text, {
+              x: preset.margin + 12,
+              maxWidth: contentWidth - 12,
+              fontSize: preset.basePt - 0.6,
+              bullet: true,
+            });
+          }
+          if (pI < normalized.projects.length - 1) y += preset.itemGap;
+        }
+      },
+      education: () => {
+        if (normalized.educations.length === 0) return;
+        drawSectionHeading("Education");
+        for (const edu of normalized.educations) {
+          if (!ensureSpace(22)) break;
+          const start = formatResumeDate(edu.startDate);
+          const end = formatResumeDate(edu.endDate) || "Present";
+          const dateRange = start ? `${start} – ${end}` : end;
+
+          pdf.setFont("times", "bold");
+          pdf.setFontSize(preset.basePt - 0.2);
+          pdf.setTextColor(17, 24, 39);
+          pdf.text(edu.institution || "", preset.margin, y);
+
+          pdf.setFont("times", "normal");
+          pdf.setFontSize(preset.basePt - 0.6);
+          pdf.text(dateRange, pageWidthPt - preset.margin, y, { align: "right" });
+          y += preset.basePt * preset.lineGap;
+
+          const deg = `${edu.degree || "Degree"}${edu.field ? ` — ${edu.field}` : ""}`;
+          pdf.setFont("times", "italic");
+          pdf.setFontSize(preset.basePt - 0.6);
+          pdf.setTextColor(31, 41, 55);
+          pdf.text(deg, preset.margin, y);
+          y += (preset.basePt - 0.2) * preset.lineGap;
+        }
+      },
+      certifications: () => {
+        const awards = normalized.awards || [];
+        const certs = normalized.certifications || [];
+        if (awards.length === 0 && certs.length === 0) return;
+        drawSectionHeading("Achievements & Certifications");
+        pdf.setTextColor(31, 41, 55);
+        for (const a of awards) {
+          const distinctIssuer = normalizeDistinctAwardIssuer(a.name, a.issuer);
+          const label = `${a.name}${distinctIssuer ? `: ${distinctIssuer}` : ""}${a.issueDate ? ` (${formatResumeDate(a.issueDate)})` : ""}`;
+          drawWrappedLines(label, {
+            x: preset.margin + 12,
+            maxWidth: contentWidth - 12,
+            fontSize: preset.basePt - 0.6,
+            bullet: true,
+          });
+        }
+        for (const c of certs) {
+          const label = `${c.name}${c.issuer ? ` — ${c.issuer}` : ""}${c.issueDate ? ` (${formatResumeDate(c.issueDate)})` : ""}`;
+          drawWrappedLines(label, {
+            x: preset.margin + 12,
+            maxWidth: contentWidth - 12,
+            fontSize: preset.basePt - 0.6,
+            bullet: true,
+          });
+        }
+      },
+    };
+
+    for (const rawType of normalized.orderedSectionTypes) {
+      const key = rawType === "awards" ? "certifications" : rawType;
+      if (renderedSections.has(key)) continue;
+      const fn = sectionRenderers[key];
+      if (fn) {
+        renderedSections.add(key);
+        fn();
       }
     }
 
